@@ -1,0 +1,21 @@
+Porygon Phase 4 static validation
+Date: 2026-07-21
+
+Completed successfully:
+- Python compileall: backend, collector, telemetry, CLI, and tests
+- Ruff: no findings
+- Backend unit tests: 9 passed
+- Docker collector unit tests: 5 passed
+- Telemetry adapter unit tests: 5 passed
+- Shell syntax: all scripts and backend entrypoint
+- TOML parsing: backend, collector, telemetry
+- YAML parsing: compose.yaml and Falco rules
+- FastAPI OpenAPI generation: all Phase 4 routes present
+- Alembic offline PostgreSQL migration chain: 0001 through 0004 rendered
+- Partial unique index present: one active profile per image digest
+- CLI help execution: passed
+
+Not executed in this environment:
+- Live Docker Compose / Falco modern-eBPF acceptance test
+Reason: Docker is not installed in the execution environment.
+Run ./scripts/verify_phase4.sh on the target Linux Docker host.

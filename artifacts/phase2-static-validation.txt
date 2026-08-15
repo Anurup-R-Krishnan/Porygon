@@ -1,0 +1,16 @@
+Porygon Phase 2 static validation
+Date: 2026-07-21
+
+PASS  Python compileall: backend/src, backend/tests, collector/src, collector/tests
+PASS  Shell syntax: scripts/verify_phase1.sh, scripts/verify_phase2.sh
+PASS  TOML parse: backend/pyproject.toml, collector/pyproject.toml
+PASS  YAML parse: compose.yaml
+PASS  Ruff: backend/src, backend/tests, collector/src, collector/tests
+PASS  Backend unit tests: 3 passed
+PASS  Collector unit tests: 5 passed
+PASS  Alembic offline PostgreSQL SQL generation through revision 0002_phase2
+PASS  PostgreSQL upsert statements compiled with the PostgreSQL SQLAlchemy dialect
+
+NOT RUN  Live Docker acceptance test
+Reason: the implementation environment does not expose a Docker daemon.
+Required host-side command: ./scripts/verify_phase2.sh

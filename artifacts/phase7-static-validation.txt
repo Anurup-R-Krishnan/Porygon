@@ -1,0 +1,35 @@
+# Porygon Phase 7 static validation
+validated_at_utc=2026-07-21T18:16:07Z
+
+## pytest: backend
+...........................................                              [100%]
+43 passed in 1.49s
+## pytest: collector
+.....                                                                    [100%]
+5 passed in 0.20s
+## pytest: telemetry
+.....                                                                    [100%]
+5 passed in 0.16s
+## pytest: responder
+.....                                                                    [100%]
+5 passed in 0.18s
+total_tests_passed=58
+
+## ruff: backend
+All checks passed!
+## ruff: collector
+All checks passed!
+## ruff: telemetry
+All checks passed!
+## ruff: responder
+All checks passed!
+
+python_compile=passed
+shell_syntax=passed
+yaml_toml_parse=passed
+openapi_paths=48
+openapi_phase7_routes=passed
+compose_credential_and_protection_boundaries=passed
+safe_default_configuration=passed
+migration_chain=0001..0007 rendered
+docker_live_acceptance=not_run_no_docker_daemon_in_packaging_environment

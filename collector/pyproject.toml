@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "porygon-collector"
+version = "0.3.0"
+description = "Porygon Docker event collector for the Phase 3 stack"
+requires-python = ">=3.13"
+dependencies = [
+  "docker==7.2.0",
+  "fastapi==0.139.2",
+  "httpx==0.28.1",
+  "pydantic-settings==2.14.2",
+  "uvicorn==0.51.0",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest==9.1.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-ra"

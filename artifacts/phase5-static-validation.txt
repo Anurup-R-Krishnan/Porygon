@@ -1,0 +1,18 @@
+$ cd backend && PYTHONPATH=src pytest -q
+......................                                                   [100%]
+22 passed in 2.01s
+$ cd collector && PYTHONPATH=src pytest -q
+.....                                                                    [100%]
+5 passed in 0.23s
+$ cd telemetry && PYTHONPATH=src pytest -q
+.....                                                                    [100%]
+5 passed in 0.16s
+$ ruff check ...
+All checks passed!
+$ python compileall
+$ bash -n scripts/*.sh
+$ parse TOML/YAML
+TOML/YAML parse passed
+$ FastAPI OpenAPI generation
+OpenAPI generation passed
+Migration rendering passed

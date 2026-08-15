@@ -1,0 +1,46 @@
+Porygon Phase 6 static validation
+UTC 2026-07-21T17:47:17Z
+
+== Backend tests ==
+.................................                                        [100%]
+33 passed in 2.00s
+
+== Collector tests ==
+.....                                                                    [100%]
+5 passed in 0.20s
+
+== Telemetry tests ==
+.....                                                                    [100%]
+5 passed in 0.15s
+
+== Ruff ==
+All checks passed!
+All checks passed!
+All checks passed!
+
+== Python compilation ==
+passed
+
+== Shell syntax ==
+passed
+
+== YAML and TOML parsing ==
+passed
+
+== OpenAPI ==
+passed: 35 paths
+
+== Alembic offline migration ==
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Generating static SQL
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001_phase1, Create service heartbeat registry.
+INFO  [alembic.runtime.migration] Running upgrade 0001_phase1 -> 0002_phase2, Add Docker runtime event and identity tables.
+INFO  [alembic.runtime.migration] Running upgrade 0002_phase2 -> 0003_phase3, Add Falco/eBPF process execution telemetry.
+INFO  [alembic.runtime.migration] Running upgrade 0003_phase3 -> 0004_phase4, Add immutable digest-bound behavioural profiles.
+INFO  [alembic.runtime.migration] Running upgrade 0004_phase4 -> 0005_phase5, Add explainable behavioural-distance scores.
+INFO  [alembic.runtime.migration] Running upgrade 0005_phase5 -> 0006_phase6, Add deterministic detection runs, incidents, and evidence timelines.
+passed
+
+== Docker availability ==
+not available; live integration verification not executed

@@ -1,0 +1,32 @@
+# Porygon Phase 8 static validation
+validated_at_utc=2026-07-21T18:49:09Z
+
+## pytest: backend
+...................................................                      [100%]
+51 passed in 2.32s
+## pytest: collector
+.....                                                                    [100%]
+5 passed in 0.20s
+## pytest: telemetry
+.....                                                                    [100%]
+5 passed in 0.18s
+## pytest: responder
+.....                                                                    [100%]
+5 passed in 0.20s
+## pytest: scanner
+...                                                                      [100%]
+3 passed in 0.27s
+total_tests_passed=69
+
+## ruff
+All checks passed!
+python_compile=passed
+cli_compile=passed
+shell_syntax=passed
+yaml_unique_keys_and_toml_parse=passed
+openapi_paths=60
+openapi_phase8_routes=passed
+official_trivy_checksum_manifest_validation=passed
+scanner_network_credential_and_socket_boundaries=passed
+docker_live_acceptance=not_run_no_docker_engine_in_packaging_environment
+migration_chain=0001..0008 rendered

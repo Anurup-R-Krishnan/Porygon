@@ -1,0 +1,15 @@
+- rule: Porygon Container Process Execution
+  desc: Record each process execution observed inside a Linux container for digest-bound behavioural profiling.
+  condition: evt.type in (execve, execveat) and container.id != host
+  output: >
+    Porygon container process execution
+    (evt_time=%evt.time.iso8601 evt_rawtime=%evt.rawtime evt_num=%evt.num evt_type=%evt.type
+    container_id=%container.id container_name=%container.name
+    image_repository=%container.image.repository image_tag=%container.image.tag
+    pid=%proc.pid ppid=%proc.ppid vpid=%thread.vpid process=%proc.name
+    executable=%proc.exepath command=%proc.cmdline cwd=%proc.cwd terminal=%proc.tty
+    parent=%proc.pname parent_executable=%proc.pexepath parent_command=%proc.pcmdline
+    user_uid=%user.uid user=%user.name group_gid=%group.gid group=%group.name)
+  priority: NOTICE
+  source: syscall
+  tags: [porygon, phase3, container, process]
