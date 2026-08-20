@@ -8,7 +8,7 @@ TARGET_IMAGE="alpine:3.20"
 
 fail() {
   echo "[FAIL] $*" >&2
-  docker compose logs --tail=180 backend responder collector telemetry falco 2>/dev/null || true
+  docker compose logs --tail=180 backend responder collector telemetry 2>/dev/null || true
   exit 1
 }
 

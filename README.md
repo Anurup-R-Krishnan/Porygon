@@ -8,18 +8,19 @@ Phase 8 does not claim that a scanner finding proves exploitation. It stores pac
 
 “Code implemented” means the capability exists in the repository. It does not
 mean that live acceptance or experimental validation has passed. On 2026-08-20,
-the corrected static gate and all 70 unit tests passed. A full-stack bootstrap
-smoke test also passed, including a real Falco process event reaching PostgreSQL.
-The longer phase acceptance scenarios still need to be rerun.
+the corrected static gate, all 91 unit tests, and the complete safe live gate
+passed. The live run covered forced collector saturation, backend outages,
+exactly-once replay checks, Falco-file-to-PostgreSQL equality, profile lifecycle,
+behavioural scoring, and deterministic incident lifecycle through Phase 6.
 
 | Phase | Capability | Code | Static/unit | Live acceptance | Experimental validation |
 |---|---|---:|---:|---:|---:|
 | 1 | PostgreSQL, FastAPI, migrations, health and service authentication | Present | Local pass | Local pass | Not applicable |
-| 2 | Docker events, immutable image identity, durable collection outbox | Present | Local pass | Unblocked; acceptance rerun pending | Pending Phase 9 |
-| 3 | Falco modern-eBPF process execution telemetry | Present | Local pass | Bootstrap smoke pass; acceptance rerun pending | Pending Phase 9 |
-| 4 | Versioned digest-bound behavioural profiles | Present | Local pass | Unblocked; acceptance rerun pending | Pending Phase 9 |
-| 5 | Explainable behavioural-distance scoring v1 | Provisional | Local pass | Unblocked; acceptance rerun pending | Pending calibrated v2 and Phase 9 |
-| 6 | Deterministic findings, correlation, incidents and evidence timelines | Present | Local pass | Unblocked; acceptance rerun pending | Pending Phase 9 |
+| 2 | Docker events, immutable image identity, durable collection outbox | Present | Local pass | Local pass with forced saturation and exact replay equality | Pending Phase 9 |
+| 3 | Falco modern-eBPF process execution telemetry | Present | Local pass | Local pass with outage replay and Falco-file equality | Pending Phase 9 |
+| 4 | Versioned digest-bound behavioural profiles | Present | Local pass | Local pass | Pending Phase 9 |
+| 5 | Explainable behavioural-distance scoring v1 | Provisional | Local pass | Local pass | Pending calibrated v2 and Phase 9 |
+| 6 | Deterministic findings, correlation, incidents and evidence timelines | Present | Local pass | Local pass | Pending Phase 9 |
 | 7 | Human-approved response recommendations and controlled execution | Present; disabled by default | Local pass | Explicit disruptive gate not run | Pending Phase 9 |
 | 8 | Digest-bound SBOM, CVE, EPSS, KEV and exposure enrichment | Present | Local pass | Unblocked; acceptance rerun pending | Extension; core experiment pending |
 | 9 | Experimental evaluation and paper evidence | Not implemented | Not applicable | Not applicable | Pending |

@@ -3,12 +3,14 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-PROBE_NAME="porygon-phase5-probe"
+RUN_ID="${PORYGON_VERIFY_RUN_ID:-$(date -u +%Y%m%dt%H%M%Sz)-$$}"
+PROBE_NAME="porygon-phase5-${RUN_ID}"
 PROBE_IMAGE="alpine:3.20"
+CONTAINERS_PATH="artifacts/local/phase5-${RUN_ID}-containers.json"
 
 fail() {
   echo "[FAIL] $*" >&2
-  docker compose logs --tail=160 backend telemetry collector falco 2>/dev/null || true
+  docker compose logs --tail=160 backend telemetry collector 2>/dev/null || true
   exit 1
 }
 
@@ -18,6 +20,7 @@ pass() {
 
 cleanup_probe() {
   docker rm -f "$PROBE_NAME" >/dev/null 2>&1 || true
+  rm -f "$CONTAINERS_PATH"
 }
 trap cleanup_probe EXIT
 
@@ -30,6 +33,7 @@ for command in docker curl python3; do
 done
 
 mkdir -p artifacts
+mkdir -p artifacts/local
 
 ./scripts/verify_phase4.sh
 pass "Phases 1-4 remain valid and an active immutable-digest profile exists"
@@ -79,16 +83,20 @@ expected_repo_digest="$(docker image inspect "$PROBE_IMAGE" --format '{{index .R
 docker run --detach \
   --name "$PROBE_NAME" \
   --label io.porygon.phase5.probe=true \
+  --label "io.porygon.phase5.run=${RUN_ID}" \
   "$PROBE_IMAGE" sh -c 'sleep 600' >/dev/null
 full_container_id="$(docker inspect "$PROBE_NAME" --format '{{.Id}}')"
 
 container_ready=false
 for _ in $(seq 1 60); do
-  containers="$(curl --fail --silent --show-error "${base_url}/api/v1/containers?limit=500" || true)"
-  if CONTAINERS_JSON="$containers" PROBE_NAME="$PROBE_NAME" EXPECTED_DIGEST="$digest" python3 - <<'PY'
+  curl --fail --silent --show-error \
+    --output "$CONTAINERS_PATH" \
+    "${base_url}/api/v1/containers?limit=500" || true
+  if CONTAINERS_PATH="$CONTAINERS_PATH" PROBE_NAME="$PROBE_NAME" EXPECTED_DIGEST="$digest" python3 - <<'PY'
 import json, os, sys
 try:
-    items=json.loads(os.environ['CONTAINERS_JSON'])
+    with open(os.environ['CONTAINERS_PATH'], encoding='utf-8') as handle:
+        items=json.load(handle)
 except Exception:
     sys.exit(1)
 match=next((item for item in items if item.get('container_name')==os.environ['PROBE_NAME']), None)

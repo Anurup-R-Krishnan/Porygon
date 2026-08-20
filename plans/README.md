@@ -9,7 +9,7 @@ The repository had no commit when these plans were written. The source snapshot 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |---|---|---:|---:|---|---|
 | 001 | Establish a reproducible and honest repository baseline | P1 | M | — | DONE |
-| 002 | Make capture saturation, readiness, and dead letters trustworthy | P1 | M | 001 | TODO |
+| 002 | Make capture saturation, readiness, and dead letters trustworthy | P1 | M | 001 | DONE |
 | 003 | Freeze the research protocol and profile-identity experiment | P1 | M | 001, 002 | TODO |
 | 004 | Replace weighted pseudo-scores with calibrated rarity and explicit evidence semantics | P1 | L | 003 | TODO |
 | 005 | Build the Phase 9 experiment and performance-evidence harness | P1 | L | 002, 003, 004 | TODO |

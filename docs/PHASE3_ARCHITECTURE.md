@@ -142,3 +142,8 @@ Phase 3 protects events at two stages:
 2. The adapter's SQLite outbox persists normalized events while the backend is unavailable.
 
 The implementation does not claim lossless kernel-to-userspace capture under every load condition. Falco/eBPF drops, storage exhaustion, host failure, log rotation outside the expected inode workflow, and deletion of Docker identity records remain measurable failure modes for later evaluation.
+
+The Phase 3 acceptance gate therefore compares only the records already
+published in Falco's JSON file with the unique process rows stored in
+PostgreSQL. Kernel and Falco drop metrics are named as unmeasured boundaries;
+they are not inferred from downstream count equality.

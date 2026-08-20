@@ -3,12 +3,24 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-PROBE_NAME="porygon-phase3-probe"
+RUN_ID="${PORYGON_VERIFY_RUN_ID:-$(date -u +%Y%m%dt%H%M%Sz)-$$}"
+PROBE_NAME="porygon-phase3-${RUN_ID}"
 PROBE_IMAGE="alpine:3.20"
+LOCAL_ARTIFACT_DIR="artifacts/local"
+CONTAINERS_PATH="${LOCAL_ARTIFACT_DIR}/phase3-${RUN_ID}-containers.json"
+PROCESS_EVENTS_PATH="${LOCAL_ARTIFACT_DIR}/phase3-${RUN_ID}-process.json"
+UNAME_EVENTS_PATH="${LOCAL_ARTIFACT_DIR}/phase3-${RUN_ID}-uname.json"
+ID_BEFORE_PATH="${LOCAL_ARTIFACT_DIR}/phase3-${RUN_ID}-id-before.json"
+ID_EVENTS_PATH="${LOCAL_ARTIFACT_DIR}/phase3-${RUN_ID}-id.json"
+ALL_BEFORE_PATH="${LOCAL_ARTIFACT_DIR}/phase3-${RUN_ID}-all-before.json"
+ALL_AFTER_PATH="${LOCAL_ARTIFACT_DIR}/phase3-${RUN_ID}-all-after.json"
+EVIDENCE_DIR="${LOCAL_ARTIFACT_DIR}/phase3-${RUN_ID}"
+TELEMETRY_STATUS_PATH="${EVIDENCE_DIR}/telemetry-status.json"
 
 fail() {
   echo "[FAIL] $*" >&2
-  docker compose logs --tail=120 falco telemetry backend collector 2>/dev/null || true
+  docker compose ps 2>/dev/null || true
+  docker compose logs --tail=40 telemetry backend collector 2>/dev/null || true
   exit 1
 }
 
@@ -18,6 +30,8 @@ pass() {
 
 cleanup_probe() {
   docker rm -f "$PROBE_NAME" >/dev/null 2>&1 || true
+  rm -f "$CONTAINERS_PATH" "$PROCESS_EVENTS_PATH" "$UNAME_EVENTS_PATH" \
+    "$ID_BEFORE_PATH" "$ID_EVENTS_PATH" "$ALL_BEFORE_PATH" "$ALL_AFTER_PATH"
 }
 trap cleanup_probe EXIT
 
@@ -43,6 +57,8 @@ actual_gid="$(stat -c '%g' "$socket_path")"
 
 cleanup_probe
 mkdir -p artifacts
+mkdir -p "$LOCAL_ARTIFACT_DIR"
+mkdir -p "$EVIDENCE_DIR"
 
 docker compose config --quiet
 pass "Compose configuration is valid"
@@ -78,16 +94,20 @@ expected_repo_digest="$(docker image inspect "$PROBE_IMAGE" --format '{{index .R
 docker run --detach \
   --name "$PROBE_NAME" \
   --label io.porygon.phase3.probe=true \
+  --label "io.porygon.phase3.run=${RUN_ID}" \
   "$PROBE_IMAGE" sh -c 'sleep 300' >/dev/null
 full_container_id="$(docker inspect "$PROBE_NAME" --format '{{.Id}}')"
+reported_container_id="${full_container_id:0:12}"
 
-container_json=""
 for _ in $(seq 1 60); do
-  container_json="$(curl --fail --silent --show-error "${base_url}/api/v1/containers?limit=500" || true)"
-  if CONTAINERS_JSON="$container_json" PROBE_NAME="$PROBE_NAME" EXPECTED_ID="$full_container_id" EXPECTED_DIGEST="$expected_repo_digest" python3 - <<'PY'
+  curl --fail --silent --show-error \
+    --output "$CONTAINERS_PATH" \
+    "${base_url}/api/v1/containers?limit=500" || true
+  if CONTAINERS_PATH="$CONTAINERS_PATH" PROBE_NAME="$PROBE_NAME" EXPECTED_ID="$full_container_id" EXPECTED_DIGEST="$expected_repo_digest" python3 - <<'PY'
 import json, os, sys
 try:
-    items=json.loads(os.environ['CONTAINERS_JSON'])
+    with open(os.environ['CONTAINERS_PATH'], encoding='utf-8') as handle:
+        items=json.load(handle)
 except Exception:
     sys.exit(1)
 match=next((x for x in items if x.get('container_name') == os.environ['PROBE_NAME']), None)
@@ -103,9 +123,10 @@ PY
   fi
   sleep 2
 done
-CONTAINERS_JSON="$container_json" PROBE_NAME="$PROBE_NAME" EXPECTED_ID="$full_container_id" EXPECTED_DIGEST="$expected_repo_digest" python3 - <<'PY' || fail "Docker identity was not ready before process testing"
+CONTAINERS_PATH="$CONTAINERS_PATH" PROBE_NAME="$PROBE_NAME" EXPECTED_ID="$full_container_id" EXPECTED_DIGEST="$expected_repo_digest" python3 - <<'PY' || fail "Docker identity was not ready before process testing"
 import json, os
-items=json.loads(os.environ['CONTAINERS_JSON'])
+with open(os.environ['CONTAINERS_PATH'], encoding='utf-8') as handle:
+    items=json.load(handle)
 match=next(x for x in items if x.get('container_name') == os.environ['PROBE_NAME'])
 assert match['container_id'] == os.environ['EXPECTED_ID']
 assert match['image_digest'] == os.environ['EXPECTED_DIGEST']
@@ -115,16 +136,17 @@ pass "Probe container identity is bound to the immutable image digest"
 # Force a visible process tree: outer sh -> inner sh -> sleep.
 docker exec "$PROBE_NAME" sh -c 'sh -c "sleep 4 & child=$!; wait $child" porygon-phase3-inner' porygon-phase3-outer
 
-process_events=""
 for _ in $(seq 1 90); do
-  process_events="$(curl --fail --silent --show-error --get \
+  curl --fail --silent --show-error --get \
     --data-urlencode "container_id=${full_container_id}" \
     --data-urlencode "limit=500" \
-    "${base_url}/api/v1/process-events" || true)"
-  if PROCESS_EVENTS="$process_events" EXPECTED_ID="$full_container_id" EXPECTED_DIGEST="$expected_repo_digest" python3 - <<'PY'
+    --output "$PROCESS_EVENTS_PATH" \
+    "${base_url}/api/v1/process-events" || true
+  if PROCESS_EVENTS_PATH="$PROCESS_EVENTS_PATH" EXPECTED_ID="$full_container_id" EXPECTED_DIGEST="$expected_repo_digest" python3 - <<'PY'
 import json, os, sys
 try:
-    events=json.loads(os.environ['PROCESS_EVENTS'])
+    with open(os.environ['PROCESS_EVENTS_PATH'], encoding='utf-8') as handle:
+        events=json.load(handle)
 except Exception:
     sys.exit(1)
 if not events:
@@ -153,9 +175,10 @@ PY
   fi
   sleep 2
 done
-PROCESS_EVENTS="$process_events" EXPECTED_ID="$full_container_id" EXPECTED_DIGEST="$expected_repo_digest" python3 - <<'PY' || fail "Falco process tree was not normalized and correlated correctly"
+PROCESS_EVENTS_PATH="$PROCESS_EVENTS_PATH" EXPECTED_ID="$full_container_id" EXPECTED_DIGEST="$expected_repo_digest" python3 - <<'PY' || fail "Falco process tree was not normalized and correlated correctly"
 import json, os
-events=json.loads(os.environ['PROCESS_EVENTS'])
+with open(os.environ['PROCESS_EVENTS_PATH'], encoding='utf-8') as handle:
+    events=json.load(handle)
 by_id={e['event_id']: e for e in events}
 sleeps=[e for e in events if e.get('process_name') == 'sleep']
 assert sleeps
@@ -174,9 +197,10 @@ PY
 pass "Process executions include PID/PPID ancestry and resolve to the full container ID and image digest"
 
 # Prove that the Falco JSON file survives a telemetry-adapter outage.
-uname_before="$(PROCESS_EVENTS="$process_events" python3 - <<'PY'
+uname_before="$(PROCESS_EVENTS_PATH="$PROCESS_EVENTS_PATH" python3 - <<'PY'
 import json, os
-print(sum(1 for e in json.loads(os.environ['PROCESS_EVENTS']) if e.get('process_name') == 'uname'))
+with open(os.environ['PROCESS_EVENTS_PATH'], encoding='utf-8') as handle:
+    print(sum(1 for e in json.load(handle) if e.get('process_name') == 'uname'))
 PY
 )"
 docker compose stop telemetry >/dev/null
@@ -184,17 +208,18 @@ docker exec "$PROBE_NAME" sh -c 'uname -a >/tmp/porygon-phase3-replay'
 sleep 2
 docker compose up --detach --wait telemetry >/dev/null
 
-uname_events=""
 for _ in $(seq 1 60); do
-  uname_events="$(curl --fail --silent --show-error --get \
+  curl --fail --silent --show-error --get \
     --data-urlencode "container_id=${full_container_id}" \
     --data-urlencode "process_name=uname" \
     --data-urlencode "limit=500" \
-    "${base_url}/api/v1/process-events" || true)"
-  uname_after="$(PROCESS_EVENTS="$uname_events" python3 - <<'PY'
+    --output "$UNAME_EVENTS_PATH" \
+    "${base_url}/api/v1/process-events" || true
+  uname_after="$(PROCESS_EVENTS_PATH="$UNAME_EVENTS_PATH" python3 - <<'PY'
 import json, os
 try:
-    print(len(json.loads(os.environ['PROCESS_EVENTS'])))
+    with open(os.environ['PROCESS_EVENTS_PATH'], encoding='utf-8') as handle:
+        print(len(json.load(handle)))
 except Exception:
     print(-1)
 PY
@@ -206,14 +231,16 @@ done
 pass "Persistent Falco JSON output was replayed after a telemetry-adapter outage"
 
 # Prove that normalized process events survive a backend outage in the SQLite outbox.
-id_before_json="$(curl --fail --silent --show-error --get \
+curl --fail --silent --show-error --get \
   --data-urlencode "container_id=${full_container_id}" \
   --data-urlencode "process_name=id" \
   --data-urlencode "limit=500" \
-  "${base_url}/api/v1/process-events")"
-id_before="$(PROCESS_EVENTS="$id_before_json" python3 - <<'PY'
+  --output "$ID_BEFORE_PATH" \
+  "${base_url}/api/v1/process-events"
+id_before="$(PROCESS_EVENTS_PATH="$ID_BEFORE_PATH" python3 - <<'PY'
 import json, os
-print(len(json.loads(os.environ['PROCESS_EVENTS'])))
+with open(os.environ['PROCESS_EVENTS_PATH'], encoding='utf-8') as handle:
+    print(len(json.load(handle)))
 PY
 )"
 
@@ -232,17 +259,18 @@ spooled_count="$(echo "$spooled_count" | tr -d '\r' | tail -1)"
 pass "Telemetry adapter durably spooled $spooled_count process events during backend outage"
 
 docker compose up --detach --wait backend >/dev/null
-id_events=""
 for _ in $(seq 1 90); do
-  id_events="$(curl --fail --silent --show-error --get \
+  curl --fail --silent --show-error --get \
     --data-urlencode "container_id=${full_container_id}" \
     --data-urlencode "process_name=id" \
     --data-urlencode "limit=500" \
-    "${base_url}/api/v1/process-events" || true)"
-  id_after="$(PROCESS_EVENTS="$id_events" python3 - <<'PY'
+    --output "$ID_EVENTS_PATH" \
+    "${base_url}/api/v1/process-events" || true
+  id_after="$(PROCESS_EVENTS_PATH="$ID_EVENTS_PATH" python3 - <<'PY'
 import json, os
 try:
-    print(len(json.loads(os.environ['PROCESS_EVENTS'])))
+    with open(os.environ['PROCESS_EVENTS_PATH'], encoding='utf-8') as handle:
+        print(len(json.load(handle)))
 except Exception:
     print(-1)
 PY
@@ -253,13 +281,15 @@ done
 (( id_after > id_before )) || fail "Spool did not drain after backend recovery"
 pass "Process telemetry outbox drained after backend recovery"
 
-all_before="$(curl --fail --silent --show-error --get \
-  --data-urlencode "container_id=${full_container_id}" \
+curl --fail --silent --show-error --get \
+  --data-urlencode "container_id=${reported_container_id}" \
   --data-urlencode "limit=500" \
-  "${base_url}/api/v1/process-events")"
-count_before="$(PROCESS_EVENTS="$all_before" python3 - <<'PY'
+  --output "$ALL_BEFORE_PATH" \
+  "${base_url}/api/v1/process-events"
+count_before="$(PROCESS_EVENTS_PATH="$ALL_BEFORE_PATH" python3 - <<'PY'
 import json, os
-items=json.loads(os.environ['PROCESS_EVENTS'])
+with open(os.environ['PROCESS_EVENTS_PATH'], encoding='utf-8') as handle:
+    items=json.load(handle)
 assert len({x['event_id'] for x in items}) == len(items)
 print(len(items))
 PY
@@ -267,13 +297,15 @@ PY
 docker compose restart telemetry >/dev/null
 docker compose up --detach --wait telemetry >/dev/null
 sleep 5
-all_after="$(curl --fail --silent --show-error --get \
-  --data-urlencode "container_id=${full_container_id}" \
+curl --fail --silent --show-error --get \
+  --data-urlencode "container_id=${reported_container_id}" \
   --data-urlencode "limit=500" \
-  "${base_url}/api/v1/process-events")"
-count_after="$(PROCESS_EVENTS="$all_after" python3 - <<'PY'
+  --output "$ALL_AFTER_PATH" \
+  "${base_url}/api/v1/process-events"
+count_after="$(PROCESS_EVENTS_PATH="$ALL_AFTER_PATH" python3 - <<'PY'
 import json, os
-items=json.loads(os.environ['PROCESS_EVENTS'])
+with open(os.environ['PROCESS_EVENTS_PATH'], encoding='utf-8') as handle:
+    items=json.load(handle)
 assert len({x['event_id'] for x in items}) == len(items)
 print(len(items))
 PY
@@ -291,12 +323,86 @@ dead_letters="$(echo "$dead_letters" | tr -d '\r' | tail -1)"
 [[ "$dead_letters" == "0" ]] || fail "Telemetry adapter recorded $dead_letters malformed Falco lines"
 pass "Falco JSON stream contained no malformed records"
 
-printf '%s' "$all_after" > artifacts/phase3-process-events.json
+docker compose exec -T telemetry python - <<'PY' > "$TELEMETRY_STATUS_PATH"
+import json, urllib.request
+with urllib.request.urlopen('http://127.0.0.1:8002/status') as response:
+    print(json.dumps(json.load(response), indent=2, sort_keys=True))
+PY
+
+falco_source_count="$(docker compose exec -T -e FULL_CONTAINER_ID="$full_container_id" telemetry python - <<'PY'
+import json, os
+count=0
+with open('/var/log/porygon/falco-events.jsonl', encoding='utf-8') as handle:
+    for line in handle:
+        try:
+            event=json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        fields=event.get('output_fields') or {}
+        reported=str(fields.get('container.id') or '')
+        if reported and reported != 'host' and os.environ['FULL_CONTAINER_ID'].startswith(reported):
+            count += 1
+print(count)
+PY
+)"
+falco_source_count="$(echo "$falco_source_count" | tr -d '\r' | tail -1)"
+[[ "$falco_source_count" =~ ^[0-9]+$ ]] || fail "Could not count probe records in Falco output"
+[[ "$falco_source_count" == "$count_after" ]] || fail \
+  "Falco recorded $falco_source_count probe events but PostgreSQL stored $count_after"
+pass "Every probe record observed in the Falco file reached PostgreSQL exactly once"
+
+correlation_metrics="$(PROCESS_EVENTS_PATH="$ALL_AFTER_PATH" python3 - <<'PY'
+import json, os
+from collections import Counter
+with open(os.environ['PROCESS_EVENTS_PATH'], encoding='utf-8') as handle:
+    counts=Counter(item['correlation_status'] for item in json.load(handle))
+print(json.dumps(dict(sorted(counts.items())), separators=(',', ':')))
+PY
+)"
+
+RUN_ID="$RUN_ID" \
+PROBE_NAME="$PROBE_NAME" \
+FALCO_SOURCE_COUNT="$falco_source_count" \
+TELEMETRY_OUTBOX_DURING_OUTAGE="$spooled_count" \
+POSTGRES_COUNT="$count_after" \
+REPLAY_ROW_GROWTH="$((count_after - count_before))" \
+DEAD_LETTERS="$dead_letters" \
+CORRELATION_METRICS="$correlation_metrics" \
+TELEMETRY_STATUS_PATH="$TELEMETRY_STATUS_PATH" \
+python3 - <<'PY' > artifacts/phase3-capture-integrity.json
+import json, os
+from pathlib import Path
+
+status=json.loads(Path(os.environ['TELEMETRY_STATUS_PATH']).read_text(encoding='utf-8'))
+correlation=json.loads(os.environ['CORRELATION_METRICS'])
+document={
+    'schema_version': 'porygon.capture-integrity.v1',
+    'run_id': os.environ['RUN_ID'],
+    'canary': {'container_name': os.environ['PROBE_NAME']},
+    'boundaries': {
+        'falco_file_probe_records_observed': int(os.environ['FALCO_SOURCE_COUNT']),
+        'telemetry_outbox_events_during_backend_outage': int(os.environ['TELEMETRY_OUTBOX_DURING_OUTAGE']),
+        'postgres_probe_rows_after_recovery': int(os.environ['POSTGRES_COUNT']),
+        'postgres_probe_rows_by_correlation_status': correlation,
+        'postgres_row_growth_after_replay': int(os.environ['REPLAY_ROW_GROWTH']),
+        'telemetry_dead_letters_retained': int(os.environ['DEAD_LETTERS']),
+        'telemetry_spool_overflow_attempts_observed': status['spool_overflow_count'],
+    },
+    'unmeasured_boundaries': [
+        'Kernel-to-eBPF events not emitted to Falco',
+        'Falco userspace drops because Falco metrics are not sampled by this gate',
+        'Host failure outside this bounded run',
+    ],
+}
+print(json.dumps(document, indent=2, sort_keys=True))
+PY
+
+cp "$ALL_AFTER_PATH" "${EVIDENCE_DIR}/process-events.json"
 curl --fail --silent --show-error "${base_url}/api/v1/process-events/summary?container_name=${PROBE_NAME}" \
-  > artifacts/phase3-process-summary.json
+  > "${EVIDENCE_DIR}/process-summary.json"
 curl --fail --silent --show-error "${base_url}/api/v1/system/info" \
-  > artifacts/phase3-system-info.json
-docker compose logs --no-color falco > artifacts/phase3-falco.log
-docker compose ps > artifacts/phase3-services.txt
+  > "${EVIDENCE_DIR}/system-info.json"
+docker compose logs --no-color falco > "${EVIDENCE_DIR}/falco.log"
+docker compose ps > "${EVIDENCE_DIR}/services.txt"
 
 printf '\nPhase 3 verification complete.\n'

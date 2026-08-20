@@ -5,7 +5,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 fail() {
   echo "[FAIL] $*" >&2
-  docker compose logs --tail=120 backend telemetry collector falco 2>/dev/null || true
+  docker compose logs --tail=120 backend telemetry collector 2>/dev/null || true
   exit 1
 }
 
@@ -37,7 +37,9 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-events=json.loads(Path('artifacts/phase3-process-events.json').read_text())
+integrity=json.loads(Path('artifacts/phase3-capture-integrity.json').read_text())
+events_path=Path('artifacts/local') / f"phase3-{integrity['run_id']}" / 'process-events.json'
+events=json.loads(events_path.read_text())
 if not events:
     raise SystemExit('Phase 3 produced no process events')
 digests={event.get('image_digest') for event in events if event.get('image_digest')}

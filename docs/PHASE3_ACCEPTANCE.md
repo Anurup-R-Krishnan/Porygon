@@ -28,21 +28,27 @@ Phase 3 is accepted only when `./scripts/verify_phase3.sh` completes successfull
 13. Restarting the telemetry adapter does not create duplicate PostgreSQL process events.
 14. No malformed Falco JSON records are produced during the controlled acceptance run.
 15. Verification evidence is written under `artifacts/`.
+16. Telemetry readiness rejects a stopped source, missing Falco file, stale backend heartbeat, and unrecoverable source error while allowing a healthy idle source.
+17. Malformed-record diagnostics are redacted, bounded by count/bytes/age, and reported separately from canonical process evidence.
+18. Probe records counted in the Falco JSON file equal unique probe rows in PostgreSQL after recovery and replay.
 
 ## Expected evidence
 
 The script writes:
 
-- `artifacts/phase3-process-events.json`
-- `artifacts/phase3-process-summary.json`
-- `artifacts/phase3-system-info.json`
-- `artifacts/phase3-falco.log`
-- `artifacts/phase3-services.txt`
+- `artifacts/phase3-capture-integrity.json`
+- `artifacts/local/phase3-<run-id>/process-events.json`
+- `artifacts/local/phase3-<run-id>/process-summary.json`
+- `artifacts/local/phase3-<run-id>/system-info.json`
+- `artifacts/local/phase3-<run-id>/falco.log`
+- `artifacts/local/phase3-<run-id>/services.txt`
+- `artifacts/local/phase3-<run-id>/telemetry-status.json`
 
 Capture the console output separately:
 
 ```bash
-./scripts/verify_phase3.sh | tee artifacts/phase3-verification.txt
+mkdir -p artifacts/local
+./scripts/verify_phase3.sh | tee artifacts/local/phase3-verification.txt
 ```
 
 ## Non-acceptance conditions
@@ -57,3 +63,16 @@ Phase 3 is not accepted when:
 - replay inserts duplicate event IDs;
 - a process parent is claimed without a stored matching parent execution;
 - file access, network activity, anomaly detection, or attack detection is claimed without implementing and evaluating it.
+
+## Measurement boundary
+
+The capture-integrity artifact separately records Falco-file probe records,
+telemetry outbox rows observed during backend outage, PostgreSQL probe rows,
+replay row growth, dead letters, and adapter overflow attempts. Kernel-to-eBPF
+loss and Falco userspace drops remain explicitly unmeasured until Falco metrics
+are sampled by the Phase 5 experiment harness. Equality from the Falco file to
+PostgreSQL must not be described as proof of zero kernel loss.
+
+Detailed Falco and process artifacts remain local and ignored because they can
+contain command lines and host-specific identifiers. The minimized integrity
+summary is the versioned paper input.

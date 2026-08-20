@@ -1,0 +1,40 @@
+{
+  "boundaries": {
+    "canary_events_retained_at_saturation": 94,
+    "collector_events_retained_at_saturation": 100,
+    "collector_overflow_attempts_observed": 3,
+    "collector_spool_limit": 100,
+    "docker_api_actions_observed": [
+      "connect",
+      "create",
+      "destroy",
+      "die",
+      "disconnect",
+      "exec_create",
+      "exec_die",
+      "exec_start",
+      "kill",
+      "start",
+      "stop"
+    ],
+    "docker_api_events_observed": 131,
+    "postgres_canary_rows_after_recovery": 131,
+    "postgres_row_growth_after_replay": 0
+  },
+  "canary": {
+    "container_name": "porygon-phase2-20260820t115356z-230151",
+    "exec_operations_issued": 40
+  },
+  "dead_letter": {
+    "count": null,
+    "reason": "The Docker collector has no dead-letter path; schema acceptance is proven by database equality.",
+    "status": "not_applicable"
+  },
+  "run_id": "20260820t115356z-230151",
+  "schema_version": "porygon.capture-integrity.v1",
+  "unmeasured_boundaries": [
+    "Docker daemon loss before publication on the events API",
+    "Host failure and Docker history rollover outside this bounded run",
+    "Kernel and Falco drops; those belong to the Phase 3/5 measurement path"
+  ]
+}

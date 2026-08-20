@@ -201,6 +201,7 @@ unit_checks() {
 }
 
 live_safe_checks() {
+  ./scripts/verify_phase2.sh
   ./scripts/verify_phase6.sh
 }
 
