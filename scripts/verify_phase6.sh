@@ -27,6 +27,7 @@ python3 - <<'PY' || fail "Detection ruleset metadata is invalid"
 import json
 cfg=json.load(open('artifacts/phase6-ruleset.json'))
 assert cfg['ruleset_version']=='porygon.detection.v1'
+assert cfg['matcher_revision']=='porygon.detection.matcher.v3'
 assert len(cfg['ruleset_hash'])==64
 assert len(cfg['rules']) >= 7
 assert 'Neither is a probability of compromise' in cfg['interpretation']

@@ -7,6 +7,7 @@ from pathlib import PurePosixPath
 from typing import Any, Iterable
 
 RULESET_VERSION = "porygon.detection.v1"
+MATCHER_REVISION = "porygon.detection.matcher.v3"
 CORRELATION_WINDOW_SECONDS = 120
 
 SHELL_NAMES = {"sh", "bash", "dash", "ash", "zsh", "ksh", "fish"}
@@ -27,6 +28,7 @@ SUSPICIOUS_TOOL_NAMES = {
     "perl",
     "ruby",
 }
+MULTICALL_BINARY_NAMES = {"busybox", "toybox"}
 
 DETECTION_RULES: tuple[dict[str, Any], ...] = (
     {
@@ -101,7 +103,11 @@ def _canonical_json(value: Any) -> str:
 
 
 def ruleset_hash() -> str:
-    return hashlib.sha256(_canonical_json(DETECTION_RULES).encode("utf-8")).hexdigest()
+    document = {
+        "rules": DETECTION_RULES,
+        "matcher_revision": MATCHER_REVISION,
+    }
+    return hashlib.sha256(_canonical_json(document).encode("utf-8")).hexdigest()
 
 
 
@@ -160,12 +166,43 @@ def _round(value: float) -> float:
 def _basename(event: Any) -> str:
     executable = (getattr(event, "executable", None) or "").strip()
     name = (getattr(event, "process_name", None) or "").strip()
-    token = PurePosixPath(executable).name if executable else name
+    executable_name = PurePosixPath(executable).name.lower() if executable else ""
+    if executable_name in MULTICALL_BINARY_NAMES and name:
+        return name.lower()
+    token = executable_name or name
     return token.lower()
 
 
 def _event_executable(event: Any) -> str:
-    return (getattr(event, "executable", None) or getattr(event, "process_name", None) or "<unknown>").strip()
+    executable = (getattr(event, "executable", None) or "").strip()
+    name = (getattr(event, "process_name", None) or "").strip()
+    executable_name = PurePosixPath(executable).name.lower() if executable else ""
+    if executable_name in MULTICALL_BINARY_NAMES and name:
+        return name.lower()
+    return executable or name or "<unknown>"
+
+
+def _parent_executable(event: Any) -> str | None:
+    executable = (getattr(event, "parent_executable", None) or "").strip()
+    name = (getattr(event, "parent_name", None) or "").strip()
+    executable_name = PurePosixPath(executable).name.lower() if executable else ""
+    if executable_name in MULTICALL_BINARY_NAMES and name:
+        return name.lower()
+    return executable or name or None
+
+
+def _process_identity_seen(
+    event: Any,
+    *,
+    baseline_executables: set[str],
+    baseline_process_names: set[str],
+) -> bool:
+    executable = (getattr(event, "executable", None) or "").strip()
+    name = (getattr(event, "process_name", None) or "").strip().lower()
+    executable_name = PurePosixPath(executable).name.lower() if executable else ""
+    if executable_name in MULTICALL_BINARY_NAMES:
+        return bool(name) and name in baseline_process_names
+    return executable in baseline_executables or name in baseline_process_names
 
 
 def _iso(value: datetime) -> str:
@@ -339,7 +376,11 @@ def evaluate_detection(
     for event in process_events:
         name = _basename(event)
         executable = _event_executable(event)
-        executable_seen = executable in baseline_executables or name in baseline_process_names
+        executable_seen = _process_identity_seen(
+            event,
+            baseline_executables=baseline_executables,
+            baseline_process_names=baseline_process_names,
+        )
         if name in SHELL_NAMES and not executable_seen:
             unseen_shells.append(event)
             matches.append(
@@ -352,9 +393,11 @@ def evaluate_detection(
                     summary=f"Previously unseen shell {executable} executed.",
                     details={
                         "process_name": event.process_name,
-                        "executable": event.executable,
+                        "executable": executable,
+                        "raw_executable": event.executable,
                         "parent_name": event.parent_name,
-                        "parent_executable": event.parent_executable,
+                        "parent_executable": _parent_executable(event),
+                        "raw_parent_executable": event.parent_executable,
                         "user_uid": event.user_uid,
                         "command_line": event.command_line,
                     },
@@ -371,7 +414,8 @@ def evaluate_detection(
                     summary=f"UID 0 process {executable} was absent from the baseline user set.",
                     details={
                         "process_name": event.process_name,
-                        "executable": event.executable,
+                        "executable": executable,
+                        "raw_executable": event.executable,
                         "user_uid": event.user_uid,
                         "parent_event_id": event.parent_event_id,
                     },
@@ -389,9 +433,11 @@ def evaluate_detection(
                     summary=f"Previously unseen dual-use tool {executable} executed.",
                     details={
                         "process_name": event.process_name,
-                        "executable": event.executable,
+                        "executable": executable,
+                        "raw_executable": event.executable,
                         "parent_name": event.parent_name,
-                        "parent_executable": event.parent_executable,
+                        "parent_executable": _parent_executable(event),
+                        "raw_parent_executable": event.parent_executable,
                         "command_line": event.command_line,
                     },
                 )

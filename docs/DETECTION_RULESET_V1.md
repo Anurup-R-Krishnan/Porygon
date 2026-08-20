@@ -2,6 +2,14 @@
 
 Ruleset identifier: `porygon.detection.v1`
 
+Matcher revision: `porygon.detection.matcher.v3`. Multicall executables such
+as BusyBox and Toybox use the observed process/applet name both for baseline
+membership and exact allowlist identity. The physical executable path remains
+preserved as `raw_executable` evidence. An allowlist for the BusyBox `base64`
+applet therefore cannot suppress a different BusyBox applet. The matcher
+revision is included in the ruleset hash so pre-fix and post-fix detection
+runs cannot share a run key.
+
 The API returns the exact rules and a SHA-256 hash at:
 
 ```text
@@ -20,11 +28,14 @@ Incident eligible: **No**. Phase 5 thresholds are provisional.
 
 ### POR-DET-002: Previously unseen shell execution
 
-Condition: the executable basename is a known shell and neither the exact executable nor process name exists in the selected digest baseline.
+Condition: the effective execution identity is a known shell and is absent from
+the selected digest baseline. The effective identity is the process/applet name
+for a multicall binary and otherwise the exact executable path or process name.
 
 Incident eligible: **Yes**.
 
-Allowlistable: **Yes**, exact digest and executable, optional exact parent executable.
+Allowlistable: **Yes**, exact digest and effective executable identity, optional
+exact effective parent identity.
 
 ### POR-DET-003: Novel root process
 
@@ -32,7 +43,8 @@ Condition: a process executes with UID 0 while string UID `0` is absent from the
 
 Incident eligible: **Yes**.
 
-Allowlistable: **Yes**, exact digest and executable, optional exact parent executable.
+Allowlistable: **Yes**, exact digest and effective executable identity, optional
+exact effective parent identity.
 
 ### POR-DET-004: Previously unseen dual-use tool
 
@@ -47,7 +59,8 @@ base64 openssl python python3 perl ruby
 
 Incident eligible: **Yes**.
 
-Allowlistable: **Yes**, exact digest and executable, optional exact parent executable.
+Allowlistable: **Yes**, exact digest and effective executable identity, optional
+exact effective parent identity.
 
 These are dual-use binaries. Their execution is evidence, not proof of an attack.
 
@@ -84,7 +97,7 @@ Severity estimates possible impact. Confidence estimates how strongly the availa
 ## Known limitations
 
 - executable name matching can miss renamed tools
-- exact path allowlists can break after image changes, which is intentional because digest changes require reapproval
+- exact identity allowlists can break after image changes, which is intentional because digest changes require reapproval
 - process sequences do not prove data transfer or network communication
 - 120 seconds is an engineering default pending evaluation
 - rule weights are not calibrated probabilities

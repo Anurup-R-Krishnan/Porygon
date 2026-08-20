@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from porygon_api.detection import (
+    MATCHER_REVISION,
     RULESET_VERSION,
     allowlist_set_hash,
     build_allowlist_matcher_hash,
@@ -142,6 +143,85 @@ def test_unseen_root_shell_to_tool_chain_creates_explainable_incident_signal() -
     assert result["severity_score"] != result["confidence_score"]
 
 
+def test_busybox_applets_use_process_name_for_detection_identity() -> None:
+    score = Score(total_score=0.35, score_band="elevated")
+    shell = ProcessEvent(
+        event_id="busybox-shell",
+        occurred_at=score.window_start + timedelta(seconds=5),
+        container_id="c1",
+        process_name="sh",
+        executable="/bin/busybox",
+        user_uid=0,
+    )
+    tool = ProcessEvent(
+        event_id="busybox-tool",
+        occurred_at=score.window_start + timedelta(seconds=10),
+        container_id="c1",
+        process_name="base64",
+        executable="/bin/busybox",
+        parent_name="sh",
+        parent_executable="/bin/busybox",
+        user_uid=0,
+        parent_event_id="busybox-shell",
+    )
+
+    profile = Profile()
+    profile.features["observed_sets"]["executables"].append("/bin/busybox")
+    result = evaluate_detection(
+        anomaly_score=score,
+        profile=profile,
+        process_events=[shell, tool],
+        runtime_events=[],
+    )
+
+    rule_ids = {item["rule_id"] for item in result["matches"]}
+    assert {"POR-DET-002", "POR-DET-004", "POR-DET-005"}.issubset(rule_ids)
+    assert result["status"] == "incident_created"
+    tool_match = next(item for item in result["matches"] if item["rule_id"] == "POR-DET-004")
+    assert tool_match["details"]["executable"] == "base64"
+    assert tool_match["details"]["raw_executable"] == "/bin/busybox"
+
+
+def test_busybox_allowlist_is_applet_exact() -> None:
+    score = Score(total_score=0.35, score_band="elevated")
+    base64_event = ProcessEvent(
+        event_id="busybox-base64",
+        occurred_at=score.window_start + timedelta(seconds=5),
+        container_id="c1",
+        process_name="base64",
+        executable="/bin/busybox",
+    )
+    wget_event = ProcessEvent(
+        event_id="busybox-wget",
+        occurred_at=score.window_start + timedelta(seconds=10),
+        container_id="c1",
+        process_name="wget",
+        executable="/bin/busybox",
+    )
+    allowlist = Allowlist(
+        allowlist_id="00000000-0000-0000-0000-000000000100",
+        matcher_hash=build_allowlist_matcher_hash(
+            image_digest=Profile().image_digest,
+            rule_id="POR-DET-004",
+            executable="base64",
+            parent_executable=None,
+        ),
+        rule_id="POR-DET-004",
+        executable="base64",
+    )
+
+    result = evaluate_detection(
+        anomaly_score=score,
+        profile=Profile(),
+        process_events=[base64_event, wget_event],
+        runtime_events=[],
+        allowlists=[allowlist],
+    )
+
+    assert [item["details"]["executable"] for item in result["matches"]] == ["wget"]
+    assert [item["details"]["executable"] for item in result["suppressed_matches"]] == ["base64"]
+
+
 def test_docker_exec_is_informational_without_stronger_evidence() -> None:
     score = Score(total_score=0.2, score_band="baseline_like")
     runtime = RuntimeEvent(
@@ -181,6 +261,7 @@ def test_insufficient_score_never_creates_an_incident() -> None:
 
 def test_ruleset_and_run_keys_are_deterministic_and_versioned() -> None:
     assert RULESET_VERSION == "porygon.detection.v1"
+    assert MATCHER_REVISION == "porygon.detection.matcher.v3"
     assert len(ruleset_hash()) == 64
     empty_hash = allowlist_set_hash([])
     first = build_detection_run_key("00000000-0000-0000-0000-000000000001", empty_hash)

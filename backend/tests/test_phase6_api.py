@@ -22,6 +22,7 @@ def test_phase6_routes_are_exposed_in_openapi() -> None:
 def test_detection_config_separates_severity_confidence_and_verdict() -> None:
     response = get_detection_rules_config()
     assert response["ruleset_version"] == "porygon.detection.v1"
+    assert response["matcher_revision"] == "porygon.detection.matcher.v3"
     assert len(response["ruleset_hash"]) == 64
     assert response["rules"]
     assert "Neither is a probability of compromise" in response["interpretation"]

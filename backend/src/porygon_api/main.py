@@ -16,6 +16,7 @@ from porygon_api.config import get_settings
 from porygon_api.detection import (
     CORRELATION_WINDOW_SECONDS,
     DETECTION_RULES,
+    MATCHER_REVISION,
     RULESET_VERSION,
     allowlist_set_hash,
     build_allowlist_matcher_hash,
@@ -1367,6 +1368,7 @@ def _detection_execution(db: Session, run: DetectionRun) -> dict[str, object]:
 def get_detection_rules_config() -> dict[str, object]:
     return {
         "ruleset_version": RULESET_VERSION,
+        "matcher_revision": MATCHER_REVISION,
         "ruleset_hash": ruleset_hash(),
         "correlation_window_seconds": CORRELATION_WINDOW_SECONDS,
         "rules": list(DETECTION_RULES),
