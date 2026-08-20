@@ -24,6 +24,19 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _heartbeat_is_fresh(
+    value: object,
+    interval_seconds: float,
+    *,
+    now: datetime | None = None,
+) -> bool:
+    if not isinstance(value, datetime) or value.tzinfo is None:
+        return False
+    current = now or _now()
+    age_seconds = (current - value.astimezone(timezone.utc)).total_seconds()
+    return age_seconds <= interval_seconds * 3
+
+
 async def heartbeat_loop(app: FastAPI) -> None:
     endpoint = f"{settings.api_base_url.rstrip('/')}/internal/v1/heartbeats"
     headers = {"X-Porygon-Internal-Token": settings.internal_api_token.get_secret_value()}
@@ -250,6 +263,14 @@ def health_ready(request: Request) -> dict[str, object]:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Docker Engine is unavailable")
     if state["backend_last_success_at"] is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="No successful backend heartbeat yet")
+    if not _heartbeat_is_fresh(
+        state["backend_last_success_at"],
+        settings.heartbeat_interval_seconds,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Backend heartbeat is stale",
+        )
     return {
         "status": "ok",
         "service": "scanner",

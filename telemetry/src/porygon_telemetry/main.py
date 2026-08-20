@@ -25,6 +25,26 @@ def _iso(value: object) -> str | None:
     return value.isoformat() if isinstance(value, datetime) else None
 
 
+def _heartbeat_is_fresh(
+    value: object,
+    interval_seconds: float,
+    *,
+    now: datetime | None = None,
+) -> bool:
+    if not isinstance(value, datetime) or value.tzinfo is None:
+        return False
+    current = now or datetime.now(timezone.utc)
+    age_seconds = (current - value.astimezone(timezone.utc)).total_seconds()
+    return age_seconds <= interval_seconds * 3
+
+
+def _not_ready(condition: str, message: str) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail={"condition": condition, "message": message},
+    )
+
+
 async def heartbeat_loop(state: TelemetryState, store: TelemetryStore) -> None:
     endpoint = f"{settings.api_base_url.rstrip('/')}/internal/v1/heartbeats"
     headers = {"X-Porygon-Internal-Token": settings.internal_api_token.get_secret_value()}
@@ -167,24 +187,17 @@ def health_ready(request: Request) -> dict[str, object]:
     state: TelemetryState = request.app.state.telemetry
     snapshot = state.snapshot()
 
-    if snapshot["backend_last_success_at"] is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No successful backend heartbeat yet",
-        )
-    age_seconds = (
-        datetime.now(timezone.utc) - snapshot["backend_last_success_at"]
-    ).total_seconds()
-    if age_seconds > settings.heartbeat_interval_seconds * 3:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Backend heartbeat is stale",
-        )
     if not snapshot["source_running"]:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Falco file source is not running",
-        )
+        _not_ready("falco_source_not_running", "Falco file source is not running")
+    if not snapshot["source_file_available"]:
+        _not_ready("falco_file_unavailable", "Falco event file is unavailable")
+    if snapshot["backend_last_success_at"] is None:
+        _not_ready("backend_heartbeat_missing", "No successful backend heartbeat yet")
+    if not _heartbeat_is_fresh(
+        snapshot["backend_last_success_at"],
+        settings.heartbeat_interval_seconds,
+    ):
+        _not_ready("backend_heartbeat_stale", "Backend heartbeat is stale")
     return {
         "status": "ok",
         "service": "telemetry",
