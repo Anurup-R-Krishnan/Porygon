@@ -80,6 +80,46 @@ class DockerEventSource:
         cursor_seconds = cursor // 1_000_000_000
         return max(0, cursor_seconds - self.settings.docker_event_overlap_seconds)
 
+    def _capture_window(
+        self,
+        client: docker.APIClient,
+        host_id: str,
+        *,
+        since: int,
+        until: int,
+    ) -> bool:
+        stream = client.events(
+            since=since,
+            until=until,
+            decode=True,
+            filters={"type": ["container", "network"]},
+        )
+        for raw_event in stream:
+            if self.stop_event.is_set():
+                return False
+            event = normalize_event(client, self.store, host_id, raw_event)
+            try:
+                inserted = self.store.enqueue(event)
+            except SpoolFullError as exc:
+                self.state.increment(spool_overflow_count=1)
+                self.state.set(docker_last_error=str(exc))
+                logger.error("%s", exc)
+                self.stop_event.wait(1.0)
+                return False
+
+            self.store.update_cursor(int(event["time_nano"]))
+            self.state.set(
+                docker_last_success_at=datetime.now(timezone.utc),
+                last_event_at=datetime.now(timezone.utc),
+                queue_depth=self.store.count(),
+                docker_last_error=None,
+            )
+            if inserted:
+                self.state.increment(events_enqueued=1)
+            else:
+                self.state.increment(duplicate_events_ignored=1)
+        return True
+
     def _run(self) -> None:
         reconnect_delay = 1
         while not self.stop_event.is_set():
@@ -92,36 +132,14 @@ class DockerEventSource:
                     since = self._since_seconds()
                     until = int(time.time()) + self.settings.docker_event_window_seconds
                     self.state.set(event_stream_connected=True)
-                    stream = self.client.events(
+                    window_complete = self._capture_window(
+                        self.client,
+                        host_id,
                         since=since,
                         until=until,
-                        decode=True,
-                        filters={"type": ["container", "network"]},
                     )
-                    for raw_event in stream:
-                        if self.stop_event.is_set():
-                            break
-                        event = normalize_event(self.client, self.store, host_id, raw_event)
-                        try:
-                            inserted = self.store.enqueue(event)
-                        except SpoolFullError as exc:
-                            self.state.increment(spool_overflow_count=1)
-                            self.state.set(docker_last_error=str(exc))
-                            logger.error("%s", exc)
-                            time.sleep(1)
-                            continue
-
-                        self.store.update_cursor(int(event["time_nano"]))
-                        self.state.set(
-                            docker_last_success_at=datetime.now(timezone.utc),
-                            last_event_at=datetime.now(timezone.utc),
-                            queue_depth=self.store.count(),
-                            docker_last_error=None,
-                        )
-                        if inserted:
-                            self.state.increment(events_enqueued=1)
-                        else:
-                            self.state.increment(duplicate_events_ignored=1)
+                    if not window_complete:
+                        continue
                     # A normally completed bounded stream has delivered all matching events
                     # through `until`. Advance the durable cursor even when the window was quiet,
                     # while the overlap still protects second-level timestamp boundaries.

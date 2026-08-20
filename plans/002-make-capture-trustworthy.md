@@ -2,7 +2,7 @@
 
 > **Executor instructions**: Execute every step and gate in order. Stop instead of improvising when a STOP condition occurs. Update Plan 002 in `plans/README.md` when complete.
 >
-> **Drift check (run first)**: `test "$(sha256sum collector/src/porygon_collector/docker_source.py collector/src/porygon_collector/spool.py collector/src/porygon_collector/state.py collector/tests/test_spool.py telemetry/src/porygon_telemetry/config.py telemetry/src/porygon_telemetry/file_source.py telemetry/src/porygon_telemetry/main.py telemetry/src/porygon_telemetry/spool.py telemetry/src/porygon_telemetry/state.py telemetry/tests/test_config.py telemetry/tests/test_spool.py scanner/src/porygon_scanner/main.py docs/PHASE2_ACCEPTANCE.md docs/PHASE3_ARCHITECTURE.md docs/PHASE3_ACCEPTANCE.md | sha256sum | cut -d' ' -f1)" = ef9aff1553a0ae4623714df81c0d8daa8e825d83f8927ba60f87f621a872b405`
+> **Drift check (run first)**: `test "$(sha256sum collector/src/porygon_collector/docker_source.py collector/src/porygon_collector/spool.py collector/src/porygon_collector/state.py collector/tests/test_spool.py telemetry/src/porygon_telemetry/config.py telemetry/src/porygon_telemetry/file_source.py telemetry/src/porygon_telemetry/main.py telemetry/src/porygon_telemetry/spool.py telemetry/src/porygon_telemetry/state.py telemetry/tests/test_config.py telemetry/tests/test_spool.py scanner/src/porygon_scanner/main.py docs/PHASE2_ACCEPTANCE.md docs/PHASE3_ARCHITECTURE.md docs/PHASE3_ACCEPTANCE.md | sha256sum | cut -d' ' -f1)" = d17bfd41aacfdf42d40658b8a5cff9db6c4c33b3124cd71c20a2051ed63cc85e`
 >
 > Expected: exit 0. Changes made only by Plan 001 outside these paths are expected; any mismatch here is a STOP condition until reconciled.
 
@@ -13,7 +13,7 @@
 - **Risk**: MED
 - **Depends on**: Plan 001
 - **Category**: bug, security, tests
-- **Planned at**: `UNBORN`, in-scope hash `ef9aff1553a0`, 2026-08-16
+- **Planned at**: `23dc2c5`, in-scope hash `d17bfd41aacf`, 2026-08-20
 
 ## Why this matters
 
@@ -143,4 +143,3 @@ Do not claim measurement of kernel/Falco drops unless Falco’s own metrics are 
 ## Maintenance notes
 
 Review the exact transaction/cursor ordering and stop-event behavior. Plan 005 will add durable experiment-wide loss attribution; do not reinterpret these process-local counters as zero-loss proof. Performance batching is intentionally deferred until the baseline demonstrates that SQLite is a bottleneck.
-
