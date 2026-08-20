@@ -6,6 +6,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from porygon_collector.event_identity import action_detail, canonicalize_action
+
 
 class SpoolFullError(RuntimeError):
     pass
@@ -52,6 +54,73 @@ class OutboxStore:
                     updated_at REAL NOT NULL
                 );
                 """
+            )
+            self._repair_legacy_actions(connection)
+
+    @staticmethod
+    def _repair_legacy_actions(connection: sqlite3.Connection) -> None:
+        """Make queued pre-fix Docker actions conform to the categorical API field.
+
+        Event IDs remain unchanged because they were durably assigned at capture time.
+        The raw event and attributes retain the original Docker action detail.
+        """
+        actions_repaired = 0
+        commands_repaired = 0
+        rows = connection.execute("SELECT event_id, payload FROM outbox").fetchall()
+        for row in rows:
+            payload = json.loads(row["payload"])
+            original = str(payload.get("action") or "unknown")
+            canonical = canonicalize_action(original)
+            changed = False
+            if canonical != original:
+                payload["action"] = canonical
+                actions_repaired += 1
+                changed = True
+
+            raw_event = payload.get("raw_event")
+            raw_action = raw_event.get("Action") if isinstance(raw_event, dict) else None
+            detail = action_detail(raw_action)
+            if (
+                canonical in {"exec_create", "exec_start"}
+                and detail
+                and payload.get("command") != detail
+            ):
+                payload["command"] = detail
+                commands_repaired += 1
+                changed = True
+
+            if not changed:
+                continue
+            serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+            connection.execute(
+                "UPDATE outbox SET payload = ? WHERE event_id = ?",
+                (serialized, row["event_id"]),
+            )
+
+        if actions_repaired:
+            row = connection.execute(
+                "SELECT value FROM metadata WHERE key = 'legacy_actions_repaired_total'"
+            ).fetchone()
+            previous = int(row["value"]) if row else 0
+            connection.execute(
+                """
+                INSERT INTO metadata(key, value) VALUES ('legacy_actions_repaired_total', ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                """,
+                (str(previous + actions_repaired),),
+            )
+
+        if commands_repaired:
+            row = connection.execute(
+                "SELECT value FROM metadata WHERE key = 'legacy_exec_commands_repaired_total'"
+            ).fetchone()
+            previous = int(row["value"]) if row else 0
+            connection.execute(
+                """
+                INSERT INTO metadata(key, value) VALUES ('legacy_exec_commands_repaired_total', ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                """,
+                (str(previous + commands_repaired),),
             )
 
     def enqueue(self, payload: dict[str, Any]) -> bool:

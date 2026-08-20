@@ -81,3 +81,28 @@ def test_normalization_is_deterministic_and_excludes_environment(tmp_path) -> No
     assert first["image_digest_status"] == "resolved"
     assert first["command"] == "sh -c echo porygon"
     assert "environment" not in first["container_snapshot"]["config"]
+
+
+def test_exec_action_excludes_command_detail_but_preserves_raw_event(tmp_path) -> None:
+    store = OutboxStore(str(tmp_path / "outbox.db"), max_events=10)
+    command = "sh -c " + " ".join(["echo-safe"] * 100)
+    raw = {
+        "Type": "container",
+        "Action": f"exec_start: {command}",
+        "Actor": {
+            "ID": "container-1",
+            "Attributes": {
+                "name": "phase2-probe",
+                "image": "alpine:3.20",
+            },
+        },
+        "scope": "local",
+        "timeNano": 1784628000123456789,
+    }
+
+    event = normalize_event(FakeDockerAPI(), store, "daemon-1", raw)
+
+    assert event["action"] == "exec_start"
+    assert event["command"] == command
+    assert event["raw_event"]["Action"] == raw["Action"]
+    assert len(event["action"]) <= 64

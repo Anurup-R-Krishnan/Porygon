@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-import hashlib
-import json
 from datetime import datetime, timezone
 from typing import Any
 
 from docker.errors import APIError, ImageNotFound, NotFound
 
+from porygon_collector.event_identity import (
+    action_detail,
+    canonicalize_action,
+    deterministic_event_id,
+)
 from porygon_collector.spool import OutboxStore
 
 
@@ -186,28 +189,6 @@ def _event_time(raw_event: dict[str, Any]) -> tuple[int, datetime]:
     return time_nano, occurred_at
 
 
-def _deterministic_event_id(
-    docker_host_id: str,
-    event_type: str,
-    action: str,
-    scope: str | None,
-    actor_id: str,
-    time_nano: int,
-    attributes: dict[str, Any],
-) -> str:
-    identity = {
-        "docker_host_id": docker_host_id,
-        "event_type": event_type,
-        "action": action,
-        "scope": scope,
-        "actor_id": actor_id,
-        "time_nano": time_nano,
-        "attributes": attributes,
-    }
-    canonical = json.dumps(identity, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-
-
 def normalize_event(
     api_client,
     store: OutboxStore,
@@ -215,12 +196,13 @@ def normalize_event(
     raw_event: dict[str, Any],
 ) -> dict[str, Any]:
     event_type = str(raw_event.get("Type") or raw_event.get("type") or "unknown").lower()
-    action = str(
+    raw_action = (
         raw_event.get("Action")
         or raw_event.get("action")
         or raw_event.get("status")
         or "unknown"
-    ).lower()
+    )
+    action = canonicalize_action(raw_action)
     scope_value = raw_event.get("scope") or raw_event.get("Scope")
     scope = str(scope_value) if scope_value is not None else None
 
@@ -253,10 +235,12 @@ def normalize_event(
         image_digest_status = "not_applicable"
 
     command = attributes.get("execCommand") or attributes.get("command")
+    if not command and action in {"exec_create", "exec_start"}:
+        command = action_detail(raw_action)
     if not command:
         command = _join_command(config.get("command"))
 
-    event_id = _deterministic_event_id(
+    event_id = deterministic_event_id(
         docker_host_id=docker_host_id,
         event_type=event_type,
         action=action,
