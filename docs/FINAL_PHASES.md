@@ -6,6 +6,15 @@ This roadmap replaces the conflicting earlier versions. Porygon is a Docker-firs
 
 **Goal:** define exactly what is being claimed and measured.
 
+The version 1 protocol package is structurally complete and awaiting the two
+required human approvals. Confirmatory collection is prohibited until its
+status changes from `review_pending` to `frozen`:
+
+- [`RESEARCH_PROTOCOL_V1.md`](RESEARCH_PROTOCOL_V1.md)
+- [`THREAT_MODEL_V1.md`](THREAT_MODEL_V1.md)
+- [`CLAIMS_V1.md`](CLAIMS_V1.md)
+- [`PROFILE_SCOPE_EXPERIMENT_V1.md`](PROFILE_SCOPE_EXPERIMENT_V1.md)
+
 Deliverables:
 
 - Problem statement and non-goals
@@ -15,7 +24,9 @@ Deliverables:
 - Benign and malicious experiment catalogue
 - Metrics: precision, recall, false-positive rate, detection latency, ingestion loss, CPU, memory, and application overhead
 
-Exit condition: every research question maps to a repeatable experiment and a measurable output.
+Exit condition: every research question maps to a repeatable experiment and a
+measurable output, the structural validator passes, and one human security
+reviewer plus one human methodology reviewer approve the freeze.
 
 ## Phase 1: Reproducible Platform Foundation ✅ Implemented
 

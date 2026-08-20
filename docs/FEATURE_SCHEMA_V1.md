@@ -16,7 +16,10 @@ Every profile records:
 - SHA-256 hash of the selected event-ID set
 - SHA-256 model hash over the complete profile document
 
-Tags and mutable image references are never used as profile identity.
+Tags and mutable image references are never used as profile identity in the
+current v1 implementation. The frozen profile-scope experiment separately
+constructs global and mutable-tag comparator arms; that comparison does not
+redefine or silently change stored `porygon.behaviour.v1` profiles.
 
 ## Categorical distributions
 
@@ -56,6 +59,10 @@ A draft passes the activation gate only when:
 - an immutable repository digest is present
 
 The thresholds are engineering guardrails supplied with the build request. They are not validated scientific constants. Final thresholds must be justified with the project's benign validation experiments.
+
+Plan 004 may introduce a new calibrated model/schema under the frozen research
+protocol. It must use independent whole-run fit/calibration assignments and a
+new version identifier rather than reinterpreting these v1 fields.
 
 Warnings do not block activation. Version 1 warns when training contains fewer than two containers, no Docker lifecycle events, or no process bigrams.
 

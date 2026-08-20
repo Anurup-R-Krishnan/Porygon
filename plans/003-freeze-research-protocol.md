@@ -8,6 +8,7 @@
 
 ## Status
 
+- **Status**: IN PROGRESS — human security and methodology reviews pending
 - **Priority**: P1
 - **Effort**: M
 - **Risk**: MED
@@ -120,12 +121,26 @@ Protocol revisions after freeze require a new version, rationale, timestamp, aff
 
 ## Done criteria
 
-- [ ] Threat model, claims, profile-scope specification, and versioned protocol exist.
-- [ ] All fit/calibration/test splits are by independent run.
-- [ ] Four profile-scope arms, comparisons, ablations, metrics, and failure criteria are frozen.
-- [ ] Every conditional claim maps to a versioned Plan 005 artifact.
-- [ ] No confirmatory data was collected before freeze.
-- [ ] Static/structural checks pass; Plan 003 is marked `DONE`.
+- [x] Threat model, claims, profile-scope specification, and versioned protocol exist.
+- [x] All fit/calibration/test splits are by independent run.
+- [x] Four profile-scope arms, comparisons, ablations, metrics, and failure criteria are specified without selecting a winner.
+- [x] Every conditional claim maps to a versioned Plan 005 artifact.
+- [x] No confirmatory data was collected before freeze.
+- [ ] One human security reviewer and one human methodology reviewer approve the protocol.
+- [ ] After approval, status changes to `frozen`, static/structural checks pass, and Plan 003 is marked `DONE`.
+
+## Execution record
+
+The drift check passed on 2026-08-20 before editing. Six workload coordinates
+were resolved to immutable OCI index digests without running workload trials.
+The protocol package and stdlib-only structural validator were then created.
+The validator includes negative fixtures for missing/duplicate IDs, unlinked
+claims, absent null hypotheses, window-level split leakage, and a missing safety
+boundary. No pilot or confirmatory workload data was collected.
+
+Implementation is intentionally paused before Plan 004 because the required
+human reviews are not administrative decoration: they are the independent
+security and methodology checks required by this plan's test plan.
 
 ## STOP conditions
 
@@ -138,4 +153,3 @@ Protocol revisions after freeze require a new version, rationale, timestamp, aff
 ## Maintenance notes
 
 This protocol is the scientific source of truth. Plan 004 must implement its calibration unit and semantics exactly; Plan 005 must emit its artifact IDs exactly. Any later feature addition needs a new protocol/model version and fresh confirmatory evaluation.
-
