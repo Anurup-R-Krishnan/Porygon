@@ -60,6 +60,14 @@ The adapter is separate from the privileged Falco sensor. It:
 
 The byte cursor advances only after a line is normalized, ignored deliberately, or recorded as malformed. An outbox insert occurs before the cursor advances, so adapter restarts do not lose accepted events. Deterministic identifiers and the PostgreSQL primary key make replay idempotent.
 
+Malformed lines are retained only as bounded diagnostics. Each dead letter
+stores its source inode/offset, timestamp, original byte length and SHA-256,
+error class/message, and a short redacted excerpt. Full raw lines are cleared
+during schema upgrade and are never written by the current schema. Count,
+total excerpt bytes, and retention age are enforced transactionally; durable
+inserted/evicted/retained counters are exposed in telemetry status. Dead
+letters are not canonical experiment evidence.
+
 ### Backend correlation
 
 Falco generally reports a shortened container ID. The backend resolves it against Phase 2 `container_identities` using an exact or prefix match.

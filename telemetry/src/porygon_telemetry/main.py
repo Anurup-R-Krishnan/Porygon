@@ -56,6 +56,7 @@ async def heartbeat_loop(state: TelemetryState, store: TelemetryStore) -> None:
             queue_depth = await asyncio.to_thread(store.count)
             state.set(queue_depth=queue_depth)
             healthy = bool(snapshot["source_running"] and snapshot["source_file_available"])
+            dead_letters = await asyncio.to_thread(store.dead_letter_stats)
             payload = {
                 "service_name": settings.service_name,
                 "instance_id": settings.telemetry_instance_id,
@@ -75,7 +76,7 @@ async def heartbeat_loop(state: TelemetryState, store: TelemetryStore) -> None:
                     "events_delivered": snapshot["events_delivered"],
                     "duplicates_ignored": snapshot["duplicates_ignored"],
                     "malformed_lines": snapshot["malformed_lines"],
-                    "dead_letters": await asyncio.to_thread(store.dead_letter_count),
+                    "dead_letters": dead_letters,
                 },
             }
             try:
@@ -144,7 +145,14 @@ async def delivery_loop(state: TelemetryState, store: TelemetryStore) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     state = TelemetryState(started_at=datetime.now(timezone.utc))
-    store = TelemetryStore(settings.spool_path, settings.spool_max_events)
+    store = TelemetryStore(
+        settings.spool_path,
+        settings.spool_max_events,
+        dead_letter_max_records=settings.dead_letter_max_records,
+        dead_letter_max_total_bytes=settings.dead_letter_max_total_bytes,
+        dead_letter_excerpt_bytes=settings.dead_letter_excerpt_bytes,
+        dead_letter_retention_seconds=settings.dead_letter_retention_seconds,
+    )
     state.set(queue_depth=store.count())
     source = FalcoFileSource(settings, state, store)
 
@@ -216,6 +224,6 @@ def telemetry_status(request: Request) -> dict[str, object]:
     snapshot = state.snapshot()
     return {
         **{key: _iso(value) if isinstance(value, datetime) else value for key, value in snapshot.items()},
-        "dead_letters": store.dead_letter_count(),
+        "dead_letters": store.dead_letter_stats(),
         "falco_log_path": settings.falco_log_path,
     }

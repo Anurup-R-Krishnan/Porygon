@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     delivery_batch_size: int = Field(default=100, ge=1, le=250)
     delivery_poll_seconds: float = Field(default=1.0, ge=0.2, le=30.0)
     delivery_retry_max_seconds: int = Field(default=60, ge=2, le=3600)
+    dead_letter_max_records: int = Field(default=1000, ge=1, le=1_000_000)
+    dead_letter_max_total_bytes: int = Field(
+        default=1_048_576,
+        ge=1024,
+        le=1_073_741_824,
+    )
+    dead_letter_excerpt_bytes: int = Field(default=512, ge=64, le=16_384)
+    dead_letter_retention_seconds: int = Field(default=604_800, ge=60, le=31_536_000)
 
     @property
     def reported_docker_host_id(self) -> str | None:

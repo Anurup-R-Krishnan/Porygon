@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 import sqlite3
 import time
 from pathlib import Path
@@ -11,10 +13,57 @@ class SpoolFullError(RuntimeError):
     pass
 
 
+_SECRET_ASSIGNMENT = re.compile(
+    r"(?i)\b(token|password|passwd|secret|api[_-]?key|authorization)"
+    r"\s*=\s*(?:\"[^\"]*\"|'[^']*'|\S+)"
+)
+_SECRET_ARGUMENT = re.compile(
+    r"(?i)(--(?:token|password|passwd|secret|api[_-]?key|authorization))"
+    r"(?:=|\s+)\S+"
+)
+_SECRET_JSON = re.compile(
+    r"(?i)([\"'](?:token|password|passwd|secret|api[_-]?key|authorization)[\"']"
+    r"\s*:\s*)(?:\"[^\"]*\"|'[^']*'|[^,\s}]+)"
+)
+_BEARER_TOKEN = re.compile(r"(?i)\bbearer\s+\S+")
+
+
+def _redact(value: str) -> str:
+    value = _SECRET_JSON.sub(lambda match: f'{match.group(1)}"<redacted>"', value)
+    value = _SECRET_ASSIGNMENT.sub(lambda match: f"{match.group(1)}=<redacted>", value)
+    value = _SECRET_ARGUMENT.sub(lambda match: f"{match.group(1)}=<redacted>", value)
+    return _BEARER_TOKEN.sub("Bearer <redacted>", value)
+
+
+def _truncate_utf8(value: str, max_bytes: int) -> str:
+    encoded = value.encode("utf-8")[:max_bytes]
+    return encoded.decode("utf-8", errors="ignore")
+
+
+def _error_parts(error: str) -> tuple[str, str]:
+    error_class, separator, message = error.partition(":")
+    if not separator:
+        return error[:128], ""
+    return error_class[:128], _truncate_utf8(_redact(message.strip()), 512)
+
+
 class TelemetryStore:
-    def __init__(self, path: str, max_events: int) -> None:
+    def __init__(
+        self,
+        path: str,
+        max_events: int,
+        *,
+        dead_letter_max_records: int = 1000,
+        dead_letter_max_total_bytes: int = 1_048_576,
+        dead_letter_excerpt_bytes: int = 512,
+        dead_letter_retention_seconds: int = 604_800,
+    ) -> None:
         self.path = Path(path)
         self.max_events = max_events
+        self.dead_letter_max_records = dead_letter_max_records
+        self.dead_letter_max_total_bytes = dead_letter_max_total_bytes
+        self.dead_letter_excerpt_bytes = dead_letter_excerpt_bytes
+        self.dead_letter_retention_seconds = dead_letter_retention_seconds
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
@@ -54,8 +103,117 @@ class TelemetryStore:
                     error TEXT NOT NULL,
                     recorded_at REAL NOT NULL
                 );
+                CREATE INDEX IF NOT EXISTS ix_dead_letters_recorded_at
+                    ON dead_letters(recorded_at, id);
                 """
             )
+            self._upgrade_dead_letters(connection)
+            self._prune_dead_letters(connection, time.time())
+
+    def _upgrade_dead_letters(self, connection: sqlite3.Connection) -> None:
+        columns = {
+            str(row["name"])
+            for row in connection.execute("PRAGMA table_info(dead_letters)").fetchall()
+        }
+        additions = {
+            "raw_sha256": "TEXT NOT NULL DEFAULT ''",
+            "raw_byte_length": "INTEGER NOT NULL DEFAULT 0",
+            "excerpt": "TEXT NOT NULL DEFAULT ''",
+            "error_class": "TEXT NOT NULL DEFAULT ''",
+            "error_message": "TEXT NOT NULL DEFAULT ''",
+        }
+        for name, definition in additions.items():
+            if name not in columns:
+                connection.execute(f"ALTER TABLE dead_letters ADD COLUMN {name} {definition}")
+
+        rows = connection.execute(
+            """
+            SELECT id, raw_line, error, raw_sha256
+            FROM dead_letters
+            WHERE raw_line != '' OR raw_sha256 = ''
+            """
+        ).fetchall()
+        for row in rows:
+            raw_line = str(row["raw_line"])
+            raw_bytes = raw_line.encode("utf-8")
+            error_class, error_message = _error_parts(str(row["error"]))
+            excerpt = _truncate_utf8(_redact(raw_line), self.dead_letter_excerpt_bytes)
+            connection.execute(
+                """
+                UPDATE dead_letters
+                SET raw_line = '', raw_sha256 = ?, raw_byte_length = ?, excerpt = ?,
+                    error_class = ?, error_message = ?
+                WHERE id = ?
+                """,
+                (
+                    hashlib.sha256(raw_bytes).hexdigest(),
+                    len(raw_bytes),
+                    excerpt,
+                    error_class,
+                    error_message,
+                    int(row["id"]),
+                ),
+            )
+
+    @staticmethod
+    def _increment_metadata(
+        connection: sqlite3.Connection,
+        key: str,
+        amount: int,
+    ) -> None:
+        if amount <= 0:
+            return
+        connection.execute(
+            """
+            INSERT INTO metadata(key, value) VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE
+            SET value = CAST(metadata.value AS INTEGER) + CAST(excluded.value AS INTEGER)
+            """,
+            (key, str(amount)),
+        )
+
+    def _prune_dead_letters(self, connection: sqlite3.Connection, now: float) -> None:
+        before = int(connection.execute("SELECT COUNT(*) FROM dead_letters").fetchone()[0])
+        connection.execute(
+            "DELETE FROM dead_letters WHERE recorded_at < ?",
+            (now - self.dead_letter_retention_seconds,),
+        )
+
+        count = int(connection.execute("SELECT COUNT(*) FROM dead_letters").fetchone()[0])
+        excess = max(0, count - self.dead_letter_max_records)
+        if excess:
+            connection.execute(
+                """
+                DELETE FROM dead_letters
+                WHERE id IN (
+                    SELECT id FROM dead_letters ORDER BY recorded_at, id LIMIT ?
+                )
+                """,
+                (excess,),
+            )
+
+        rows = connection.execute(
+            """
+            SELECT id, length(CAST(excerpt AS BLOB)) AS excerpt_bytes
+            FROM dead_letters ORDER BY recorded_at, id
+            """
+        ).fetchall()
+        total_bytes = sum(int(row["excerpt_bytes"] or 0) for row in rows)
+        delete_ids: list[int] = []
+        for row in rows:
+            if total_bytes <= self.dead_letter_max_total_bytes:
+                break
+            delete_ids.append(int(row["id"]))
+            total_bytes -= int(row["excerpt_bytes"] or 0)
+        if delete_ids:
+            placeholders = ",".join("?" for _ in delete_ids)
+            connection.execute(
+                f"DELETE FROM dead_letters WHERE id IN ({placeholders})",
+                delete_ids,
+            )
+
+        after = int(connection.execute("SELECT COUNT(*) FROM dead_letters").fetchone()[0])
+        self._increment_metadata(connection, "dead_letters_evicted", before - after)
 
     def enqueue(self, payload: dict[str, Any]) -> bool:
         event_id = str(payload["event_id"])
@@ -182,15 +340,55 @@ class TelemetryStore:
         raw_line: str,
         error: str,
     ) -> None:
+        raw_bytes = raw_line.encode("utf-8")
+        excerpt = _truncate_utf8(_redact(raw_line), self.dead_letter_excerpt_bytes)
+        error_class, error_message = _error_parts(error)
+        now = time.time()
         with self._connect() as connection:
             connection.execute(
                 """
-                INSERT INTO dead_letters(source_inode, source_offset, raw_line, error, recorded_at)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO dead_letters(
+                    source_inode, source_offset, raw_line, error, recorded_at,
+                    raw_sha256, raw_byte_length, excerpt, error_class, error_message
+                )
+                VALUES (?, ?, '', ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (source_inode, source_offset, raw_line[:1_000_000], error[:1000], time.time()),
+                (
+                    source_inode,
+                    source_offset,
+                    error[:1000],
+                    now,
+                    hashlib.sha256(raw_bytes).hexdigest(),
+                    len(raw_bytes),
+                    excerpt,
+                    error_class,
+                    error_message,
+                ),
             )
+            self._increment_metadata(connection, "dead_letters_inserted", 1)
+            self._prune_dead_letters(connection, now)
 
     def dead_letter_count(self) -> int:
+        return int(self.dead_letter_stats()["retained_count"])
+
+    def dead_letter_stats(self) -> dict[str, int]:
         with self._connect() as connection:
-            return int(connection.execute("SELECT COUNT(*) FROM dead_letters").fetchone()[0])
+            row = connection.execute(
+                """
+                SELECT COUNT(*) AS retained_count,
+                       COALESCE(SUM(length(CAST(excerpt AS BLOB))), 0) AS retained_bytes
+                FROM dead_letters
+                """
+            ).fetchone()
+            inserted = connection.execute(
+                "SELECT value FROM metadata WHERE key = 'dead_letters_inserted'"
+            ).fetchone()
+            evicted = connection.execute(
+                "SELECT value FROM metadata WHERE key = 'dead_letters_evicted'"
+            ).fetchone()
+        return {
+            "inserted": int(inserted["value"]) if inserted else 0,
+            "evicted": int(evicted["value"]) if evicted else 0,
+            "retained_count": int(row["retained_count"]),
+            "retained_bytes": int(row["retained_bytes"]),
+        }
