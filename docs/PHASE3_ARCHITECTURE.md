@@ -106,7 +106,7 @@ Important indexes cover:
 
 ### Privileged components
 
-- **Falco sensor:** receives `SYS_ADMIN`, `SYS_RESOURCE`, and `SYS_PTRACE`, host `/proc`, host `/etc`, and Docker socket metadata access.
+- **Falco sensor:** receives `BPF`, `PERFMON`, `SYS_RESOURCE`, and `SYS_PTRACE`, host `/proc`, host `/etc`, and Docker socket metadata access.
 - **Docker collector:** retains Docker socket access from Phase 2.
 
 Either component must be treated as part of Porygon's trusted computing base.
@@ -116,8 +116,13 @@ Either component must be treated as part of Porygon's trusted computing base.
 - backend;
 - telemetry adapter;
 - PostgreSQL network client path.
+- credential-free loopback gateway.
 
 The backend and telemetry adapter have no Docker socket mount. The telemetry adapter runs non-root, drops all Linux capabilities, uses a read-only root filesystem, and reads the Falco event volume read-only.
+
+A networkless one-shot initializer gives the Falco event volume its fixed
+owner/group and mode before either Falco or telemetry starts. It receives only
+the `CHOWN` capability, mounts only that volume, and exits before capture begins.
 
 A `:ro` Docker socket mount does not make Docker API access read-only. Host compromise risk remains if the Falco sensor or Docker collector is compromised.
 

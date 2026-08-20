@@ -20,7 +20,7 @@ def _raw_event() -> dict[str, object]:
             "container.image.tag": "3.20",
             "proc.pid": 101,
             "proc.ppid": 100,
-            "thread.vpid": 2,
+            "proc.vpid": 2,
             "proc.name": "sleep",
             "proc.exepath": "/bin/sleep",
             "proc.cmdline": "sleep 2",
@@ -55,8 +55,26 @@ def test_normalizer_is_deterministic_and_preserves_parent_context() -> None:
     assert first["event_id"] == second["event_id"]
     assert first["reported_image_ref"] == "docker.io/library/alpine:3.20"
     assert first["process_ppid"] == 100
+    assert first["process_vpid"] == 2
     assert first["parent_name"] == "sh"
     assert "proc.env" not in first["output_fields"]
+
+
+def test_normalizer_accepts_legacy_thread_vpid_field() -> None:
+    event = _raw_event()
+    fields = event["output_fields"]
+    assert isinstance(fields, dict)
+    fields["thread.vpid"] = fields.pop("proc.vpid")
+
+    normalized = normalize_falco_event(
+        event,
+        sensor_instance_id="sensor-1",
+        expected_rule="Porygon Container Process Execution",
+        reported_docker_host_id=None,
+    )
+
+    assert normalized is not None
+    assert normalized["process_vpid"] == 2
 
 
 def test_non_porygon_rule_is_ignored() -> None:

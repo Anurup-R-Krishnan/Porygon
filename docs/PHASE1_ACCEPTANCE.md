@@ -3,17 +3,22 @@
 Phase 1 is complete only when all of the following are true:
 
 1. `docker compose config --quiet` succeeds.
-2. PostgreSQL, backend, and collector start with one command.
+2. PostgreSQL, backend, loopback gateway, and collector start with one command.
 3. Compose waits for PostgreSQL readiness before starting the backend.
 4. The backend migration completes before the API starts.
 5. `/health/live` works without querying the database.
 6. `/health/ready` returns success only when PostgreSQL is reachable.
-7. The collector sends an authenticated heartbeat to the backend.
-8. The heartbeat is visible through `/api/v1/services`.
-9. The heartbeat's `first_seen_at` survives `docker compose down` followed by `docker compose up`.
-10. Backend and collector run as non-root users, drop Linux capabilities, use read-only root filesystems, and do not mount the Docker socket.
-11. PostgreSQL is not published to the host.
-12. `./scripts/verify_phase1.sh` completes successfully.
+7. The host API is reachable only through the loopback-bound gateway; the
+   backend itself publishes no host port.
+8. The collector sends an authenticated heartbeat to the backend.
+9. The heartbeat is visible through `/api/v1/services`.
+10. The heartbeat's `first_seen_at` survives `docker compose down` followed by `docker compose up`.
+11. Backend, gateway, and collector run as non-root users, drop Linux
+    capabilities, and use read-only root filesystems. The backend and gateway
+    do not mount the Docker socket; the collector's required socket access is
+    isolated from them.
+12. PostgreSQL is not published to the host.
+13. `./scripts/verify_phase1.sh` completes successfully.
 
 ## Evidence to save
 

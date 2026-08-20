@@ -150,8 +150,33 @@ for path in python_files:
     ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
 for path in sorted(Path('.').glob('*/pyproject.toml')):
     tomllib.loads(path.read_text(encoding='utf-8'))
-  for path in (Path('compose.yaml'), Path('falco/porygon_rules.yaml')):
-    yaml.load(path.read_text(encoding='utf-8'), Loader=UniqueKeyLoader)
+compose = yaml.load(
+    Path('compose.yaml').read_text(encoding='utf-8'),
+    Loader=UniqueKeyLoader,
+)
+rules = yaml.load(
+    Path('falco/porygon_rules.yaml').read_text(encoding='utf-8'),
+    Loader=UniqueKeyLoader,
+)
+
+services = compose['services']
+networks = compose['networks']
+gateway = services['gateway']
+falco_events_init = services['falco-events-init']
+assert not services['backend'].get('ports'), 'backend must not publish a host port'
+assert gateway['ports'] == ['127.0.0.1:${BACKEND_PORT:-8000}:8080']
+assert set(gateway['networks']) == {'porygon_internal', 'porygon_ingress'}
+assert '@sha256:' in gateway['image'], 'gateway image must be digest pinned'
+assert not gateway.get('env_file') and not gateway.get('environment')
+assert falco_events_init['network_mode'] == 'none'
+assert '@sha256:' in falco_events_init['image']
+assert falco_events_init['cap_add'] == ['CHOWN']
+assert services['falco']['depends_on']['falco-events-init']['condition'] == 'service_completed_successfully'
+assert services['telemetry']['depends_on']['falco-events-init']['condition'] == 'service_completed_successfully'
+assert networks['porygon_internal']['internal'] is True
+assert not networks['porygon_ingress'].get('internal', False)
+assert '\n' not in rules[0]['output'], 'Falco output template must be one line'
+assert '%proc.vpid' in rules[0]['output']
 print(f'parsed {len(python_files)} Python files, service TOML, and YAML with unique keys')
 PY
   for script_path in scripts/*.sh backend/entrypoint.sh; do
@@ -161,6 +186,11 @@ PY
   docker compose run --rm --no-deps --entrypoint python backend -c \
     'from porygon_api.main import app; schema=app.openapi(); assert len(schema["paths"]) >= 60; print("openapi_paths=" + str(len(schema["paths"])))' || return $?
   docker compose run --rm --no-deps --entrypoint alembic backend upgrade head --sql >/dev/null || return $?
+  docker run --rm \
+    --volume "$ROOT_DIR/falco/porygon_rules.yaml:/etc/falco/porygon_rules.yaml:ro" \
+    --entrypoint falco \
+    falcosecurity/falco:0.44.1 \
+    --validate /etc/falco/porygon_rules.yaml || return $?
 }
 
 unit_checks() {

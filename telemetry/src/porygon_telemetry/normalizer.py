@@ -134,7 +134,9 @@ def normalize_falco_event(
         "reported_image_ref": _image_ref(fields),
         "process_pid": process_pid,
         "process_ppid": _nonnegative_int(fields.get("proc.ppid")),
-        "process_vpid": _nonnegative_int(fields.get("thread.vpid")),
+        "process_vpid": _nonnegative_int(
+            fields.get("proc.vpid", fields.get("thread.vpid"))
+        ),
         "process_name": _text(fields.get("proc.name"), 255),
         "executable": _text(fields.get("proc.exepath")),
         "command_line": _text(fields.get("proc.cmdline")),

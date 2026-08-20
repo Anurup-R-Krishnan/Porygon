@@ -7,33 +7,42 @@ Phase 8 does not claim that a scanner finding proves exploitation. It stores pac
 ## Phase status
 
 “Code implemented” means the capability exists in the repository. It does not
-mean that live acceptance or experimental validation has passed. On 2026-08-16,
-the local static gate and all 69 unit tests passed. The live gates were attempted
-and failed before their scenarios could run; the blockers are recorded below
-and in `artifacts/verification-manifest.json`.
+mean that live acceptance or experimental validation has passed. On 2026-08-20,
+the corrected static gate and all 70 unit tests passed. A full-stack bootstrap
+smoke test also passed, including a real Falco process event reaching PostgreSQL.
+The longer phase acceptance scenarios still need to be rerun.
 
 | Phase | Capability | Code | Static/unit | Live acceptance | Experimental validation |
 |---|---|---:|---:|---:|---:|
-| 1 | PostgreSQL, FastAPI, migrations, health and service authentication | Present | Local pass | Failed: host API unavailable | Not applicable |
-| 2 | Docker events, immutable image identity, durable collection outbox | Present | Local pass | Blocked by Phase 1 live prerequisite | Pending Phase 9 |
-| 3 | Falco modern-eBPF process execution telemetry | Present | Local pass | Failed: Falco rule compile and host API | Pending Phase 9 |
-| 4 | Versioned digest-bound behavioural profiles | Present | Local pass | Blocked by earlier live prerequisites | Pending Phase 9 |
-| 5 | Explainable behavioural-distance scoring v1 | Provisional | Local pass | Blocked by earlier live prerequisites | Pending calibrated v2 and Phase 9 |
-| 6 | Deterministic findings, correlation, incidents and evidence timelines | Present | Local pass | Blocked by earlier live prerequisites | Pending Phase 9 |
+| 1 | PostgreSQL, FastAPI, migrations, health and service authentication | Present | Local pass | Local pass | Not applicable |
+| 2 | Docker events, immutable image identity, durable collection outbox | Present | Local pass | Unblocked; acceptance rerun pending | Pending Phase 9 |
+| 3 | Falco modern-eBPF process execution telemetry | Present | Local pass | Bootstrap smoke pass; acceptance rerun pending | Pending Phase 9 |
+| 4 | Versioned digest-bound behavioural profiles | Present | Local pass | Unblocked; acceptance rerun pending | Pending Phase 9 |
+| 5 | Explainable behavioural-distance scoring v1 | Provisional | Local pass | Unblocked; acceptance rerun pending | Pending calibrated v2 and Phase 9 |
+| 6 | Deterministic findings, correlation, incidents and evidence timelines | Present | Local pass | Unblocked; acceptance rerun pending | Pending Phase 9 |
 | 7 | Human-approved response recommendations and controlled execution | Present; disabled by default | Local pass | Explicit disruptive gate not run | Pending Phase 9 |
-| 8 | Digest-bound SBOM, CVE, EPSS, KEV and exposure enrichment | Present | Local pass | Failed: host API unavailable | Extension; core experiment pending |
+| 8 | Digest-bound SBOM, CVE, EPSS, KEV and exposure enrichment | Present | Local pass | Unblocked; acceptance rerun pending | Extension; core experiment pending |
 | 9 | Experimental evaluation and paper evidence | Not implemented | Not applicable | Not applicable | Pending |
 
-### Known live blockers
+### Live bootstrap corrections
 
-- Docker Engine 29.7.2 did not create the requested localhost publication for
-  the backend while it was attached only to the externally isolated internal
-  network. The backend was healthy at its container address, but nothing was
-  listening on `127.0.0.1:8000`.
-- Falco 0.44.1 rejected the folded multi-line output in
-  `falco/porygon_rules.yaml` with `LOAD_ERR_COMPILE_OUTPUT` and restarted.
+- A digest-pinned, non-root gateway now publishes only `127.0.0.1:8000` and
+  proxies to the backend. The backend remains solely on the isolated internal
+  network, and the gateway receives no Porygon or PostgreSQL credentials.
+- The Falco 0.44.1 rule now validates with its supported `proc.vpid` field. A
+  one-shot, networkless initializer also establishes the shared event-volume
+  permissions before Falco and telemetry start.
+- Falco, telemetry, and the gateway have explicit health checks. The bootstrap
+  smoke test observed zero restarts, zero Falco file-open errors, and persisted
+  process-execution events in PostgreSQL.
 - The Phase 7 response gate was intentionally skipped because it can pause or
   stop a container and is never part of `make verify`.
+
+On the current CachyOS kernel, Falco reports that several optional TOCTOU
+mitigation tracepoints are unavailable while continuing to capture process
+executions. Confirmatory experiments will use the planned stock Linux LTS
+kernel and will record Falco drop/engine metrics instead of treating container
+health as proof of lossless capture.
 
 See [`docs/FINAL_PHASES.md`](docs/FINAL_PHASES.md) for the complete roadmap.
 
@@ -54,6 +63,10 @@ Docker Engine <--- scanner service <--- Phase 8 work queue --- Porygon API
 ```
 
 Only the scanner has both Docker socket access and outbound internet access. The scanner does not receive the operator token. The backend does not receive Docker socket access.
+
+Host API access goes through a credential-free reverse proxy. The backend,
+database, collector, telemetry adapter, responder, and Falco remain on an
+isolated internal network; only the proxy joins the separate ingress network.
 
 Full design: [`docs/PHASE8_ARCHITECTURE.md`](docs/PHASE8_ARCHITECTURE.md).
 
@@ -155,6 +168,7 @@ porygon-phase8/
 │   │   └── main.py
 │   └── tests/
 ├── collector/
+├── gateway/nginx.conf
 ├── telemetry/
 ├── responder/
 ├── scanner/
