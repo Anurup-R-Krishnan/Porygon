@@ -78,6 +78,13 @@ The eventual confirmatory statistic is defined per complete run/block by the
 frozen protocol. Window-level ranks may be displayed as descriptive diagnostics
 but must not be presented as run-level coverage evidence.
 
+The exploratory block implementation uses the maximum nonconformity across a
+run's windows as one deterministic block statistic. It rejects empty,
+non-finite, and negative window values, freezes sorted calibration run IDs and
+statistics under `calibration_hash`, and rejects a test run that is present in
+the calibration artifact. The statistic version is
+`porygon.rarity.block.max-window.v1`.
+
 ## Fusion and interpretation
 
 Eligible component rarities are averaged in registry order-independent fashion.
