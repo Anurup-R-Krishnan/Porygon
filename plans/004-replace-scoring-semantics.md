@@ -8,12 +8,14 @@
 
 ## Status
 
+- **Status**: IN PROGRESS — exploratory implementation authorized; confirmatory collection remains prohibited until Plan 003 review is complete
 - **Priority**: P1
 - **Effort**: L
 - **Risk**: HIGH
 - **Depends on**: Plan 003
 - **Category**: migration, correctness, tests, direction
 - **Planned at**: `UNBORN`, pre-Plan-003 hash `4906cc515406`, 2026-08-16
+- **Accepted drift anchor before implementation**: `2ea24afff2ce5525ddf59fe9faf10057e39cc957058469cd30325f47c5546d7d` (Plan 003 intentionally changed `docs/FEATURE_SCHEMA_V1.md`; no runtime files were changed by that plan)
 
 ## Why this matters
 
@@ -160,3 +162,6 @@ Document equations, fit/calibration/test roles, block statistic, exchangeability
 
 Reviewers should audit scientific semantics before code style. The calibration guarantee is conditional on the frozen protocol assumptions; drift must be surfaced, not hidden. Any new feature family changes the registry/model version and requires new fit/calibration artifacts and confirmatory evaluation.
 
+The first implementation work on this branch is exploratory and test-only until
+Plan 003 is independently reviewed. It must not collect pilot or confirmatory
+workload data, mutate v1 rows, or expose v2 as the default API path.
