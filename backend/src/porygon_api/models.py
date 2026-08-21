@@ -232,6 +232,84 @@ class BehaviorProfile(Base):
     retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class RarityModelV2(Base):
+    __tablename__ = "rarity_models_v2"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft', 'active', 'retired')",
+            name="ck_rarity_models_v2_status",
+        ),
+        CheckConstraint("min_calibration_runs >= 1", name="ck_rarity_models_v2_min_calibration"),
+        CheckConstraint("fit_run_count >= 0", name="ck_rarity_models_v2_fit_count"),
+        CheckConstraint("calibration_run_count >= 1", name="ck_rarity_models_v2_calibration_count"),
+        UniqueConstraint("model_key", name="uq_rarity_models_v2_model_key"),
+        Index("ix_rarity_models_v2_scope_status", "profile_scope_id", "status"),
+        Index("ix_rarity_models_v2_protocol", "protocol_id"),
+    )
+
+    model_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    model_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    protocol_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    profile_scope_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    profile_context_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    algorithm_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    component_registry_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    min_calibration_runs: Mapped[int] = mapped_column(Integer, nullable=False)
+    fit_run_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    calibration_run_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    fit_run_set_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    calibration_run_set_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    calibration_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    provenance_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    model_document: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class RarityModelRunV2(Base):
+    __tablename__ = "rarity_model_runs_v2"
+    __table_args__ = (
+        CheckConstraint("split_role IN ('fit', 'calibration')", name="ck_rarity_model_runs_v2_role"),
+        UniqueConstraint("model_id", "run_id", name="uq_rarity_model_runs_v2_model_run"),
+        Index("ix_rarity_model_runs_v2_model_role", "model_id", "split_role"),
+        Index("ix_rarity_model_runs_v2_run", "run_id"),
+    )
+
+    model_run_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    model_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("rarity_models_v2.model_id", ondelete="RESTRICT"), nullable=False
+    )
+    run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    split_role: Mapped[str] = mapped_column(String(16), nullable=False)
+    feature_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    window_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    feature_summary: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class RarityCalibrationBlockV2(Base):
+    __tablename__ = "rarity_calibration_blocks_v2"
+    __table_args__ = (
+        CheckConstraint("block_statistic >= 0", name="ck_rarity_calibration_blocks_v2_stat"),
+        UniqueConstraint("model_id", "run_id", name="uq_rarity_calibration_blocks_v2_model_run"),
+        Index("ix_rarity_calibration_blocks_v2_model", "model_id"),
+        Index("ix_rarity_calibration_blocks_v2_run", "run_id"),
+    )
+
+    block_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    model_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("rarity_models_v2.model_id", ondelete="RESTRICT"), nullable=False
+    )
+    run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    block_statistic_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    block_statistic: Mapped[float] = mapped_column(Float, nullable=False)
+    block_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    window_summary: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class AnomalyScore(Base):
     __tablename__ = "anomaly_scores"
     __table_args__ = (

@@ -5,6 +5,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from porygon_api.provenance_v2 import MIN_CALIBRATION_RUNS, validate_run_split
+
 
 class HealthResponse(BaseModel):
     status: Literal["ok", "not_ready"]
@@ -332,6 +334,76 @@ class BehaviorProfileOut(BaseModel):
     created_at: datetime
     activated_at: datetime | None
     retired_at: datetime | None
+
+
+class RarityModelV2CreateIn(BaseModel):
+    protocol_id: str = Field(min_length=1, max_length=64)
+    profile_scope_id: str = Field(min_length=1, max_length=128)
+    profile_context_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    algorithm_version: str = Field(min_length=1, max_length=64)
+    component_registry_version: str = Field(min_length=1, max_length=64)
+    fit_run_ids: list[str] = Field(default_factory=list, max_length=100000)
+    calibration_run_ids: list[str] = Field(min_length=1, max_length=100000)
+    minimum_calibration_runs: int = Field(default=MIN_CALIBRATION_RUNS, ge=1, le=100000)
+
+    @model_validator(mode="after")
+    def validate_split(self) -> "RarityModelV2CreateIn":
+        validate_run_split(
+            self.fit_run_ids,
+            self.calibration_run_ids,
+            minimum_calibration_runs=self.minimum_calibration_runs,
+        )
+        return self
+
+
+class RarityModelV2Out(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    model_id: str
+    model_key: str
+    protocol_id: str
+    profile_scope_id: str
+    profile_context_hash: str
+    algorithm_version: str
+    component_registry_version: str
+    status: Literal["draft", "active", "retired"]
+    min_calibration_runs: int
+    fit_run_count: int
+    calibration_run_count: int
+    fit_run_set_hash: str
+    calibration_run_set_hash: str
+    calibration_hash: str
+    provenance_hash: str
+    model_document: dict[str, Any]
+    created_at: datetime
+    activated_at: datetime | None
+    retired_at: datetime | None
+
+
+class RarityModelRunV2Out(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    model_run_id: str
+    model_id: str
+    run_id: str
+    split_role: Literal["fit", "calibration"]
+    feature_hash: str
+    window_count: int
+    feature_summary: dict[str, Any]
+    created_at: datetime
+
+
+class RarityCalibrationBlockV2Out(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    block_id: str
+    model_id: str
+    run_id: str
+    block_statistic_version: str
+    block_statistic: float
+    block_hash: str
+    window_summary: dict[str, Any]
+    created_at: datetime
 
 
 class AnomalyScoreComputeIn(BaseModel):
