@@ -12,6 +12,16 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from porygon_api.baseline import FEATURE_SCHEMA_VERSION, build_profile_document
+from porygon_api.calibrated_provenance import (
+    PROTOCOL_ID,
+    build_provenance_document,
+)
+from porygon_api.calibrated_rarity import (
+    ALGORITHM_ID as CALIBRATED_ALGORITHM_ID,
+    COMPONENT_REGISTRY_ID,
+    sha256_json,
+)
+from porygon_api.run_calibration import build_calibration_artifact, score_test_block
 from porygon_api.config import get_settings
 from porygon_api.detection import (
     CORRELATION_WINDOW_SECONDS,
@@ -45,6 +55,10 @@ from porygon_api.models import (
     VulnerabilityReportArtifact,
     VulnerabilityFinding,
     VulnerabilityIntel,
+    CalibratedRarityModel,
+    CalibratedModelRun,
+    CalibrationBlock,
+    CalibratedRarityScore,
 )
 from porygon_api.schemas import (
     AnomalyScoreComputeIn,
@@ -97,6 +111,10 @@ from porygon_api.schemas import (
     VulnerabilityReportArtifactOut,
     VulnerabilityFindingOut,
     VulnerabilityIntelOut,
+    CalibratedModelCreateIn,
+    CalibratedModelOut,
+    CalibratedScoreCreateIn,
+    CalibratedRarityScoreOut,
 )
 from porygon_api.scoring import (
     ALGORITHM_VERSION,
@@ -127,6 +145,14 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger("porygon.api")
+
+
+def _require_calibrated_enabled() -> None:
+    if not settings.calibrated_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Calibrated rarity endpoints are disabled until protocol review is complete",
+        )
 
 APP_VERSION = "0.8.0"
 PHASE_ID = "8-sbom-vulnerability-enrichment"
@@ -1068,6 +1094,263 @@ def get_behavior_profile(profile_id: str, db: Session = Depends(get_db)) -> Beha
     if profile is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
     return profile
+
+
+@app.post(
+    "/internal/calibrated/rarity-models",
+    response_model=CalibratedModelOut,
+    tags=["internal", "calibrated-rarity"],
+    dependencies=[Depends(require_internal_token)],
+)
+def create_calibrated_model(
+    payload: CalibratedModelCreateIn,
+    db: Session = Depends(get_db),
+) -> CalibratedRarityModel:
+    _require_calibrated_enabled()
+    if payload.protocol_id != PROTOCOL_ID:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Unsupported protocol identifier")
+    if payload.algorithm_id != CALIBRATED_ALGORITHM_ID:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Unsupported calibrated algorithm identifier")
+    if payload.component_registry_id != COMPONENT_REGISTRY_ID:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Unsupported calibrated component registry")
+
+    try:
+        provenance = build_provenance_document(
+            protocol_id=payload.protocol_id,
+            profile_scope_id=payload.profile_scope_id,
+            profile_context_hash=payload.profile_context_hash,
+            algorithm_id=payload.algorithm_id,
+            component_registry_id=payload.component_registry_id,
+            fit_run_ids=payload.fit_run_ids,
+            calibration_run_ids=payload.calibration_run_ids,
+            minimum_calibration_runs=payload.minimum_calibration_runs,
+        )
+        calibration = build_calibration_artifact(
+            payload.calibration_block_statistics,
+            minimum_calibration_runs=payload.minimum_calibration_runs,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+    model_key = sha256_json(
+        {
+            "provenance_hash": provenance["provenance_hash"],
+            "calibration_hash": calibration["calibration_hash"],
+        }
+    )
+    existing = db.scalar(select(CalibratedRarityModel).where(CalibratedRarityModel.model_key == model_key))
+    if existing is not None:
+        return existing
+
+    now = datetime.now(timezone.utc)
+    record = CalibratedRarityModel(
+        model_id=str(uuid4()),
+        model_key=model_key,
+        protocol_id=payload.protocol_id,
+        profile_scope_id=payload.profile_scope_id,
+        profile_context_hash=payload.profile_context_hash,
+        algorithm_id=payload.algorithm_id,
+        component_registry_id=payload.component_registry_id,
+        status="active",
+        min_calibration_runs=payload.minimum_calibration_runs,
+        fit_run_count=len(payload.fit_run_ids),
+        calibration_run_count=len(payload.calibration_run_ids),
+        fit_run_set_hash=provenance["fit_run_set_hash"],
+        calibration_run_set_hash=provenance["calibration_run_set_hash"],
+        calibration_hash=calibration["calibration_hash"],
+        provenance_hash=provenance["provenance_hash"],
+        model_document={"provenance": provenance, "calibration": calibration},
+        created_at=now,
+        activated_at=now,
+        retired_at=None,
+    )
+    db.add(record)
+    for run_id in provenance["fit_run_ids"]:
+        db.add(
+            CalibratedModelRun(
+                model_run_id=str(uuid4()),
+                model_id=record.model_id,
+                run_id=run_id,
+                split_role="fit",
+                feature_hash=sha256_json({"run_id": run_id, "role": "fit"}),
+                window_count=0,
+                feature_summary={},
+                created_at=now,
+            )
+        )
+    for run_id in provenance["calibration_run_ids"]:
+        db.add(
+            CalibratedModelRun(
+                model_run_id=str(uuid4()),
+                model_id=record.model_id,
+                run_id=run_id,
+                split_role="calibration",
+                feature_hash=sha256_json({"run_id": run_id, "role": "calibration"}),
+                window_count=0,
+                feature_summary={},
+                created_at=now,
+            )
+        )
+    for row in calibration["runs"]:
+        db.add(
+            CalibrationBlock(
+                block_id=str(uuid4()),
+                model_id=record.model_id,
+                run_id=row["run_id"],
+                block_statistic_id=calibration["statistic_id"],
+                block_statistic=row["block_statistic"],
+                block_hash=sha256_json(row),
+                window_summary={},
+                created_at=now,
+            )
+        )
+    try:
+        db.commit()
+        db.refresh(record)
+        return record
+    except IntegrityError as exc:
+        db.rollback()
+        existing = db.scalar(select(CalibratedRarityModel).where(CalibratedRarityModel.model_key == model_key))
+        if existing is not None:
+            return existing
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Calibrated model already exists") from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Calibrated model persistence failed")
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Calibrated model persistence failed") from exc
+
+
+@app.get(
+    "/api/calibrated/rarity-models/{model_id}",
+    response_model=CalibratedModelOut,
+    tags=["calibrated-rarity"],
+)
+def get_calibrated_model(model_id: str, db: Session = Depends(get_db)) -> CalibratedRarityModel:
+    _require_calibrated_enabled()
+    record = db.get(CalibratedRarityModel, model_id)
+    if record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Calibrated model not found")
+    return record
+
+
+@app.post(
+    "/internal/calibrated/rarity-scores",
+    response_model=CalibratedRarityScoreOut,
+    tags=["internal", "calibrated-rarity"],
+    dependencies=[Depends(require_internal_token)],
+)
+def create_calibrated_score(
+    payload: CalibratedScoreCreateIn,
+    db: Session = Depends(get_db),
+) -> CalibratedRarityScore:
+    _require_calibrated_enabled()
+    model = db.get(CalibratedRarityModel, payload.model_id)
+    if model is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Calibrated model not found")
+    if model.status != "active":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Calibrated model is not active")
+
+    run_membership = db.scalar(
+        select(CalibratedModelRun).where(
+            CalibratedModelRun.model_id == model.model_id,
+            CalibratedModelRun.run_id == payload.test_run_id,
+        )
+    )
+    if run_membership is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Test run overlaps model fit or calibration runs")
+
+    blocks = list(
+        db.scalars(
+            select(CalibrationBlock)
+            .where(CalibrationBlock.model_id == model.model_id)
+            .order_by(CalibrationBlock.run_id)
+        ).all()
+    )
+    artifact = {
+        "statistic_id": blocks[0].block_statistic_id if blocks else None,
+        "minimum_calibration_runs": model.min_calibration_runs,
+        "runs": [{"run_id": block.run_id, "block_statistic": block.block_statistic} for block in blocks],
+        "calibration_hash": model.calibration_hash,
+    }
+    try:
+        result = score_test_block(
+            artifact,
+            test_run_id=payload.test_run_id,
+            test_statistic=payload.test_statistic,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+    idempotency_key = sha256_json(
+        {
+            "model_id": model.model_id,
+            "protocol_id": model.protocol_id,
+            "profile_scope_id": model.profile_scope_id,
+            "profile_context_hash": model.profile_context_hash,
+            "algorithm_id": model.algorithm_id,
+            "component_registry_id": model.component_registry_id,
+            "calibration_hash": model.calibration_hash,
+            "test_run_id": payload.test_run_id,
+            "evidence_set_hash": payload.evidence_set_hash,
+            "test_statistic": payload.test_statistic,
+            "window_start": payload.window_start.isoformat() if payload.window_start else None,
+            "window_end": payload.window_end.isoformat() if payload.window_end else None,
+        }
+    )
+    existing = db.scalar(select(CalibratedRarityScore).where(CalibratedRarityScore.idempotency_key == idempotency_key))
+    if existing is not None:
+        return existing
+
+    now = datetime.now(timezone.utc)
+    record = CalibratedRarityScore(
+        score_id=str(uuid4()),
+        idempotency_key=idempotency_key,
+        model_id=model.model_id,
+        protocol_id=model.protocol_id,
+        profile_scope_id=model.profile_scope_id,
+        profile_context_hash=model.profile_context_hash,
+        algorithm_id=model.algorithm_id,
+        component_registry_id=model.component_registry_id,
+        test_run_id=payload.test_run_id,
+        evidence_set_hash=payload.evidence_set_hash,
+        test_statistic=payload.test_statistic,
+        status="scored" if result["status"] == "calibrated" else "insufficient_data",
+        p_value=result["p_value"],
+        rarity=result["rarity"],
+        calibration_hash=model.calibration_hash,
+        window_start=payload.window_start.astimezone(timezone.utc) if payload.window_start else None,
+        window_end=payload.window_end.astimezone(timezone.utc) if payload.window_end else None,
+        explanation=result,
+        created_at=now,
+    )
+    db.add(record)
+    try:
+        db.commit()
+        db.refresh(record)
+        return record
+    except IntegrityError as exc:
+        db.rollback()
+        existing = db.scalar(select(CalibratedRarityScore).where(CalibratedRarityScore.idempotency_key == idempotency_key))
+        if existing is not None:
+            return existing
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Calibrated score already exists") from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Calibrated score persistence failed")
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Calibrated score persistence failed") from exc
+
+
+@app.get(
+    "/api/calibrated/rarity-scores/{score_id}",
+    response_model=CalibratedRarityScoreOut,
+    tags=["calibrated-rarity"],
+)
+def get_calibrated_score(score_id: str, db: Session = Depends(get_db)) -> CalibratedRarityScore:
+    _require_calibrated_enabled()
+    record = db.get(CalibratedRarityScore, score_id)
+    if record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Calibrated score not found")
+    return record
 
 
 @app.post(

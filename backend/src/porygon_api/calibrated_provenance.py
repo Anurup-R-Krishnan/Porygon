@@ -1,11 +1,11 @@
-"""Immutable split and provenance helpers for exploratory rarity model v2."""
+"""Immutable split and provenance helpers for the calibrated rarity model."""
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from porygon_api.scoring_v2 import sha256_json
+from porygon_api.calibrated_rarity import sha256_json
 
 PROTOCOL_ID = "porygon.research.protocol.v1"
 MIN_CALIBRATION_RUNS = 10
@@ -62,8 +62,8 @@ def build_provenance_document(
     protocol_id: str,
     profile_scope_id: str,
     profile_context_hash: str,
-    algorithm_version: str,
-    component_registry_version: str,
+    algorithm_id: str,
+    component_registry_id: str,
     fit_run_ids: Iterable[str],
     calibration_run_ids: Iterable[str],
     test_run_ids: Iterable[str] = (),
@@ -81,8 +81,8 @@ def build_provenance_document(
         "protocol_id": protocol_id,
         "profile_scope_id": profile_scope_id,
         "profile_context_hash": profile_context_hash,
-        "algorithm_version": algorithm_version,
-        "component_registry_version": component_registry_version,
+        "algorithm_id": algorithm_id,
+        "component_registry_id": component_registry_id,
         **split,
     }
     document["provenance_hash"] = sha256_json(document)

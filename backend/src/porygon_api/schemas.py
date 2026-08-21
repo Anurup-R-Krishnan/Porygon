@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from porygon_api.provenance_v2 import MIN_CALIBRATION_RUNS, validate_run_split
+from porygon_api.calibrated_provenance import MIN_CALIBRATION_RUNS, validate_run_split
 
 
 class HealthResponse(BaseModel):
@@ -336,27 +336,30 @@ class BehaviorProfileOut(BaseModel):
     retired_at: datetime | None
 
 
-class RarityModelV2CreateIn(BaseModel):
+class CalibratedModelCreateIn(BaseModel):
     protocol_id: str = Field(min_length=1, max_length=64)
     profile_scope_id: str = Field(min_length=1, max_length=128)
     profile_context_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
-    algorithm_version: str = Field(min_length=1, max_length=64)
-    component_registry_version: str = Field(min_length=1, max_length=64)
+    algorithm_id: str = Field(min_length=1, max_length=64)
+    component_registry_id: str = Field(min_length=1, max_length=64)
     fit_run_ids: list[str] = Field(default_factory=list, max_length=100000)
     calibration_run_ids: list[str] = Field(min_length=1, max_length=100000)
+    calibration_block_statistics: dict[str, float] = Field(min_length=1, max_length=100000)
     minimum_calibration_runs: int = Field(default=MIN_CALIBRATION_RUNS, ge=1, le=100000)
 
     @model_validator(mode="after")
-    def validate_split(self) -> "RarityModelV2CreateIn":
+    def validate_split(self) -> "CalibratedModelCreateIn":
         validate_run_split(
             self.fit_run_ids,
             self.calibration_run_ids,
             minimum_calibration_runs=self.minimum_calibration_runs,
         )
+        if set(self.calibration_block_statistics) != set(self.calibration_run_ids):
+            raise ValueError("calibration block statistics must cover exactly the calibration runs")
         return self
 
 
-class RarityModelV2Out(BaseModel):
+class CalibratedModelOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     model_id: str
@@ -364,8 +367,8 @@ class RarityModelV2Out(BaseModel):
     protocol_id: str
     profile_scope_id: str
     profile_context_hash: str
-    algorithm_version: str
-    component_registry_version: str
+    algorithm_id: str
+    component_registry_id: str
     status: Literal["draft", "active", "retired"]
     min_calibration_runs: int
     fit_run_count: int
@@ -380,7 +383,7 @@ class RarityModelV2Out(BaseModel):
     retired_at: datetime | None
 
 
-class RarityModelRunV2Out(BaseModel):
+class CalibratedModelRunOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     model_run_id: str
@@ -393,16 +396,64 @@ class RarityModelRunV2Out(BaseModel):
     created_at: datetime
 
 
-class RarityCalibrationBlockV2Out(BaseModel):
+class CalibrationBlockOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     block_id: str
     model_id: str
     run_id: str
-    block_statistic_version: str
+    block_statistic_id: str
     block_statistic: float
     block_hash: str
     window_summary: dict[str, Any]
+    created_at: datetime
+
+
+class CalibratedScoreCreateIn(BaseModel):
+    model_id: str = Field(min_length=36, max_length=36)
+    test_run_id: str = Field(min_length=1, max_length=128)
+    evidence_set_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    test_statistic: float = Field(ge=0)
+    window_start: datetime | None = None
+    window_end: datetime | None = None
+
+    @field_validator("window_start", "window_end")
+    @classmethod
+    def require_optional_window_timezone(cls, value: datetime | None) -> datetime | None:
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError("window timestamps must include a timezone offset")
+        return value
+
+    @model_validator(mode="after")
+    def validate_window(self) -> "CalibratedScoreCreateIn":
+        if (self.window_start is None) != (self.window_end is None):
+            raise ValueError("window_start and window_end must be supplied together")
+        if self.window_start is not None and self.window_end <= self.window_start:
+            raise ValueError("window_end must be after window_start")
+        return self
+
+
+class CalibratedRarityScoreOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    score_id: str
+    idempotency_key: str
+    model_id: str
+    protocol_id: str
+    profile_scope_id: str
+    profile_context_hash: str
+    algorithm_id: str
+    component_registry_id: str
+    test_run_id: str
+    evidence_set_hash: str
+    test_statistic: float
+    status: Literal["scored", "insufficient_data"]
+    p_value: float | None
+    rarity: float | None
+    calibration_hash: str
+    window_start: datetime | None
+    window_end: datetime | None
+    explanation: dict[str, Any]
     created_at: datetime
 
 

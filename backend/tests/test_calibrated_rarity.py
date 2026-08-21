@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from porygon_api.scoring_v2 import (
-    ALGORITHM_VERSION,
-    COMPONENT_REGISTRY_VERSION,
+from porygon_api.calibrated_rarity import (
+    ALGORITHM_ID,
+    COMPONENT_REGISTRY_ID,
     empirical_upper_tail_pvalue,
     fuse_component_ranks,
     hellinger_distance,
@@ -14,7 +14,7 @@ from porygon_api.scoring_v2 import (
 )
 
 
-def test_v2_identity_symmetry_and_bounds() -> None:
+def test_calibrated_identity_symmetry_and_bounds() -> None:
     left = {"a": 3, "b": 1}
     right = {"b": 1, "a": 3}
     assert hellinger_distance(left, left) == pytest.approx(0.0)
@@ -23,7 +23,7 @@ def test_v2_identity_symmetry_and_bounds() -> None:
     assert hellinger_distance(left, {}) is None
 
 
-def test_v2_novelty_is_explicit_and_order_invariant() -> None:
+def test_calibrated_novelty_is_explicit_and_order_invariant() -> None:
     first = novelty_mass(["known"], {"new": 3, "known": 1})
     second = novelty_mass(["known"], {"known": 1, "new": 3})
     assert first == second
@@ -68,7 +68,7 @@ def test_unweighted_rank_fusion_is_order_invariant_and_tracks_missingness() -> N
     assert first == second
     assert first["rarity"] == pytest.approx(0.6)
     assert first["missing_components"] == ["sequence_surprisal"]
-    assert first["component_registry_version"] == COMPONENT_REGISTRY_VERSION
+    assert first["component_registry_id"] == COMPONENT_REGISTRY_ID
 
 
 def test_fusion_rejects_out_of_range_and_empty_components() -> None:
@@ -79,7 +79,7 @@ def test_fusion_rejects_out_of_range_and_empty_components() -> None:
     assert result["rarity"] is None
 
 
-def test_v2_hash_is_canonical_and_versioned() -> None:
-    assert ALGORITHM_VERSION == "porygon.rarity.v2"
+def test_calibrated_hash_is_canonical_and_stable() -> None:
+    assert ALGORITHM_ID == "porygon.rarity.calibrated"
     assert sha256_json({"b": 2, "a": 1}) == sha256_json({"a": 1, "b": 2})
     assert sha256_json({"a": 1}) != sha256_json({"a": 2})

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from porygon_api.calibration_v2 import (
-    BLOCK_STATISTIC_VERSION,
+from porygon_api.run_calibration import (
+    BLOCK_STATISTIC_ID,
     build_calibration_artifact,
     max_window_nonconformity,
     score_test_block,
 )
-from porygon_api.provenance_v2 import MIN_CALIBRATION_RUNS
+from porygon_api.calibrated_provenance import MIN_CALIBRATION_RUNS
 
 
 def _blocks() -> dict[str, float]:
@@ -25,7 +25,7 @@ def test_block_statistic_is_maximum_and_requires_complete_windows() -> None:
 
 def test_calibration_artifact_is_sorted_and_hash_bound() -> None:
     artifact = build_calibration_artifact({"b": 2.0, "a": 1.0}, minimum_calibration_runs=2)
-    assert artifact["statistic_version"] == BLOCK_STATISTIC_VERSION
+    assert artifact["statistic_id"] == BLOCK_STATISTIC_ID
     assert [row["run_id"] for row in artifact["runs"]] == ["a", "b"]
     assert len(artifact["calibration_hash"]) == 64
 

@@ -1,8 +1,8 @@
-"""Pure v2 behavioural evidence and calibration primitives.
+"""Pure calibrated behavioural evidence and calibration primitives.
 
-This module deliberately has no database or HTTP dependencies.  It is an
-exploratory implementation of the Plan 004 mathematics; v1 scoring remains the
-production/default path until v2 provenance and API contracts are complete.
+This module deliberately has no database or HTTP dependencies. It is an
+exploratory implementation of the Plan 004 mathematics; legacy scoring remains
+the production/default path until calibrated provenance and API contracts are complete.
 """
 
 from __future__ import annotations
@@ -13,8 +13,8 @@ import math
 from collections import Counter
 from typing import Any, Iterable, Mapping
 
-ALGORITHM_VERSION = "porygon.rarity.v2"
-COMPONENT_REGISTRY_VERSION = "porygon.rarity.components.v1"
+ALGORITHM_ID = "porygon.rarity.calibrated"
+COMPONENT_REGISTRY_ID = "porygon.rarity.components"
 MARKOV_SMOOTHING_ALPHA = 1.0
 COMPONENT_REGISTRY = (
     "categorical_shift",
@@ -196,7 +196,7 @@ def fuse_component_ranks(
             "rarity": None,
             "eligible_components": [],
             "missing_components": missing,
-            "component_registry_version": COMPONENT_REGISTRY_VERSION,
+            "component_registry_id": COMPONENT_REGISTRY_ID,
         }
     if any(not 0.0 <= value <= 1.0 for value in eligible.values()):
         raise ValueError("component rarities must be in [0, 1]")
@@ -205,5 +205,5 @@ def fuse_component_ranks(
         "rarity": sum(eligible.values()) / len(eligible),
         "eligible_components": sorted(eligible),
         "missing_components": missing,
-        "component_registry_version": COMPONENT_REGISTRY_VERSION,
+        "component_registry_id": COMPONENT_REGISTRY_ID,
     }

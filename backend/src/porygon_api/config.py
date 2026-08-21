@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     internal_api_token: SecretStr = Field(min_length=32)
     operator_api_token: SecretStr = Field(min_length=32)
     response_execution_mode: Literal["disabled", "live"] = "disabled"
+    calibrated_enabled: bool = False
     response_approval_max_age_seconds: int = Field(default=3600, ge=60, le=86400)
     baseline_max_events: int = Field(default=250000, ge=100, le=2000000)
     baseline_max_windows: int = Field(default=50000, ge=10, le=500000)

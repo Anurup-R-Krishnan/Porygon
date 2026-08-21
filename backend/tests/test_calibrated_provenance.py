@@ -3,13 +3,13 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from porygon_api.provenance_v2 import (
+from porygon_api.calibrated_provenance import (
     MIN_CALIBRATION_RUNS,
     build_provenance_document,
     validate_run_split,
     verify_provenance_document,
 )
-from porygon_api.schemas import RarityModelV2CreateIn
+from porygon_api.schemas import CalibratedModelCreateIn
 
 
 def _calibration_ids() -> list[str]:
@@ -44,8 +44,8 @@ def test_provenance_hash_is_canonical_and_tamper_evident() -> None:
         protocol_id="porygon.research.protocol.v1",
         profile_scope_id="digest-plus-context",
         profile_context_hash="a" * 64,
-        algorithm_version="porygon.rarity.v2",
-        component_registry_version="porygon.rarity.components.v1",
+        algorithm_id="porygon.rarity.calibrated",
+        component_registry_id="porygon.rarity.components",
         fit_run_ids=["fit-b", "fit-a"],
         calibration_run_ids=_calibration_ids(),
     )
@@ -55,23 +55,25 @@ def test_provenance_hash_is_canonical_and_tamper_evident() -> None:
         verify_provenance_document(document)
 
 
-def test_v2_create_schema_reuses_split_integrity_rules() -> None:
-    valid = RarityModelV2CreateIn(
+def test_calibrated_create_schema_reuses_split_integrity_rules() -> None:
+    valid = CalibratedModelCreateIn(
         protocol_id="porygon.research.protocol.v1",
         profile_scope_id="digest-plus-context",
         profile_context_hash="a" * 64,
-        algorithm_version="porygon.rarity.v2",
-        component_registry_version="porygon.rarity.components.v1",
+        algorithm_id="porygon.rarity.calibrated",
+        component_registry_id="porygon.rarity.components",
+        calibration_block_statistics={run_id: float(index) for index, run_id in enumerate(_calibration_ids())},
         calibration_run_ids=_calibration_ids(),
     )
     assert valid.minimum_calibration_runs == MIN_CALIBRATION_RUNS
     with pytest.raises(ValidationError, match="overlap"):
-        RarityModelV2CreateIn(
+        CalibratedModelCreateIn(
             protocol_id="porygon.research.protocol.v1",
             profile_scope_id="digest-plus-context",
             profile_context_hash="a" * 64,
-            algorithm_version="porygon.rarity.v2",
-            component_registry_version="porygon.rarity.components.v1",
+            algorithm_id="porygon.rarity.calibrated",
+            component_registry_id="porygon.rarity.components",
             fit_run_ids=["shared"],
             calibration_run_ids=["shared"] + _calibration_ids(),
+            calibration_block_statistics={run_id: 1.0 for run_id in ["shared"] + _calibration_ids()},
         )

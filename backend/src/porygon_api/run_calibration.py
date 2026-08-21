@@ -1,4 +1,4 @@
-"""Run-block calibration artifacts for exploratory rarity model v2."""
+"""Run-block calibration artifacts for the calibrated rarity model."""
 
 from __future__ import annotations
 
@@ -6,10 +6,10 @@ import math
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from porygon_api.provenance_v2 import MIN_CALIBRATION_RUNS
-from porygon_api.scoring_v2 import empirical_upper_tail_pvalue, sha256_json
+from porygon_api.calibrated_provenance import MIN_CALIBRATION_RUNS
+from porygon_api.calibrated_rarity import empirical_upper_tail_pvalue, sha256_json
 
-BLOCK_STATISTIC_VERSION = "porygon.rarity.block.max-window.v1"
+BLOCK_STATISTIC_ID = "porygon.rarity.block.max-window"
 
 
 def max_window_nonconformity(window_values: Iterable[float]) -> float:
@@ -27,7 +27,7 @@ def build_calibration_artifact(
     run_block_statistics: Mapping[str, float],
     *,
     minimum_calibration_runs: int = MIN_CALIBRATION_RUNS,
-    statistic_version: str = BLOCK_STATISTIC_VERSION,
+    statistic_id: str = BLOCK_STATISTIC_ID,
 ) -> dict[str, Any]:
     """Freeze sorted run-level statistics and their canonical artifact hash."""
 
@@ -49,7 +49,7 @@ def build_calibration_artifact(
     if len({row["run_id"] for row in rows}) != len(rows):
         raise ValueError("calibration run IDs must be unique")
     unsigned = {
-        "statistic_version": statistic_version,
+        "statistic_id": statistic_id,
         "minimum_calibration_runs": minimum_calibration_runs,
         "runs": rows,
     }
@@ -69,7 +69,7 @@ def score_test_block(
         raise ValueError("test run must not appear in calibration artifact")
     expected_hash = sha256_json(
         {
-            "statistic_version": artifact.get("statistic_version"),
+            "statistic_id": artifact.get("statistic_id"),
             "minimum_calibration_runs": artifact.get("minimum_calibration_runs"),
             "runs": artifact.get("runs"),
         }
@@ -82,7 +82,7 @@ def score_test_block(
     )
     return {
         "test_run_id": test_run_id,
-        "statistic_version": artifact.get("statistic_version"),
+        "statistic_id": artifact.get("statistic_id"),
         "test_block_statistic": float(test_statistic),
         "calibration_hash": artifact["calibration_hash"],
         **result,

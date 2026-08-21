@@ -23,7 +23,7 @@ Porygon has functional artifacts but no reproducible experiment command, no meas
 - `Makefile:29-37` currently exposes functional verification and tests, not benchmarks or experiments.
 - Plan 002 establishes adapter/collector replay and health behavior; it does not prove zero loss at kernel/Falco/Docker history boundaries.
 - Plan 003 freezes protocol IDs, workload/scenario catalogue, profile scopes, metrics, statistical methods, and claim mapping.
-- Plan 004 provides v2 immutable fit/calibration provenance and separates calibrated rarity from attack claims.
+- Plan 004 provides calibrated immutable fit/calibration provenance and separates calibrated rarity from attack claims.
 - Static performance audit hotspots include per-event SQLite transactions/counts, up to roughly 3N SQL statements in process ingestion, repeated Phase 8 evidence scans, full raw artifact transport, unprojected analytical queries, quadratic shell/tool correlation, and 26 sequential system-summary counts. None may be called a bottleneck until measured on the frozen harness.
 
 ## Required measurements
@@ -103,7 +103,7 @@ Run steady 25/100/250 events/s, 1,000 events/s burst, and outage/recovery smoke-
 
 ### Step 4: Implement profile/detector comparisons and ablations
 
-Fit/calibrate/test all four profile scopes on identical run assignments. Run rules-only, novelty-only, frequency-only, sequence-only, calibrated v2 anomaly-only, and hybrid detectors. Execute every frozen ablation without altering the underlying evidence set. Include same-image replicas, different runtime contexts, version drift, and cross-workload misapplication.
+Fit/calibrate/test all four profile scopes on identical run assignments. Run rules-only, novelty-only, frequency-only, sequence-only, calibrated anomaly-only, and hybrid detectors. Execute every frozen ablation without altering the underlying evidence set. Include same-image replicas, different runtime contexts, version drift, and cross-workload misapplication.
 
 Thresholds/tuning use fit/calibration only. Confirmatory test labels remain hidden from tuning code until outputs are frozen. Analysis operates at run level, reports confidence intervals and sample counts, and includes insufficient-profile/calibration failures rather than dropping them.
 
@@ -144,7 +144,7 @@ Run the tiny smoke matrix, inspect safety/provenance/measurement perturbation, a
 
 ## STOP conditions
 
-- Any dependency plan is not `DONE`, v2 calibration semantics do not match the frozen protocol, or the live host lacks Docker/BTF/Falco support.
+- Any dependency plan is not `DONE`, calibrated calibration semantics do not match the frozen protocol, or the live host lacks Docker/BTF/Falco support.
 - A required image cannot be pinned/resolved, a workload is non-deterministic, or ground truth cannot be timestamped reliably.
 - Measurement overhead materially changes the workload and cannot be quantified/reduced.
 - Loss cannot be reconciled and the harness is tempted to assume a missing boundary is zero.

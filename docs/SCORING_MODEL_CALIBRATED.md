@@ -1,15 +1,15 @@
-# Porygon Calibrated Rarity Model v2
+# Porygon Calibrated Rarity Model
 
 Status: **exploratory implementation — not the default API path**
 
-Algorithm identifier: `porygon.rarity.v2`
-Component registry: `porygon.rarity.components.v1`
+Algorithm identifier: `porygon.rarity.calibrated`
+Component registry: `porygon.rarity.components`
 Protocol dependency: `porygon.research.protocol.v1` (review pending)
 
-This document defines the deterministic evidence primitives for the v2 model.
+This document defines the deterministic evidence primitives for the calibrated rarity model.
 It does not authorize pilot or confirmatory collection, and it does not replace
-the version 1 records or scoring semantics. Until the research protocol is
-independently reviewed and the provenance/API layers are complete, v2 remains
+the historical records or scoring semantics. Until the research protocol is
+independently reviewed and the provenance/API layers are complete, the calibrated path remains
 an offline, testable implementation.
 
 ## Components
@@ -83,25 +83,25 @@ run's windows as one deterministic block statistic. It rejects empty,
 non-finite, and negative window values, freezes sorted calibration run IDs and
 statistics under `calibration_hash`, and rejects a test run that is present in
 the calibration artifact. The statistic version is
-`porygon.rarity.block.max-window.v1`.
+`porygon.rarity.block.max-window`.
 
 ## Fusion and interpretation
 
 Eligible component rarities are averaged in registry order-independent fashion.
-The output records the component registry version, eligible components, and
+The output records the component registry identifier, eligible components, and
 missing components. If none are eligible, the result is `insufficient_data`.
 
 These outputs are behavioural rarity/evidence values. They are not probabilities
 of attack, compromise, intent, or causality. A deterministic rule match and a
 high rarity value remain separate evidence; neither alone creates an incident
-or authorises a response. Response authority belongs to the versioned response
+or authorises a response. Response authority belongs to the named response
 policy and requires explicit evidence, target binding, and human approval.
 
 ## Provenance requirements for the next layer
 
-Before v2 can be used for any study result, the implementation must bind every
-fit and calibration artifact to the protocol ID, profile scope/context, sorted
-whole-run IDs, algorithm version, component registry version, canonical hashes,
+Before the calibrated path can be used for any study result, the implementation
+must bind every fit and calibration artifact to the protocol ID, profile
+scope/context, sorted whole-run IDs, algorithm and component identifiers, canonical hashes,
 and an immutable held-out run-block calibration artifact. Fit, calibration, and
 test runs must be disjoint. Drift, unsupported strata, telemetry gaps, and
 insufficient calibration must remain visible in the output.

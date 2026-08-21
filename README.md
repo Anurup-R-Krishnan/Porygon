@@ -19,7 +19,7 @@ behavioural scoring, and deterministic incident lifecycle through Phase 6.
 | 2 | Docker events, immutable image identity, durable collection outbox | Present | Local pass | Local pass with forced saturation and exact replay equality | Pending Phase 9 |
 | 3 | Falco modern-eBPF process execution telemetry | Present | Local pass | Local pass with outage replay and Falco-file equality | Pending Phase 9 |
 | 4 | Versioned digest-bound behavioural profiles | Present | Local pass | Local pass | Pending Phase 9 |
-| 5 | Explainable behavioural-distance scoring v1 | Provisional | Local pass | Local pass | Pending calibrated v2 and Phase 9 |
+| 5 | Explainable behavioural-distance scoring v1 | Provisional | Local pass | Local pass | Pending calibrated path and Phase 9 |
 | 6 | Deterministic findings, correlation, incidents and evidence timelines | Present | Local pass | Local pass | Pending Phase 9 |
 | 7 | Human-approved response recommendations and controlled execution | Present; disabled by default | Local pass | Explicit disruptive gate not run | Pending Phase 9 |
 | 8 | Digest-bound SBOM, CVE, EPSS, KEV and exposure enrichment | Present | Local pass | Unblocked; acceptance rerun pending | Extension; core experiment pending |
