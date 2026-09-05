@@ -18,8 +18,35 @@ def test_parse_epss_and_kev() -> None:
 
 
 def test_extract_cves_is_sorted_and_unique() -> None:
-    report = {"Results": [{"Vulnerabilities": [{"VulnerabilityID": "CVE-2025-2"}, {"VulnerabilityID": "CVE-2025-1"}, {"VulnerabilityID": "CVE-2025-2"}]}]}
-    assert extract_cves(report) == ["CVE-2025-1", "CVE-2025-2"]
+    report = {
+        "Results": [
+            {
+                "Vulnerabilities": [
+                    {"VulnerabilityID": "CVE-2025-0002"},
+                    {"VulnerabilityID": "CVE-2025-0001"},
+                    {"VulnerabilityID": "CVE-2025-0002"},
+                ]
+            }
+        ]
+    }
+    assert extract_cves(report) == ["CVE-2025-0001", "CVE-2025-0002"]
+
+
+def test_extract_cves_drops_non_cve_vulnerability_ids() -> None:
+    # Some scanners/plugins emit vendor-specific advisory IDs (e.g. GHSA-*) in
+    # the same field; only well-formed CVE IDs should be treated as CVEs.
+    report = {
+        "Results": [
+            {
+                "Vulnerabilities": [
+                    {"VulnerabilityID": "CVE-2025-0003"},
+                    {"VulnerabilityID": "GHSA-xxxx-yyyy-zzzz"},
+                    {"VulnerabilityID": "CVE-2025-1"},  # too few digits, not a valid CVE ID
+                ]
+            }
+        ]
+    }
+    assert extract_cves(report) == ["CVE-2025-0003"]
 
 
 def test_database_cache_metadata_hashes_reproducibility_files(tmp_path) -> None:

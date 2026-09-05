@@ -95,13 +95,17 @@ def parse_kev(document: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def extract_cves(report: dict[str, Any]) -> list[str]:
+    import re
+    cve_pat = re.compile(r"^CVE-\d{4}-\d{4,}$")
     cves: set[str] = set()
     for result in report.get("Results") or []:
         if not isinstance(result, dict):
             continue
         for item in result.get("Vulnerabilities") or []:
             if isinstance(item, dict) and item.get("VulnerabilityID"):
-                cves.add(str(item["VulnerabilityID"]).upper())
+                vid = str(item["VulnerabilityID"]).upper()
+                if cve_pat.match(vid):
+                    cves.add(vid)
     return sorted(cves)
 
 
