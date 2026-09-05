@@ -1,0 +1,194 @@
+{
+  "schema_version": "porygon.profile-scope-analysis.v1",
+  "source_run": "study-20260905t181654Z",
+  "threshold": 0.25,
+  "fpr_by_arm": {
+    "ARM-GLOBAL": {
+      "successes": 35,
+      "trials": 35,
+      "point_estimate": 1.0,
+      "lower": 0.8999675644154195,
+      "upper": 1.0,
+      "confidence": 0.95
+    },
+    "ARM-TAG": {
+      "successes": 0,
+      "trials": 35,
+      "point_estimate": 0.0,
+      "lower": 0.0,
+      "upper": 0.10003243558458053,
+      "confidence": 0.95
+    },
+    "ARM-DIGEST": {
+      "successes": 0,
+      "trials": 35,
+      "point_estimate": 0.0,
+      "lower": 0.0,
+      "upper": 0.10003243558458053,
+      "confidence": 0.95
+    },
+    "ARM-CONTEXT": {
+      "successes": 0,
+      "trials": 35,
+      "point_estimate": 0.0,
+      "lower": 0.0,
+      "upper": 0.10003243558458053,
+      "confidence": 0.95
+    }
+  },
+  "recall_by_arm": {
+    "ARM-GLOBAL": {
+      "successes": 62,
+      "trials": 62,
+      "point_estimate": 1.0,
+      "lower": 0.9422373655543197,
+      "upper": 1.0,
+      "confidence": 0.95
+    },
+    "ARM-TAG": {
+      "successes": 62,
+      "trials": 62,
+      "point_estimate": 1.0,
+      "lower": 0.9422373655543197,
+      "upper": 1.0,
+      "confidence": 0.95
+    },
+    "ARM-DIGEST": {
+      "successes": 62,
+      "trials": 62,
+      "point_estimate": 1.0,
+      "lower": 0.9422373655543197,
+      "upper": 1.0,
+      "confidence": 0.95
+    },
+    "ARM-CONTEXT": {
+      "successes": 62,
+      "trials": 62,
+      "point_estimate": 1.0,
+      "lower": 0.9422373655543197,
+      "upper": 1.0,
+      "confidence": 0.95
+    }
+  },
+  "primary_contrasts": {
+    "mcnemar": {
+      "CONTEXT_vs_ARM-GLOBAL": {
+        "contrast_id": "CONTEXT_vs_ARM-GLOBAL",
+        "n_pairs": 35,
+        "discordant_a_only": 0,
+        "discordant_b_only": 35,
+        "p_value": 5.820766091346741e-11,
+        "note": "exact two-sided conditional binomial test"
+      },
+      "CONTEXT_vs_ARM-TAG": {
+        "contrast_id": "CONTEXT_vs_ARM-TAG",
+        "n_pairs": 35,
+        "discordant_a_only": 0,
+        "discordant_b_only": 0,
+        "p_value": 1.0,
+        "note": "no discordant pairs; arms agree on every run"
+      },
+      "CONTEXT_vs_ARM-DIGEST": {
+        "contrast_id": "CONTEXT_vs_ARM-DIGEST",
+        "n_pairs": 35,
+        "discordant_a_only": 0,
+        "discordant_b_only": 0,
+        "p_value": 1.0,
+        "note": "no discordant pairs; arms agree on every run"
+      }
+    },
+    "holm_adjusted": {
+      "CONTEXT_vs_ARM-GLOBAL": {
+        "contrast_id": "CONTEXT_vs_ARM-GLOBAL",
+        "raw_p": 5.820766091346741e-11,
+        "adjusted_p": 1.7462298274040222e-10,
+        "rejected_at_alpha": true
+      },
+      "CONTEXT_vs_ARM-TAG": {
+        "contrast_id": "CONTEXT_vs_ARM-TAG",
+        "raw_p": 1.0,
+        "adjusted_p": 1.0,
+        "rejected_at_alpha": false
+      },
+      "CONTEXT_vs_ARM-DIGEST": {
+        "contrast_id": "CONTEXT_vs_ARM-DIGEST",
+        "raw_p": 1.0,
+        "adjusted_p": 1.0,
+        "rejected_at_alpha": false
+      }
+    }
+  },
+  "decisions": {
+    "CONTEXT_vs_GLOBAL": {
+      "contrast_id": "CONTEXT_vs_GLOBAL",
+      "fpr_a": {
+        "successes": 35,
+        "trials": 35,
+        "point_estimate": 1.0,
+        "lower": 0.8999675644154195,
+        "upper": 1.0,
+        "confidence": 0.95
+      },
+      "fpr_b": {
+        "successes": 0,
+        "trials": 35,
+        "point_estimate": 0.0,
+        "lower": 0.0,
+        "upper": 0.10003243558458053,
+        "confidence": 0.95
+      },
+      "relative_fpr_reduction": 1.0,
+      "mcnemar": {
+        "contrast_id": "CONTEXT_vs_GLOBAL",
+        "n_pairs": 35,
+        "discordant_a_only": 35,
+        "discordant_b_only": 0,
+        "p_value": 5.820766091346741e-11,
+        "note": "exact two-sided conditional binomial test"
+      },
+      "holm_adjusted_p": 5.820766091346741e-11,
+      "recall": {
+        "strata": [
+          "wl-ngx-v1-steady_http",
+          "wl-pg-v1-read_only_queries",
+          "wl-rds-v1-steady_set_get"
+        ],
+        "n_runs": 62,
+        "point_estimate": 1.0,
+        "lower": 1.0,
+        "upper": 1.0,
+        "resamples": 10000,
+        "seed": 20260823,
+        "non_inferior": true,
+        "margin_pp": 0.05
+      },
+      "material_effect_met": true,
+      "significant_after_correction": true,
+      "recall_non_inferior": true,
+      "h1_supported": true,
+      "reason": "material FPR reduction achieved, significant after Holm correction, recall non-inferior"
+    }
+  },
+  "recall_non_inferiority_context": {
+    "strata": [
+      "wl-ngx-v1-steady_http",
+      "wl-pg-v1-read_only_queries",
+      "wl-rds-v1-steady_set_get"
+    ],
+    "n_runs": 62,
+    "point_estimate": 1.0,
+    "lower": 1.0,
+    "upper": 1.0,
+    "resamples": 10000,
+    "seed": 20260823,
+    "non_inferior": true,
+    "margin_pp": 0.05
+  },
+  "limitations": [
+    "TAG and DIGEST are indistinguishable in this dataset: every human_tag maps to exactly one digest, so no tag-repoint (mutable alias pointing to a different build) scenario has been tested.",
+    "Sample size (n=35 benign, n=62 scenario) is well below the frozen protocol full matrix (30 benign + 20 scenario per workload-variant cell = 200 total); this is a first confirmatory-eligible result, not the final powered study.",
+    "ART-DES-001 sample-size lock has not been generated; this analysis was not power-planned in advance, it analyses the data actually collected.",
+    "Only 2 attack-like scenarios tested (CVE-2021-44228 log4shell-shaped, CVE-2019-5736 runc-escape-shaped), both are simulated harmless process shapes, not real exploits.",
+    "Detection here is JS-distance-threshold based (matching the production scorer), not the full POR-DET-* rule-based detection layer; the two are complementary, not identical."
+  ]
+}
