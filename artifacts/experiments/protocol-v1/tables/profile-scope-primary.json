@@ -190,5 +190,18 @@
     "ART-DES-001 sample-size lock has not been generated; this analysis was not power-planned in advance, it analyses the data actually collected.",
     "Only 2 attack-like scenarios tested (CVE-2021-44228 log4shell-shaped, CVE-2019-5736 runc-escape-shaped), both are simulated harmless process shapes, not real exploits.",
     "Detection here is JS-distance-threshold based (matching the production scorer), not the full POR-DET-* rule-based detection layer; the two are complementary, not identical."
-  ]
+  ],
+  "tag_drift_experiment": {
+    "schema_version": "porygon.tag-drift-finding.v1",
+    "mechanism": "porygon-study/nginx:mutable local alias, repointed from WL-NGX-V1 (nginx:1.26.3-alpine) to WL-NGX-V2 (nginx:1.28.0-alpine) between fit and drift phases, per PROFILE_SCOPE_EXPERIMENT_V1.md Immutable workload coordinates section",
+    "source_runs": [
+      "tagdrift-20260905t192840Z",
+      "tagdrift-20260905t193051Z"
+    ],
+    "fit_replicas": 8,
+    "drift_replicas": 8,
+    "finding": "process_name-level Jensen-Shannon distance between the pooled V1 and pooled V2 distributions is exactly 0.0 at n=8+8. nginx 1.26.3-alpine and 1.28.0-alpine produce byte-identical process-name shapes in their docker-entrypoint.sh startup sequence for this workload/mode.",
+    "interpretation": "This is a real, honest limitation of process-name-level detection, not a bug in the tag-drift mechanism (which correctly resolves the same human_tag to two verifiably different image digests, confirmed per-trial). A patch/minor-version upgrade that does not change the entrypoint script or which binaries execute is invisible to this signal. ARM-TAG vs ARM-DIGEST therefore remain statistically indistinguishable for this specific real-world drift scenario, though for a different reason than before (now a genuine negative result under a real test, not an untested gap).",
+    "implication": "A tag-repoint attack/version-drift scenario that changes deeper behaviour (e.g. a config default, a new startup script, an added executable) would likely still be caught; a same-behaviour patch upgrade would not be, by this feature alone. This argues for combining process-name distance with other signals (e.g. image_config_hash, executable path set, numeric event-rate features already computed by the production scorer) rather than relying on process-name JS distance in isolation for detecting tag drift specifically."
+  }
 }
