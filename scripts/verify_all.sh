@@ -6,9 +6,9 @@ cd "$ROOT_DIR"
 
 MODE="${1:-all}"
 case "$MODE" in
-  all|static|unit|live-safe|scanner-live) ;;
+  all|static|unit|live-safe|scanner-live|experiment-live) ;;
   *)
-    printf 'Usage: %s [all|static|unit|live-safe|scanner-live]\n' "$0" >&2
+    printf 'Usage: %s [all|static|unit|live-safe|scanner-live|experiment-live]\n' "$0" >&2
     exit 2
     ;;
 esac
@@ -113,7 +113,7 @@ static_checks() {
     return 1
   }
   docker compose config --quiet || return $?
-  ruff check --select E4,E7,E9,F backend collector telemetry responder scanner scripts || return $?
+  ruff check --select E4,E7,E9,F backend collector telemetry responder scanner scripts experiments || return $?
   python3 - <<'PY'
 import ast
 from pathlib import Path
@@ -143,7 +143,7 @@ UniqueKeyLoader.add_constructor(
 
 python_files = sorted(
     path
-    for root in ('backend', 'collector', 'telemetry', 'responder', 'scanner', 'scripts')
+    for root in ('backend', 'collector', 'telemetry', 'responder', 'scanner', 'scripts', 'experiments')
     for path in Path(root).rglob('*.py')
 )
 for path in python_files:
@@ -198,11 +198,17 @@ unit_checks() {
   for service_name in backend collector telemetry responder scanner; do
     docker compose run --rm --no-deps --build --entrypoint pytest "$service_name" -q || return $?
   done
+  # The experiment harness is stdlib-only and runs on the host rather than in a service image.
+  python3 -m pytest experiments/tests -q || return $?
 }
 
 live_safe_checks() {
   ./scripts/verify_phase2.sh
   ./scripts/verify_phase6.sh
+}
+
+experiment_live_checks() {
+  ./scripts/verify_real_container.sh
 }
 
 scanner_live_checks() {
@@ -310,12 +316,16 @@ main() {
     scanner-live)
       run_gate scanner-live 'make verify-scanner-live' scanner_live_checks
       ;;
+    experiment-live)
+      run_gate experiment-live 'make verify-experiment-live' experiment_live_checks
+      ;;
     all)
       local aggregate_status=0
       run_gate static 'make verify-static' static_checks || aggregate_status=$?
       run_gate unit 'make verify-unit' unit_checks || aggregate_status=$?
       run_gate live-safe 'make verify-live-safe' live_safe_checks || aggregate_status=$?
       run_gate scanner-live 'make verify-scanner-live' scanner_live_checks || aggregate_status=$?
+      run_gate experiment-live 'make verify-experiment-live' experiment_live_checks || aggregate_status=$?
       return "$aggregate_status"
       ;;
   esac
