@@ -5,7 +5,7 @@
   "minimum_nonempty_windows": 1,
   "minimum_process_events": 1,
   "notes": "Controlled Phase 4 acceptance profile v1",
-  "training_end": "2026-09-05T07:34:27.528198+00:00",
-  "training_start": "2026-09-05T07:34:07.700966+00:00",
+  "training_end": "2026-09-05T09:33:52.142041+00:00",
+  "training_start": "2026-09-05T09:33:29.296901+00:00",
   "window_seconds": 60
 }

@@ -69,22 +69,95 @@ FAMILY_SPECS: dict[str, dict[str, Any]] = {
     },
 }
 
-# Context variants keep the image digest fixed and change one security-relevant field,
-# which is exactly what SCN-CONTEXT and the digest-plus-context arm need.
-CONTEXT_VARIANTS: dict[str, list[str]] = {
-    "baseline": [],
-    # NET_RAW and a scratch tmpfs are security-relevant and supported by all three pinned
-    # images, so a divergent profile is attributable to context rather than to a broken
-    # workload. `--cap-drop ALL` and `--read-only` break these images at startup and are
-    # kept available for a deliberate negative-control trial only.
-    "dropped_capabilities": ["--cap-drop", "NET_RAW"],
-    "tmpfs_scratch": ["--tmpfs", "/scratch"],
-    "read_only_rootfs": ["--read-only", "--tmpfs", "/tmp"],
-    "all_capabilities_dropped": ["--cap-drop", "ALL"],
+# Runtime-context variants, resolved per workload family.
+#
+# Every entry below was validated by `scripts/probe_context_variants.py`, which starts
+# a container under each candidate and compares the executed-process multiset against
+# the baseline. The registry records the measured outcome so the study cannot silently
+# adopt a variant that changes the context identity without changing behaviour.
+#
+#   positive  the variant changes what the container executes, and the workload runs
+#   negative  the variant changes the context identity only; behaviour is unchanged
+#
+# Negative controls are retained deliberately: a profile scope that reacts to them is
+# fragmenting on configuration that carries no behavioural signal.
+CONTEXT_VARIANT_KIND: dict[str, str] = {
+    "baseline": "baseline",
+    "direct_entrypoint": "positive",
+    "init_mount": "positive",
+    "nonroot_user": "positive",
+    "dropped_capabilities": "negative",
+    "tmpfs_scratch": "negative",
+    "no_new_privileges": "negative",
 }
+
+# family -> docker arguments. A variant absent for a family is not available there,
+# either because the image has no such surface or because the workload does not survive it.
+CONTEXT_VARIANTS: dict[str, dict[str, list[str]]] = {
+    "baseline": {"WL-NGX": [], "WL-RDS": [], "WL-PG": []},
+    "direct_entrypoint": {
+        "WL-NGX": ["--entrypoint", "nginx"],
+        "WL-RDS": ["--entrypoint", "redis-server"],
+    },
+    "init_mount": {
+        "WL-NGX": ["--volume", f"{ROOT}/experiments/fixtures/initdb:/docker-entrypoint.d/study:ro"],
+        "WL-PG": ["--volume", f"{ROOT}/experiments/fixtures/initdb:/docker-entrypoint-initdb.d:ro"],
+    },
+    "nonroot_user": {"WL-RDS": ["--user", "999:1000"]},
+    "dropped_capabilities": {
+        "WL-NGX": ["--cap-drop", "NET_RAW"],
+        "WL-RDS": ["--cap-drop", "NET_RAW"],
+        "WL-PG": ["--cap-drop", "NET_RAW"],
+    },
+    "tmpfs_scratch": {
+        "WL-NGX": ["--tmpfs", "/scratch"],
+        "WL-RDS": ["--tmpfs", "/scratch"],
+        "WL-PG": ["--tmpfs", "/scratch"],
+    },
+    "no_new_privileges": {
+        "WL-NGX": ["--security-opt", "no-new-privileges"],
+        "WL-RDS": ["--security-opt", "no-new-privileges"],
+        "WL-PG": ["--security-opt", "no-new-privileges"],
+    },
+}
+
+# Bypassing an image entrypoint means the command must be supplied explicitly.
+VARIANT_COMMAND: dict[str, dict[str, list[str]]] = {
+    "direct_entrypoint": {"WL-NGX": ["-g", "daemon off;"], "WL-RDS": []},
+}
+
+
+def variant_available(variant: str, family: str) -> bool:
+    return family in CONTEXT_VARIANTS.get(variant, {})
+
 
 RUNTIME_SCENARIOS = ("SCN-EXEC", "SCN-LOW", "SCN-FLOOD", "SCN-CONTEXT")
 ANALYSIS_ONLY_SCENARIOS = ("SCN-CROSS", "SCN-POISON")
+
+# Exploratory only. These map well-known CVEs to harmless, observable process
+# shapes; they never reproduce the vulnerability or attempt a host action.
+ATTACK_LIKE_SCENARIOS: dict[str, dict[str, Any]] = {
+    "SCN-LOG4SHELL-SIM": {
+        "cve_id": "CVE-2021-44228",
+        "cvss_version": "3.1",
+        "cvss_base_score": 10.0,
+        "cvss_severity": "Critical",
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
+        "reference": "https://nvd.nist.gov/vuln/detail/CVE-2021-44228",
+        "observable_behavior": "attacker-shaped input piped through a shell to a read-only tool",
+        "command_template": "printf '%s\\n' {canary} | /bin/sh -c 'cat >/dev/null'; id",
+    },
+    "SCN-RUNC-ESCAPE-SIM": {
+        "cve_id": "CVE-2019-5736",
+        "cvss_version": "3.1",
+        "cvss_base_score": 8.6,
+        "cvss_severity": "High",
+        "cvss_vector": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:C/C:H/I:H/A:H",
+        "reference": "https://nvd.nist.gov/vuln/detail/CVE-2019-5736",
+        "observable_behavior": "root/process-runtime inspection resembling an escape precursor",
+        "command_template": "id; cat /proc/self/status >/dev/null; cat /proc/self/exe >/dev/null; printf '%s\\n' {canary}",
+    },
+}
 
 
 def load_image_coordinates(doc: Path = PROFILE_SCOPE_DOC) -> dict[str, dict[str, str]]:
@@ -132,7 +205,7 @@ def pull_pinned_image(reference: str) -> dict[str, Any]:
     inspection = json.loads(docker("image", "inspect", reference))[0]
     repository = reference.split("@", 1)[0]
     platform_digest = _platform_manifest_digest(reference)
-    return {
+    result = {
         "repository": repository,
         "reference": reference,
         "index_digest": reference.split("@", 1)[1],
@@ -373,6 +446,13 @@ def _canary_token(run_id: str, trial_id: str, sequence: int) -> str:
 
 
 def _scenario_plan(scenario_id: str) -> dict[str, Any]:
+    if scenario_id in ATTACK_LIKE_SCENARIOS:
+        return {
+            "count": 6,
+            "delay_seconds": 0.5,
+            "expected": "exploratory_attack_like_deviation",
+            "attack_like": ATTACK_LIKE_SCENARIOS[scenario_id],
+        }
     if scenario_id == "SCN-EXEC":
         return {"count": 6, "delay_seconds": 0.5, "expected": "controlled_positive"}
     if scenario_id == "SCN-LOW":
@@ -397,10 +477,11 @@ def run_scenario(
     sequences = list(range(1, plan["count"] + 1))
     started_utc, started_ns = now_utc(), time.monotonic_ns()
     executed: list[int] = []
+    command_template = plan.get("attack_like", {}).get("command_template", COMMAND_TEMPLATE)
     for sequence in sequences:
         marker = _canary_token(run_id, trial_id, sequence)
         completed = subprocess.run(
-            ["docker", "exec", container, "/bin/sh", "-c", COMMAND_TEMPLATE.format(canary=marker)],
+            ["docker", "exec", container, "/bin/sh", "-c", command_template.format(canary=marker)],
             capture_output=True,
             timeout=30,
         )
@@ -416,6 +497,12 @@ def run_scenario(
         "scenario_id": scenario_id,
         "expected_outcome": plan["expected"],
         "safety_classification": "safe_disposable_local_container",
+        "attack_like": bool(plan.get("attack_like")),
+        "simulation_only": True,
+        "exploit_executed": False,
+        "public_network_access": False,
+        "host_mutation_attempted": False,
+        "privileged_container": False,
         "target_container_name": container,
         "target_container_id": container_id,
         "image_digest": image_digest,
@@ -425,10 +512,17 @@ def run_scenario(
         "action_finished_monotonic_ns": finished_ns,
         "canary_sequences_planned": sequences,
         "canary_sequences_executed": executed,
-        "command_template": COMMAND_TEMPLATE,
-        "command_template_sha256": COMMAND_TEMPLATE_SHA256,
+        "command_template": command_template,
+        "command_template_sha256": sha256_bytes(command_template.encode("utf-8")),
         "randomized_fields": [],
     }
+    if plan.get("attack_like"):
+        result["cve"] = plan["attack_like"]
+        result["deviation_interpretation"] = (
+            "CVSS is vulnerability-severity metadata; this run measures observable process "
+            "deviation and must not be interpreted as exploitability or attack probability."
+        )
+    return result
 
 
 # --------------------------------------------------------------------------
@@ -572,8 +666,11 @@ def start_container(
     ]
     for key, value in spec["env"].items():
         args += ["--env", f"{key}={value}"]
-    args += CONTEXT_VARIANTS[variant]
+    if not variant_available(variant, family):
+        raise PilotError(f"context variant {variant} is not available for {family}")
+    args += CONTEXT_VARIANTS[variant][family]
     args.append(image["reference"])
+    args += VARIANT_COMMAND.get(variant, {}).get(family, [])
     return docker(*args, timeout=180)
 
 
@@ -595,6 +692,7 @@ def run_trial(
         "mode": mode,
         "scenario_id": scenario_id,
         "context_variant": variant,
+        "context_variant_kind": CONTEXT_VARIANT_KIND.get(variant, "unclassified"),
         "replica_index": replica,
         "seed": seed,
         "container_name": name,
@@ -705,6 +803,11 @@ def build_matrix(
                 for variant in variants:
                     if variant not in CONTEXT_VARIANTS:
                         raise PilotError(f"{variant} is not a declared context variant")
+                    if not variant_available(variant, family):
+                        raise PilotError(
+                            f"context variant {variant} is not validated for {family}; "
+                            f"available here: {sorted(v for v in CONTEXT_VARIANTS if variant_available(v, family))}"
+                        )
                     for replica in range(1, replicas + 1):
                         matrix.append(
                             {

@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: init config build up down reset logs ps test verify verify-static verify-unit verify-live-safe verify-scanner-live verify-experiment-live verify-response-live experiment-smoke experiment-replay experiment-pilot experiment-validate experiment-confirmatory
+.PHONY: init config build up down reset logs ps test verify verify-static verify-unit verify-live-safe verify-scanner-live verify-experiment-live verify-response-live experiment-smoke experiment-replay experiment-pilot experiment-validate experiment-confirmatory study review-package review-status review-apply
 
 init:
 	@test -f .env || (cp .env.example .env && \
@@ -66,6 +66,21 @@ experiment-replay:
 # engineering and variance estimates, never a confirmatory or paper claim.
 experiment-pilot:
 	python3 -m experiments.run pilot $(PILOT_ARGS)
+
+# One command for the whole pipeline: environment and protocol validation, real
+# container collection, split assignment, profile/score/detect, storage accounting,
+# and the results page. Resumable; every stage is recorded in a study manifest.
+study:
+	python3 -m experiments.run study $(STUDY_ARGS)
+
+review-package:
+	python3 scripts/review_gate.py prepare
+
+review-status:
+	python3 scripts/review_gate.py status
+
+review-apply:
+	python3 scripts/review_gate.py apply
 
 experiment-validate:
 	@test -n "$(RUN_DIR)" || (echo "RUN_DIR is required" >&2; exit 2)

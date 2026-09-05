@@ -272,3 +272,39 @@ def test_long_trial_names_stay_unique_instead_of_colliding():
 
 def test_short_names_are_left_alone():
     assert real.container_name_for("r1", "t1") == "porygon-exp-r1-t1"
+
+
+# --------------------------------------------------------------------------
+# Runtime-context variants must be validated for the family they run against
+# --------------------------------------------------------------------------
+
+
+def test_every_declared_variant_has_a_measured_classification():
+    for variant in real.CONTEXT_VARIANTS:
+        assert variant in real.CONTEXT_VARIANT_KIND, variant
+        assert real.CONTEXT_VARIANT_KIND[variant] in {"baseline", "positive", "negative"}
+
+
+def test_a_variant_not_validated_for_a_family_is_refused():
+    # nonroot_user was measured only on Redis; nginx does not survive it.
+    assert real.variant_available("nonroot_user", "WL-RDS")
+    assert not real.variant_available("nonroot_user", "WL-NGX")
+    with pytest.raises(real.PilotError, match="not validated for"):
+        real.build_matrix(["WL-NGX-V1"], None, ["SCN-EXEC"], ["nonroot_user"], 1)
+
+
+def test_every_family_has_a_baseline_and_at_least_one_positive_variant():
+    for family in real.FAMILY_SPECS:
+        assert real.variant_available("baseline", family), family
+        positives = [
+            v for v, kind in real.CONTEXT_VARIANT_KIND.items()
+            if kind == "positive" and real.variant_available(v, family)
+        ]
+        assert positives, f"{family} has no behaviourally distinct variant"
+
+
+def test_bypassing_the_entrypoint_supplies_its_own_command():
+    # A container started without its image entrypoint must be given a command,
+    # or it exits immediately and the trial measures nothing.
+    for family in real.CONTEXT_VARIANTS["direct_entrypoint"]:
+        assert family in real.VARIANT_COMMAND["direct_entrypoint"], family

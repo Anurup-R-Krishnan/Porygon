@@ -467,6 +467,16 @@ def main(argv: list[str] | None = None) -> int:
     pilot.add_argument("--seed", type=int, default=20260905)
     pilot.add_argument("--base-url", default="http://127.0.0.1:8000")
     pilot.add_argument("--protocol", type=Path, default=ROOT / "docs/RESEARCH_PROTOCOL_V1.md")
+    study = subparsers.add_parser("study", help="run the full orchestrated pipeline")
+    study.add_argument("--run-id", default=None)
+    study.add_argument("--workloads", default="WL-NGX-V1,WL-RDS-V1,WL-PG-V1")
+    study.add_argument("--scenarios", default="SCN-EXEC")
+    study.add_argument("--variants", default="baseline")
+    study.add_argument("--replicas", type=int, default=2)
+    study.add_argument("--operations", type=int, default=20)
+    study.add_argument("--seed", type=int, default=20260905)
+    study.add_argument("--window-seconds", type=int, default=10)
+    study.add_argument("--base-url", default="http://127.0.0.1:8000")
     confirm = subparsers.add_parser("confirmatory")
     confirm.add_argument("--protocol", type=Path, default=ROOT / "docs/RESEARCH_PROTOCOL_V1.md")
     args = parser.parse_args(argv)
@@ -498,6 +508,19 @@ def main(argv: list[str] | None = None) -> int:
             )
             validate(run_dir)
             print(f"pilot artifacts validated: {run_dir}")
+        elif args.command == "study":
+            from experiments.study import run_study
+            run_study(
+                run_id=args.run_id,
+                workloads=[x for x in args.workloads.split(",") if x],
+                scenarios=[x for x in args.scenarios.split(",") if x],
+                variants=[x for x in args.variants.split(",") if x],
+                replicas=args.replicas,
+                operations=args.operations,
+                seed=args.seed,
+                window_seconds=args.window_seconds,
+                base_url=args.base_url,
+            )
         else:
             confirmatory(args.protocol)
     except real.PilotError as exc:
