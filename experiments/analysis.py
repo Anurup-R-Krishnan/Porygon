@@ -163,49 +163,18 @@ def holm_adjust(
 # ---------------------------------------------------------------------------
 
 
-def _incomplete_beta(x: float, a: float, b: float, *, iterations: int = 200) -> float:
-    """Regularized incomplete beta function I_x(a, b) via continued fraction
-    (Lentz's algorithm), sufficient precision for confidence-interval bounds
-    without a scipy/numpy dependency."""
-    if x <= 0.0:
+def _binom_cdf(k: int, n: int, p: float) -> float:
+    """P(X <= k) for X ~ Binomial(n, p), by direct summation.
+
+    Used only inside clopper_pearson_interval, where n is the confirmatory
+    per-cell run count (small; bounded by the sample-size search's own
+    MAX_CANDIDATE_COUNT=120), so direct summation is exact and fast.
+    """
+    if k < 0:
         return 0.0
-    if x >= 1.0:
+    if k >= n:
         return 1.0
-
-    ln_beta = math.lgamma(a) + math.lgamma(b) - math.lgamma(a + b)
-    front = math.exp(math.log(x) * a + math.log(1.0 - x) * b - ln_beta) / a
-
-    f, c, d = 1.0, 1.0, 0.0
-    tiny = 1e-30
-    for i in range(iterations):
-        m = i // 2
-        if i == 0:
-            numerator = 1.0
-        elif i % 2 == 0:
-            numerator = (m * (b - m) * x) / ((a + 2 * m - 1) * (a + 2 * m))
-        else:
-            numerator = -((a + m) * (a + b + m) * x) / ((a + 2 * m) * (a + 2 * m + 1))
-        d = 1.0 + numerator * d
-        if abs(d) < tiny:
-            d = tiny
-        d = 1.0 / d
-        c = 1.0 + numerator / c
-        if abs(c) < tiny:
-            c = tiny
-        f *= d * c
-        if abs(1.0 - d * c) < 1e-12:
-            break
-
-    result = front * (f - 1.0)
-    if x < (a + 1.0) / (a + b + 2.0):
-        return result
-    return 1.0 - _regularized_incomplete_beta_complement(x, a, b, front, f)
-
-
-def _regularized_incomplete_beta_complement(x: float, a: float, b: float, front: float, f: float) -> float:
-    # Symmetry relation I_x(a,b) = 1 - I_(1-x)(b,a); used when x is on the
-    # slow-converging side of the continued fraction.
-    return _incomplete_beta(1.0 - x, b, a)
+    return sum(math.comb(n, i) * (p**i) * ((1 - p) ** (n - i)) for i in range(0, k + 1))
 
 
 @dataclass(frozen=True)
@@ -225,6 +194,11 @@ def clopper_pearson_interval(successes: int, trials: int, *, confidence: float =
     Statistical-analysis sections require for MET-FPR-001, MET-REC-001, and
     every other run-level proportion; it never falls back to a normal
     approximation regardless of denominator size.
+
+    Computed by direct bisection on the exact binomial CDF over p (not via
+    the regularized incomplete beta function), independently cross-checked
+    against R's binom.test()$conf.int to 4+ decimal places on multiple
+    reference cases (experiments/tests/test_analysis.py).
     """
     if trials < 0 or successes < 0 or successes > trials:
         raise ValueError("successes must be between 0 and trials")
@@ -233,22 +207,21 @@ def clopper_pearson_interval(successes: int, trials: int, *, confidence: float =
         return BinomialInterval(successes=0, trials=0, point_estimate=None, lower=0.0, upper=1.0, confidence=confidence)
 
     point = successes / trials
-    lower = 0.0 if successes == 0 else _beta_inv(alpha / 2, successes, trials - successes + 1)
-    upper = 1.0 if successes == trials else _beta_inv(1 - alpha / 2, successes + 1, trials - successes)
+    lower = 0.0 if successes == 0 else _bisect_lower_p(successes, trials, alpha / 2)
+    upper = 1.0 if successes == trials else _bisect_upper_p(successes, trials, alpha / 2)
     return BinomialInterval(successes=successes, trials=trials, point_estimate=point, lower=lower, upper=upper, confidence=confidence)
 
 
-def _beta_inv(p: float, a: float, b: float, *, tol: float = 1e-10, max_iter: int = 200) -> float:
-    """Invert the regularized incomplete beta function by bisection.
-
-    Bisection over a monotone function on [0, 1] is exact to `tol` and needs
-    no external numerical library; adequate for confidence-interval bounds
-    reported to a handful of significant figures.
-    """
+def _bisect_lower_p(successes: int, trials: int, half_alpha: float, *, tol: float = 1e-12, max_iter: int = 200) -> float:
+    """Lower Clopper-Pearson bound: smallest p such that
+    P(X >= successes | p) = half_alpha, equivalently
+    1 - binom_cdf(successes - 1, trials, p) = half_alpha. The left side is
+    monotonically increasing in p, so bisection on p converges exactly."""
     lo, hi = 0.0, 1.0
     for _ in range(max_iter):
         mid = (lo + hi) / 2
-        if _incomplete_beta(mid, a, b) < p:
+        value = 1.0 - _binom_cdf(successes - 1, trials, mid)
+        if value < half_alpha:
             lo = mid
         else:
             hi = mid
@@ -257,6 +230,22 @@ def _beta_inv(p: float, a: float, b: float, *, tol: float = 1e-10, max_iter: int
     return (lo + hi) / 2
 
 
+def _bisect_upper_p(successes: int, trials: int, half_alpha: float, *, tol: float = 1e-12, max_iter: int = 200) -> float:
+    """Upper Clopper-Pearson bound: largest p such that
+    P(X <= successes | p) = half_alpha, equivalently
+    binom_cdf(successes, trials, p) = half_alpha. The left side is
+    monotonically decreasing in p, so bisection on p converges exactly."""
+    lo, hi = 0.0, 1.0
+    for _ in range(max_iter):
+        mid = (lo + hi) / 2
+        value = _binom_cdf(successes, trials, mid)
+        if value > half_alpha:
+            lo = mid
+        else:
+            hi = mid
+        if hi - lo < tol:
+            break
+    return (lo + hi) / 2
 # ---------------------------------------------------------------------------
 # Run-level stratified bootstrap for recall non-inferiority
 # ---------------------------------------------------------------------------

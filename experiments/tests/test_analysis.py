@@ -39,6 +39,23 @@ def test_clopper_pearson_zero_trials_returns_full_uncertainty_interval() -> None
     assert result.upper == 1.0
 
 
+def test_clopper_pearson_does_not_recurse_infinitely_at_confidence_0_9() -> None:
+    """Regression test: the original incomplete-beta continued-fraction
+    implementation recursed infinitely for several (successes, trials)
+    combinations at confidence=0.90 (e.g. successes=0, trials=5), because its
+    symmetry-relation switch condition was not guaranteed to terminate under
+    the swapped call. Found while building experiments/sample_size.py, which
+    is the first caller to actually use a non-0.95 confidence level. Fixed by
+    replacing the incomplete-beta machinery with direct bisection on the
+    binomial CDF over p. This test exhaustively exercises the previously
+    failing region."""
+    for n in range(1, 20):
+        for successes in range(0, n + 1):
+            for confidence in (0.80, 0.90, 0.95, 0.99):
+                result = clopper_pearson_interval(successes, n, confidence=confidence)
+                assert 0.0 <= result.lower <= result.upper <= 1.0
+
+
 def test_exact_mcnemar_matches_direct_binomial_summation() -> None:
     """b10=3, b01=9 discordant pairs (5 concordant positive, 5 concordant
     negative pairs padded in to test that only discordant pairs matter)."""
