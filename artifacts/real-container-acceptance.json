@@ -1,0 +1,28 @@
+{
+  "evidence_class": "pilot",
+  "note": "Real-container acceptance evidence. Pilot class: it proves the capture and identity pipeline, never detection quality or a research claim.",
+  "research_eligible": false,
+  "run_id": "realcontainer-20260905t075747Z",
+  "schema_version": "porygon.real-container-acceptance.v1",
+  "trials": [
+    {
+      "boundaries": {
+        "api": "unmeasured",
+        "database": "measured",
+        "generator": "measured",
+        "source": "measured",
+        "spool": "unmeasured"
+      },
+      "canaries": 6,
+      "image_reference": "nginx@sha256:1eadbb07820339e8bbfed18c771691970baee292ec4ab2558f1453d26153e22d",
+      "measured_loss_fraction": {
+        "database": 0.0,
+        "generator": 0.0,
+        "source": 0.0
+      },
+      "runtime_context_hash": "680822ddba09d63dd086e00b90db8efa60feba59001801d633139b258503de0c",
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r01"
+    }
+  ],
+  "verified_at_utc": "2026-09-05T07:58:16.245661+00:00"
+}
