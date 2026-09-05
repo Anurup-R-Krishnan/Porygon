@@ -33,3 +33,11 @@ artifacts/experiments/local/
 .agents/
 .codex/
 .claude/skills/
+
+# LaTeX build products
+*.aux
+*.nav
+*.snm
+*.toc
+*.out
+docs/presentation/*.log
