@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Porygon Pilot Results</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1a1a19;--mut:#6b6b66;--line:#e3e3df;--card:#fff;
+--ok:#1a7f43;--okbg:#e6f4ec;--bad:#b3261e;--badbg:#fbeae9;--warn:#8a6100;--warnbg:#fdf3e0;--acc:#2d5bd7}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#16161a;--fg:#e9e9e6;--mut:#9b9b95;
+--line:#2c2c33;--card:#1d1d22;--ok:#5fd08a;--okbg:#12321f;--bad:#f08a80;--badbg:#3a1a17;
+--warn:#e8b84b;--warnbg:#3a2e10;--acc:#8aa8ff}}
+:root[data-theme=dark]{--bg:#16161a;--fg:#e9e9e6;--mut:#9b9b95;--line:#2c2c33;--card:#1d1d22;
+--ok:#5fd08a;--okbg:#12321f;--bad:#f08a80;--badbg:#3a1a17;--warn:#e8b84b;--warnbg:#3a2e10;--acc:#8aa8ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:32px 20px 64px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.02em}
+h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin:34px 0 10px}
+.sub{color:var(--mut);font-size:13px;margin-bottom:22px}
+.banner{background:var(--warnbg);color:var(--warn);border:1px solid currentColor;border-radius:8px;
+padding:11px 14px;font-size:13.5px;margin-bottom:26px}
+.banner b{color:inherit}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:14px 16px}
+.card .k{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
+.card .v{font-size:25px;font-weight:600;letter-spacing:-.02em;margin-top:3px}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:9px;background:var(--card)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:900px}
+th{text-align:left;font-weight:600;color:var(--mut);font-size:11.5px;text-transform:uppercase;
+letter-spacing:.05em;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+.rh td{background:var(--bg);font-weight:600;font-size:13px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.sm{font-size:12px} .num{text-align:right;font-variant-numeric:tabular-nums}
+.mut{color:var(--mut);font-weight:400}
+.note{color:var(--mut);font-size:12px;padding-top:0}
+.bad-note{color:var(--bad)}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:600;margin-left:8px}
+.ok{background:var(--okbg);color:var(--ok)} .bad{background:var(--badbg);color:var(--bad)}
+.warn{background:var(--warnbg);color:var(--warn)} .mut-pill{background:var(--line);color:var(--mut)}
+ul{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+li{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--acc);
+border-radius:7px;padding:12px 15px}
+li b{display:block;font-size:14px;margin-bottom:3px}
+li span{color:var(--mut);font-size:13px}
+details{margin-top:30px} summary{cursor:pointer;color:var(--mut);font-size:13px}
+pre{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;
+overflow-x:auto;font-size:11.5px;line-height:1.45;max-height:420px}
+footer{margin-top:38px;color:var(--mut);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+</style></head><body><div class="wrap">
+<h1>Porygon &mdash; real-container pilot results</h1>
+<div class="sub">Generated 2026-09-05T07:58:16Z from immutable run artifacts. Regenerate with
+<span class="mono">python3 scripts/render_results.py</span></div>
+
+<div class="banner"><b>Pilot evidence, not research evidence.</b> These runs used real containers
+pulled by immutable digest, but were collected while the research protocol is review-pending.
+Every record carries <span class="mono">research_eligible: false</span>. No detection-quality,
+false-positive, calibration, or profile-scope claim is supported by this data.</div>
+
+<div class="grid">
+<div class="card"><div class="k">Runs</div><div class="v">8</div></div>
+<div class="card"><div class="k">Trials</div><div class="v">16</div></div>
+<div class="card"><div class="k">Completed</div><div class="v">16</div></div>
+<div class="card"><div class="k">Canaries sent</div><div class="v">96</div></div>
+<div class="card"><div class="k">Seen at Falco</div><div class="v">96</div></div>
+<div class="card"><div class="k">In PostgreSQL</div><div class="v">96</div></div>
+</div>
+
+<h2>Trials</h2>
+<div class="scroll"><table>
+<thead><tr><th>Trial</th><th>Workload</th><th>Image tag</th><th>Context variant</th><th>Status</th>
+<th>Context hash</th><th>Gen</th><th>Falco</th><th>DB</th><th>Dup</th><th>Ops</th></tr></thead>
+<tbody><tr class="rh"><td colspan="11">phase9-20260905t074510Z <span class="mut">· 2026-09-05T07:45:19 · git 2d461047c7c5 (dirty) · protocol review_pending</span><span class="pill warn">research_eligible: false</span></td></tr><tr><td class="mono">wl-ngx-v1-steady_http-scn-exec-baseline-r01</td><td>WL-NGX-V1</td><td class="mono sm">nginx:1.26.3-alpine</td><td>baseline</td><td><span class="pill ok">completed</span></td><td class="mono sm">4a1d23a090445b3f</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td class="num">0</td><td class="num">10/10</td></tr><tr class="rh"><td colspan="11">phase9-20260905t074609Z <span class="mut">· 2026-09-05T07:46:17 · git 2d461047c7c5 (dirty) · protocol review_pending</span><span class="pill warn">research_eligible: false</span></td></tr><tr><td class="mono">wl-ngx-v1-steady_http-scn-exec-baseline-r01</td><td>WL-NGX-V1</td><td class="mono sm">nginx:1.26.3-alpine</td><td>baseline</td><td><span class="pill ok">completed</span></td><td class="mono sm">b0c80a196ad0816a</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td class="num">0</td><td class="num">10/10</td></tr><tr class="rh"><td colspan="11">phase9-20260905t074739Z <span class="mut">· 2026-09-05T07:47:49 · git 2d461047c7c5 (dirty) · protocol review_pending</span><span class="pill warn">research_eligible: false</span></td></tr><tr><td class="mono">wl-ngx-v1-steady_http-scn-exec-baseline-r01</td><td>WL-NGX-V1</td><td class="mono sm">nginx:1.26.3-alpine</td><td>baseline</td><td><span class="pill ok">completed</span></td><td class="mono sm">680822ddba09d63d</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td class="num">0</td><td class="num">10/10</td></tr><tr class="rh"><td colspan="11">phase9-20260905t074810Z <span class="mut">· 2026-09-05T07:48:18 · git 2d461047c7c5 (dirty) · protocol review_pending</span><span class="pill warn">research_eligible: false</span></td></tr><tr><td class="mono">wl-ngx-v1-steady_http-scn-exec-baseline-r01</td><td>WL-NGX-V1</td><td class="mono sm">nginx:1.26.3-alpine</td><td>baseline</td><td><span class="pill ok">completed</span></td><td class="mono sm">680822ddba09d63d</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td class="num">0</td><td class="num">10/10</td></tr><tr class="rh"><td colspan="11">phase9-20260905t075021Z <span class="mut">· 2026-09-05T07:50:29 · git 2d461047c7c5 (dirty) · protocol review_pending</span><span class="pill warn">research_eligible: false</span></td></tr><tr><td class="mono">wl-ngx-v1-steady_http-scn-exec-baseline-r01</td><td>WL-NGX-V1</td><td class="mono sm">nginx:1.26.3-alpine</td><td>baseline</td><td><span class="pill ok">completed</span></td><td class="mono sm">680822ddba09d63d</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td class="num">0</td><td class="num">10/10</td></tr><tr class="rh"><td colspan="11">pilot-20260905a <span class="mut">· 2026-09-05T07:25:00 · git 2d461047c7c5 (dirty) · protocol review_pending</span><span class="pill warn">research_eligible: false</span></td></tr><tr><td class="mono">wl-ngx-v1-steady_http-scn-exec-baseline-r01</td><td>WL-NGX-V1</td><td class="mono sm">nginx:1.26.3-alpine</td><td>baseline</td><td><span class="pill ok">completed</span></td><td class="mono sm">52e5e48b7368687a</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td class="num">0</td><td class="num">40/40</td></tr><tr><td class="mono">wl-ngx-v1-steady_http-scn-exec-dropped_capabilities-r01</td><td>WL-NGX-V1</td><td class="mono sm">nginx:1.26.3-alpine</td><td>dropped_capabilities</td><td><span class="pill ok">completed</span></td><td class="mono sm">dcc8cf78770741ac</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td class="num">0</td><td class="num">40/40</td></tr><tr><td class="mono">wl-ngx-v1-steady_http-scn-exec-tmpfs_scratch-r01</td><td>WL-NGX-V1</td><td class="mono sm">nginx:1.26.3-alpine</td><td>tmpfs_scratch</td><td><span class="pill ok">completed</span></td><td class="mono sm">cdde6f3c4d4b1091</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td class="num">0</td><td class="num">40/40</td></tr><tr><td class="mono">wl-pg-v1-read_only_queries-scn-exec-baseline-r01</td><td>WL-PG-V1</td><td class="mono sm">postgres:16.6-alpine</td><td>baseline</td><td><span class="pill ok">completed</span></td><td class="mono sm">c786816f01682ec2</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td class="num">0</td><td class="num">40/40</td></tr><tr><td class="mono">wl-pg-v1-read_only_queries-scn-exec-dropped_capabilities-r01</td><td>WL-PG-V1</td><td class="mono sm">postgres:16.6-alpine</td><td>dropped_capabilities</td><td><span class="pill ok">completed</span></td><td class="mono sm">b0aa3086bb20cc7c</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td class="num">0</td><td class="num">40/40</td></tr><tr><td class="mono">wl-pg-v1-read_only_queries-scn-exec-tmpfs_scratch-r01</td><td>WL-PG-V1</td><td class="mono sm">postgres:16.6-alpine</td><td>tmpfs_scratch</td><td><span class="pill ok">completed</span></td><td class="mono sm">70dedfb0ab127c73</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td class="num">0</td><td class="num">40/40</td></tr><tr><td class="mono">wl-rds-v1-steady_set_get-scn-exec-baseline-r01</td><td>WL-RDS-V1</td><td class="mono sm">redis:7.2.7-alpine</td><td>baseline</td><td><span class="pill ok">completed</span></td><td class="mono sm">6270a7830b2421c0</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td class="num">0</td><td class="num">40/40</td></tr><tr><td class="mono">wl-rds-v1-steady_set_get-scn-exec-dropped_capabilities-r01</td><td>WL-RDS-V1</td><td class="mono sm">redis:7.2.7-alpine</td><td>dropped_capabilities</td><td><span class="pill ok">completed</span></td><td class="mono sm">9d6a539784b14176</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td class="num">0</td><td class="num">40/40</td></tr><tr><td class="mono">wl-rds-v1-steady_set_get-scn-exec-tmpfs_scratch-r01</td><td>WL-RDS-V1</td><td class="mono sm">redis:7.2.7-alpine</td><td>tmpfs_scratch</td><td><span class="pill ok">completed</span></td><td class="mono sm">3298bc8864ee4675</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td class="num">0</td><td class="num">40/40</td></tr><tr class="rh"><td colspan="11">pilot-20260905b <span class="mut">· 2026-09-05T07:29:44 · git 2d461047c7c5 (dirty) · protocol review_pending</span><span class="pill warn">research_eligible: false</span></td></tr><tr><td class="mono">wl-pg-v1-read_only_queries-scn-exec-baseline-r01</td><td>WL-PG-V1</td><td class="mono sm">postgres:16.6-alpine</td><td>baseline</td><td><span class="pill ok">completed</span></td><td class="mono sm">c653fd40c0470c99</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td class="num">0</td><td class="num">20/20</td></tr><tr class="rh"><td colspan="11">realcontainer-20260905t075747Z <span class="mut">· 2026-09-05T07:57:55 · git 2d461047c7c5 (dirty) · protocol review_pending</span><span class="pill warn">research_eligible: false</span></td></tr><tr><td class="mono">wl-ngx-v1-steady_http-scn-exec-baseline-r01</td><td>WL-NGX-V1</td><td class="mono sm">nginx:1.26.3-alpine</td><td>baseline</td><td><span class="pill ok">completed</span></td><td class="mono sm">680822ddba09d63d</td><td class="num">6</td><td class="num">6</td><td class="num">6</td><td class="num">0</td><td class="num">10/10</td></tr></tbody></table></div>
+
+<h2>Verification gates</h2>
+<div class="scroll"><table style="min-width:auto">
+<thead><tr><th>Command</th><th>Result</th></tr></thead><tbody><tr><td class="mono">make verify-static</td><td><span class="pill ok">passed</span></td></tr><tr><td class="mono">make verify-unit</td><td><span class="pill ok">passed</span></td></tr><tr><td class="mono">make verify-live-safe</td><td><span class="pill ok">passed</span></td></tr><tr><td class="mono">make verify-experiment-live</td><td><span class="pill ok">passed</span></td></tr><tr><td class="mono">make verify-scanner-live</td><td><span class="pill mut-pill">not run</span></td></tr><tr><td class="mono">make verify-response-live</td><td><span class="pill mut-pill">not run (disruptive)</span></td></tr><tr><td class="mono">make experiment-confirmatory</td><td><span class="pill mut-pill">refused (protocol review-pending)</span></td></tr></tbody></table></div>
+
+<h2>Measured findings</h2>
+<ul><li><b>Context variants are behaviourally identical</b><span>cap-drop NET_RAW and tmpfs /scratch change the context identity but not what executes. Identical (process, executable) multisets across all three variants in every family.</span></li><li><b>execve-only telemetry is blind to application traffic</b><span>40 HTTP requests and 40 Redis operations each produced zero process events. Profiles are dominated by container startup and exec&#x27;d activity.</span></li><li><b>Container-runtime scaffolding sits inside every profile</b><span>runc init appears as process &#x27;6&#x27; (/runc) in every container and scales with docker exec count.</span></li><li><b>Container-startup correlation gap</b><span>1017/1067 (95.3%) of pilot events resolved to a digest. The 50 that did not are container-startup processes Falco sees before the collector binds the container ID.</span></li><li><b>network_mode encoded the per-run network name (fixed)</b><span>The same deployment produced a different context identity every run, so no stratum could reach its minimum fit-run count. Now normalised to its security class.</span></li></ul>
+
+<details><summary>Raw data (artifacts/results.json)</summary><pre>{
+ "generated_at_utc": "2026-09-05T07:58:16.270848+00:00",
+ "runs": [
+  {
+   "run_id": "phase9-20260905t074510Z",
+   "created_at_utc": "2026-09-05T07:45:19.808873+00:00",
+   "git_sha": "2d461047c7c5",
+   "git_dirty": true,
+   "protocol_status": "review_pending",
+   "research_eligible": false,
+   "docker": "29.7.2",
+   "platform": "Linux-7.1.8-1-cachyos-x86_64-with-glibc2.44",
+   "trials": [
+    {
+     "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r01",
+     "workload": "WL-NGX-V1",
+     "tag": "nginx:1.26.3-alpine",
+     "variant": "baseline",
+     "status": "completed",
+     "context_hash": "4a1d23a090445b3f",
+     "generated": 6,
+     "falco": 6,
+     "database": 6,
+     "duplicates": 0,
+     "ops": "10/10",
+     "unmeasured": [
+      "api",
+      "spool"
+     ],
+     "failure_reason": null
+    }
+   ]
+  },
+  {
+   "run_id": "phase9-20260905t074609Z",
+   "created_at_utc": "2026-09-05T07:46:17.662177+00:00",
+   "git_sha": "2d461047c7c5",
+   "git_dirty": true,
+   "protocol_status": "review_pending",
+   "research_eligible": false,
+   "docker": "29.7.2",
+   "platform": "Linux-7.1.8-1-cachyos-x86_64-with-glibc2.44",
+   "trials": [
+    {
+     "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r01",
+     "workload": "WL-NGX-V1",
+     "tag": "nginx:1.26.3-alpine",
+     "variant": "baseline",
+     "status": "completed",
+     "context_hash": "b0c80a196ad0816a",
+     "generated": 6,
+     "falco": 6,
+     "database": 6,
+     "duplicates": 0,
+     "ops": "10/10",
+     "unmeasured": [
+      "api",
+      "spool"
+     ],
+     "failure_reason": null
+    }
+   ]
+  },
+  {
+   "run_id": "phase9-20260905t074739Z",
+   "created_at_utc": "2026-09-05T07:47:49.601544+00:00",
+   "git_sha": "2d461047c7c5",
+   "git_dirty": true,
+   "protocol_status": "review_pending",
+   "research_eligible": false,
+   "docker": "29.7.2",
+   "platform": "Linux-7.1.8-1-cachyos-x86_64-with-glibc2.44",
+   "trials": [
+    {
+     "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r01",
+     "workload": "WL-NGX-V1",
+     "tag": "nginx:1.26.3-alpine",
+     "variant": "baseline",
+     "status": "completed",
+     "context_hash": "680822ddba09d63d",
+     "generated": 6,
+     "falco": 6,
+     "database": 6,
+     "duplicates": 0,
+     "ops": "10/10",
+     "unmeasured": [
+      "api",
+      "spool"
+     ],
+     "failure_reason": null
+    }
+   ]
+  },
+  {
+   "run_id": "phase9-20260905t074810Z",
+   "created_at_utc": "2026-09-05T07:48:18.760445+00:00",
+   "git_sha": "2d461047c7c5",
+   "git_dirty": true,
+   "protocol_status": "review_pending",
+   "research_eligible": false,
+   "docker": "29.7.2",
+   "platform": "Linux-7.1.8-1-cachyos-x86_64-with-glibc2.44",
+   "trials": [
+    {
+     "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r01",
+     "workload": "WL-NGX-V1",
+     "tag": "nginx:1.26.3-alpine",
+     "variant": "baseline",
+     "status": "completed",
+     "context_hash": "680822ddba09d63d",
+     "generated": 6,
+     "falco": 6,
+     "database": 6,
+     "duplicates": 0,
+     "ops": "10/10",
+     "unmeasured": [
+      "api",
+      "spool"
+     ],
+     "failure_reason": null
+    }
+   ]
+  },
+  {
+   "run_id": "phase9-20260905t075021Z",
+   "created_at_utc": "2026-09-05T07:50:29.064731+00:00",
+   "git_sha": "2d461047c7c5",
+   "git_dirty": true,
+   "protocol_status": "review_pending",
+   "research_eligible": false,
+   "docker": "29.7.2",
+   "platform": "Linux-7.1.8-1-cachyos-x86_64-with-glibc2.44",
+   "trials": [
+    {
+     "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r01",
+     "workload": "WL-NGX-V1",
+     "tag": "nginx:1.26.3-alpine",
+     "variant": "baseline",
+     "status": "completed",
+     "context_hash": "680822ddba09d63d",
+     "generated": 6,
+     "falco": 6,
+     "database": 6,
+     "duplicates": 0,
+     "ops": "10/10",
+     "unmeasured": [
+      "api",
+      "spool"
+     ],
+     "failure_reason": null
+    }
+   ]
+  },
+  {
+   "run_id": "pilot-20260905a",
+   "created_at_utc": "2026-09-05T07:25:00.012421+00:00",
+   "git_sha": "2d461047c7c5",
+   "git_dirty": true,
+   "protocol_status": "review_pending",
+   "research_eligible": false,
+   "docker": "29.7.2",
+   "platform": "Linux-7.1.8-1-cachyos-x86_64-with-glibc2.44",
+   "trials": [
+    {
+     "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r01",
+     "workload": "WL-NGX-V1",
+     "tag": "nginx:1.26.3-alpine",
+     "variant": "baseline",
+     "status": "completed",
+     "context_hash": "52e5e48b7368687a",
+     "generated": 6,
+     "falco": 6,
+     "database": 6,
+     "duplicates": 0,
+     "ops": "40/40",
+     "unmeasured": [
+      "api",
+      "spool"
+     ],
+     "failure_reason": null
+    },
+    {
+     "trial_id": "wl-ngx-v1-steady_http-scn-exec-dropped_capabilities-r01",
+     "workload": "WL-NGX-V1",
+     "tag": "nginx:1.26.3-alpine",
+     "variant": "dropped_capabilities",
+     "status": "completed",
+     "context_hash": "dcc8cf78770741ac",
+     "generated": 6,
+     "falco": 6,
+     "database": 6,
+     "duplicates": 0,
+     "ops": "40/40",
+     "unmeasured": [
+      "api",
+      "spool"
+     ],
+     "failure_reason": null
+    },
+    {
+     "trial_id": "wl-ngx-v1-steady_http-scn-exec-tmpfs_scratch-r01",
+     "workload": "WL-NGX-V1",
+     "tag": "nginx:1.26.3-alpine",
+     "variant": "tmpfs_scratch",
+     "status": "completed",
+     "context_hash": "cdde6f3c4d4b1091",
+     "generated": 6,
+     "falco": 6,
+     "database": 6,
+     "duplicates": 0,
+     "ops": "40/40",
+     "unmeasured": [
+      "api",
+      "spool"
+     ],
+     "failure_reason": null
+    },
+    {
+     "trial_id": "wl-pg-v1-read_only_queries-scn-exec-baseline-r01",
+     "workload": "WL-PG-V1",
+     "tag": "postgres:16.6-alpine",
+     "variant": "baseline",
+     "status": "completed",
+     "context_hash": "c786816f01682ec2",
+     "generated": 6,
+     "falco": 6,
+     "database": 6,
+     "duplicates": 0,
+     "ops": "40/40",
+     "unmeasured": [
+      "api",
+      "spool"
+     ],
+     "failure_reason": null
+    },
+    {
+     "trial_id": "wl-pg-v1-read_only_queries-scn-exec-dropped_capabilities-r01",
+     "workload": "WL-PG-V1",
+     "tag": "postgres:16.6-alpine",
+     "variant": "dropped_capabilities",
+     "status": "completed",
+     "context_hash": "b0aa3086bb20cc7c",
+     "generated": 6,
+     "falco": 6,
+     "database": 6,
+     "duplicates": 0,
+     "ops": "40/40",
+     "unmeasured": [
+      "api",
+      "spool"
+     ],
+     "failure_reason": null
+    },
+    {
+     "trial_id": "wl-pg-v1-read_only_queries-scn-exec-tmpfs_scratch-r01",
+     "workload": "WL-PG-V1",
+     "tag": "postgres:16.6-alpine",
+     "variant": "tmpfs_scratch",
+     "status": "completed",
+     "context_hash": "70dedfb0ab127c73",
+     "generated": 6,
+     "falco": 6,
+     "database": 6,
+     "duplicates": 0,
+     "ops": "40/40",
+     "unmeasured": [
+      "api",
+      "spool"
+     ],
+     "failure_reason": null
+    },
+    {
+     "trial_id": "wl-rds-v1-steady_set_get-scn-exec-baseline-r01",
+     "workload": "WL-RDS-V1",
+     "tag": "redis:7.2.7-alpine",
+     "variant": "baseline",
+     "status": "completed",
+     "context_hash": "6270a7830b2421c0",
+     "generated": 6,
+     "falco": 6,
+     "database": 6,
+     "duplicates": 0,
+     "ops": "40/40",
+     "unmeasured": [
+      "api",
+      "spool"
+     ],
+     "failure_reason": null
+    },
+    {
+     "trial_id": "wl-rds-v1-steady_set_get-scn-exec-dropped_capabilities-r01",
+     "workload": "WL-RDS-V1",
+     "tag": "redis:7.2.7-alpine",
+     "variant": "dropped_capabilities",
+     "status": "completed",
+     "context_hash": "9d6a539784b14176",
+     "generated": 6,
+     "falco": 6,
+     "database": 6,
+     "duplicates": 0,
+     "ops": "40/40",
+     "unmeasured": [
+      "api",
+      "spool"
+     ],
+     "failure_reason": null
+    },
+    {
+     "trial_id": "wl-rds-v1-steady_set_get-scn-exec-tmpfs_scratch-r01",
+     "workload": "WL-RDS-V1",
+     "tag": "redis:7.2.7-alpine",
+     "variant": "tmpfs_scratch",
+     "status": "completed",
+     "context_hash": "3298bc8864ee4675",
+     "generated": 6,
+     "falco": 6,
+     "database": 6,
+     "duplicates": 0,
+     "ops": "40/40",
+     "unmeasured": [
+      "api",
+      "spool"
+     ],
+     "failure_reason": null
+    }
+   ]
+  },
+  {
+   "run_id": "pilot-20260905b",
+   "created_at_utc": "2026-09-05T07:29:44.549582+00:00",
+   "git_sha": "2d461047c7c5",
+   "git_dirty": true,
+   "protocol_status": "review_pending",
+   "research_eligible": false,
+   "docker": "29.7.2",
+   "platform": "Linux-7.1.8-1-cachyos-x86_64-with-glibc2.44",
+   "trials": [
+    {
+     "trial_id": "wl-pg-v1-read_only_queries-scn-exec-baseline-r01",
+     "workload": "WL-PG-V1",
+     "tag": "postgres:16.6-alpine",
+     "variant": "baseline",
+     "status": "completed",
+     "context_hash": "c653fd40c0470c99",
+     "generated": 6,
+     "falco": 6,
+     "database": 6,
+     "duplicates": 0,
+     "ops": "20/20",
+     "unmeasured": [
+      "api",
+      "spool"
+     ],
+     "failure_reason": null
+    }
+   ]
+  },
+  {
+   "run_id": "realcontainer-20260905t075747Z",
+   "created_at_utc": "2026-09-05T07:57:55.145946+00:00",
+   "git_sha": "2d461047c7c5",
+   "git_dirty": true,
+   "protocol_status": "review_pending",
+   "research_eligible": false,
+   "docker": "29.7.2",
+   "platform": "Linux-7.1.8-1-cachyos-x86_64-with-glibc2.44",
+   "trials": [
+    {
+     "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r01",
+     "workload": "WL-NGX-V1",
+     "tag": "nginx:1.26.3-alpine",
+     "variant": "baseline",
+     "status": "completed",
+     "context_hash": "680822ddba09d63d",
+     "generated": 6,
+     "falco": 6,
+     "database": 6,
+     "duplicates": 0,
+     "ops": "10/10",
+     "unmeasured": [
+      "api",
+      "spool"
+     ],
+     "failure_reason": null
+    }
+   ]
+  }
+ ],
+ "totals": {
+  "runs": 8,
+  "trials": 16,
+  "completed": 16,
+  "canaries": 96,
+  "canaries_at_falco": 96,
+  "canaries_in_db": 96
+ }
+}</pre></details>
+
+<footer>Boundaries marked <span class="mono">unmeasured</span> are never recorded as zero loss.
+Kernel-to-eBPF and Falco userspace drops remain unmeasured by design.</footer>
+</div></body></html>

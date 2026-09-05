@@ -1,0 +1,397 @@
+{
+  "generated_at_utc": "2026-09-05T07:58:16.270848+00:00",
+  "runs": [
+    {
+      "created_at_utc": "2026-09-05T07:45:19.808873+00:00",
+      "docker": "29.7.2",
+      "git_dirty": true,
+      "git_sha": "2d461047c7c5",
+      "platform": "Linux-7.1.8-1-cachyos-x86_64-with-glibc2.44",
+      "protocol_status": "review_pending",
+      "research_eligible": false,
+      "run_id": "phase9-20260905t074510Z",
+      "trials": [
+        {
+          "context_hash": "4a1d23a090445b3f",
+          "database": 6,
+          "duplicates": 0,
+          "failure_reason": null,
+          "falco": 6,
+          "generated": 6,
+          "ops": "10/10",
+          "status": "completed",
+          "tag": "nginx:1.26.3-alpine",
+          "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r01",
+          "unmeasured": [
+            "api",
+            "spool"
+          ],
+          "variant": "baseline",
+          "workload": "WL-NGX-V1"
+        }
+      ]
+    },
+    {
+      "created_at_utc": "2026-09-05T07:46:17.662177+00:00",
+      "docker": "29.7.2",
+      "git_dirty": true,
+      "git_sha": "2d461047c7c5",
+      "platform": "Linux-7.1.8-1-cachyos-x86_64-with-glibc2.44",
+      "protocol_status": "review_pending",
+      "research_eligible": false,
+      "run_id": "phase9-20260905t074609Z",
+      "trials": [
+        {
+          "context_hash": "b0c80a196ad0816a",
+          "database": 6,
+          "duplicates": 0,
+          "failure_reason": null,
+          "falco": 6,
+          "generated": 6,
+          "ops": "10/10",
+          "status": "completed",
+          "tag": "nginx:1.26.3-alpine",
+          "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r01",
+          "unmeasured": [
+            "api",
+            "spool"
+          ],
+          "variant": "baseline",
+          "workload": "WL-NGX-V1"
+        }
+      ]
+    },
+    {
+      "created_at_utc": "2026-09-05T07:47:49.601544+00:00",
+      "docker": "29.7.2",
+      "git_dirty": true,
+      "git_sha": "2d461047c7c5",
+      "platform": "Linux-7.1.8-1-cachyos-x86_64-with-glibc2.44",
+      "protocol_status": "review_pending",
+      "research_eligible": false,
+      "run_id": "phase9-20260905t074739Z",
+      "trials": [
+        {
+          "context_hash": "680822ddba09d63d",
+          "database": 6,
+          "duplicates": 0,
+          "failure_reason": null,
+          "falco": 6,
+          "generated": 6,
+          "ops": "10/10",
+          "status": "completed",
+          "tag": "nginx:1.26.3-alpine",
+          "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r01",
+          "unmeasured": [
+            "api",
+            "spool"
+          ],
+          "variant": "baseline",
+          "workload": "WL-NGX-V1"
+        }
+      ]
+    },
+    {
+      "created_at_utc": "2026-09-05T07:48:18.760445+00:00",
+      "docker": "29.7.2",
+      "git_dirty": true,
+      "git_sha": "2d461047c7c5",
+      "platform": "Linux-7.1.8-1-cachyos-x86_64-with-glibc2.44",
+      "protocol_status": "review_pending",
+      "research_eligible": false,
+      "run_id": "phase9-20260905t074810Z",
+      "trials": [
+        {
+          "context_hash": "680822ddba09d63d",
+          "database": 6,
+          "duplicates": 0,
+          "failure_reason": null,
+          "falco": 6,
+          "generated": 6,
+          "ops": "10/10",
+          "status": "completed",
+          "tag": "nginx:1.26.3-alpine",
+          "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r01",
+          "unmeasured": [
+            "api",
+            "spool"
+          ],
+          "variant": "baseline",
+          "workload": "WL-NGX-V1"
+        }
+      ]
+    },
+    {
+      "created_at_utc": "2026-09-05T07:50:29.064731+00:00",
+      "docker": "29.7.2",
+      "git_dirty": true,
+      "git_sha": "2d461047c7c5",
+      "platform": "Linux-7.1.8-1-cachyos-x86_64-with-glibc2.44",
+      "protocol_status": "review_pending",
+      "research_eligible": false,
+      "run_id": "phase9-20260905t075021Z",
+      "trials": [
+        {
+          "context_hash": "680822ddba09d63d",
+          "database": 6,
+          "duplicates": 0,
+          "failure_reason": null,
+          "falco": 6,
+          "generated": 6,
+          "ops": "10/10",
+          "status": "completed",
+          "tag": "nginx:1.26.3-alpine",
+          "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r01",
+          "unmeasured": [
+            "api",
+            "spool"
+          ],
+          "variant": "baseline",
+          "workload": "WL-NGX-V1"
+        }
+      ]
+    },
+    {
+      "created_at_utc": "2026-09-05T07:25:00.012421+00:00",
+      "docker": "29.7.2",
+      "git_dirty": true,
+      "git_sha": "2d461047c7c5",
+      "platform": "Linux-7.1.8-1-cachyos-x86_64-with-glibc2.44",
+      "protocol_status": "review_pending",
+      "research_eligible": false,
+      "run_id": "pilot-20260905a",
+      "trials": [
+        {
+          "context_hash": "52e5e48b7368687a",
+          "database": 6,
+          "duplicates": 0,
+          "failure_reason": null,
+          "falco": 6,
+          "generated": 6,
+          "ops": "40/40",
+          "status": "completed",
+          "tag": "nginx:1.26.3-alpine",
+          "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r01",
+          "unmeasured": [
+            "api",
+            "spool"
+          ],
+          "variant": "baseline",
+          "workload": "WL-NGX-V1"
+        },
+        {
+          "context_hash": "dcc8cf78770741ac",
+          "database": 6,
+          "duplicates": 0,
+          "failure_reason": null,
+          "falco": 6,
+          "generated": 6,
+          "ops": "40/40",
+          "status": "completed",
+          "tag": "nginx:1.26.3-alpine",
+          "trial_id": "wl-ngx-v1-steady_http-scn-exec-dropped_capabilities-r01",
+          "unmeasured": [
+            "api",
+            "spool"
+          ],
+          "variant": "dropped_capabilities",
+          "workload": "WL-NGX-V1"
+        },
+        {
+          "context_hash": "cdde6f3c4d4b1091",
+          "database": 6,
+          "duplicates": 0,
+          "failure_reason": null,
+          "falco": 6,
+          "generated": 6,
+          "ops": "40/40",
+          "status": "completed",
+          "tag": "nginx:1.26.3-alpine",
+          "trial_id": "wl-ngx-v1-steady_http-scn-exec-tmpfs_scratch-r01",
+          "unmeasured": [
+            "api",
+            "spool"
+          ],
+          "variant": "tmpfs_scratch",
+          "workload": "WL-NGX-V1"
+        },
+        {
+          "context_hash": "c786816f01682ec2",
+          "database": 6,
+          "duplicates": 0,
+          "failure_reason": null,
+          "falco": 6,
+          "generated": 6,
+          "ops": "40/40",
+          "status": "completed",
+          "tag": "postgres:16.6-alpine",
+          "trial_id": "wl-pg-v1-read_only_queries-scn-exec-baseline-r01",
+          "unmeasured": [
+            "api",
+            "spool"
+          ],
+          "variant": "baseline",
+          "workload": "WL-PG-V1"
+        },
+        {
+          "context_hash": "b0aa3086bb20cc7c",
+          "database": 6,
+          "duplicates": 0,
+          "failure_reason": null,
+          "falco": 6,
+          "generated": 6,
+          "ops": "40/40",
+          "status": "completed",
+          "tag": "postgres:16.6-alpine",
+          "trial_id": "wl-pg-v1-read_only_queries-scn-exec-dropped_capabilities-r01",
+          "unmeasured": [
+            "api",
+            "spool"
+          ],
+          "variant": "dropped_capabilities",
+          "workload": "WL-PG-V1"
+        },
+        {
+          "context_hash": "70dedfb0ab127c73",
+          "database": 6,
+          "duplicates": 0,
+          "failure_reason": null,
+          "falco": 6,
+          "generated": 6,
+          "ops": "40/40",
+          "status": "completed",
+          "tag": "postgres:16.6-alpine",
+          "trial_id": "wl-pg-v1-read_only_queries-scn-exec-tmpfs_scratch-r01",
+          "unmeasured": [
+            "api",
+            "spool"
+          ],
+          "variant": "tmpfs_scratch",
+          "workload": "WL-PG-V1"
+        },
+        {
+          "context_hash": "6270a7830b2421c0",
+          "database": 6,
+          "duplicates": 0,
+          "failure_reason": null,
+          "falco": 6,
+          "generated": 6,
+          "ops": "40/40",
+          "status": "completed",
+          "tag": "redis:7.2.7-alpine",
+          "trial_id": "wl-rds-v1-steady_set_get-scn-exec-baseline-r01",
+          "unmeasured": [
+            "api",
+            "spool"
+          ],
+          "variant": "baseline",
+          "workload": "WL-RDS-V1"
+        },
+        {
+          "context_hash": "9d6a539784b14176",
+          "database": 6,
+          "duplicates": 0,
+          "failure_reason": null,
+          "falco": 6,
+          "generated": 6,
+          "ops": "40/40",
+          "status": "completed",
+          "tag": "redis:7.2.7-alpine",
+          "trial_id": "wl-rds-v1-steady_set_get-scn-exec-dropped_capabilities-r01",
+          "unmeasured": [
+            "api",
+            "spool"
+          ],
+          "variant": "dropped_capabilities",
+          "workload": "WL-RDS-V1"
+        },
+        {
+          "context_hash": "3298bc8864ee4675",
+          "database": 6,
+          "duplicates": 0,
+          "failure_reason": null,
+          "falco": 6,
+          "generated": 6,
+          "ops": "40/40",
+          "status": "completed",
+          "tag": "redis:7.2.7-alpine",
+          "trial_id": "wl-rds-v1-steady_set_get-scn-exec-tmpfs_scratch-r01",
+          "unmeasured": [
+            "api",
+            "spool"
+          ],
+          "variant": "tmpfs_scratch",
+          "workload": "WL-RDS-V1"
+        }
+      ]
+    },
+    {
+      "created_at_utc": "2026-09-05T07:29:44.549582+00:00",
+      "docker": "29.7.2",
+      "git_dirty": true,
+      "git_sha": "2d461047c7c5",
+      "platform": "Linux-7.1.8-1-cachyos-x86_64-with-glibc2.44",
+      "protocol_status": "review_pending",
+      "research_eligible": false,
+      "run_id": "pilot-20260905b",
+      "trials": [
+        {
+          "context_hash": "c653fd40c0470c99",
+          "database": 6,
+          "duplicates": 0,
+          "failure_reason": null,
+          "falco": 6,
+          "generated": 6,
+          "ops": "20/20",
+          "status": "completed",
+          "tag": "postgres:16.6-alpine",
+          "trial_id": "wl-pg-v1-read_only_queries-scn-exec-baseline-r01",
+          "unmeasured": [
+            "api",
+            "spool"
+          ],
+          "variant": "baseline",
+          "workload": "WL-PG-V1"
+        }
+      ]
+    },
+    {
+      "created_at_utc": "2026-09-05T07:57:55.145946+00:00",
+      "docker": "29.7.2",
+      "git_dirty": true,
+      "git_sha": "2d461047c7c5",
+      "platform": "Linux-7.1.8-1-cachyos-x86_64-with-glibc2.44",
+      "protocol_status": "review_pending",
+      "research_eligible": false,
+      "run_id": "realcontainer-20260905t075747Z",
+      "trials": [
+        {
+          "context_hash": "680822ddba09d63d",
+          "database": 6,
+          "duplicates": 0,
+          "failure_reason": null,
+          "falco": 6,
+          "generated": 6,
+          "ops": "10/10",
+          "status": "completed",
+          "tag": "nginx:1.26.3-alpine",
+          "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r01",
+          "unmeasured": [
+            "api",
+            "spool"
+          ],
+          "variant": "baseline",
+          "workload": "WL-NGX-V1"
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "canaries": 96,
+    "canaries_at_falco": 96,
+    "canaries_in_db": 96,
+    "completed": 16,
+    "runs": 8,
+    "trials": 16
+  }
+}
