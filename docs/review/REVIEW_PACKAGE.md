@@ -9,8 +9,8 @@ step that is deliberately a human decision.
 ## What the reviewer is approving
 
 - Protocol: `docs/RESEARCH_PROTOCOL_V1.md`
-- Protocol SHA-256: `11e4593c1ade7cde33dc70cbdf958d670c5c7992bfe08da362a8ae23ab119430`
-- Repository commit: `48c45b8aeebf8f369c9a1c52f5821bf585dd1ea2`  (working tree has uncommitted changes)
+- Protocol SHA-256: `af5db33ca2fe153dbbe5dfe1f563890b0e6c9c224c191b18fea111dc93584759`
+- Repository commit: `a7749ef251ab724d7e2b90530a15c19d876e7fc9`  (working tree has uncommitted changes)
 
 A decision applies to the exact protocol bytes above. If the protocol changes
 afterwards, the review is re-run against the new digest.

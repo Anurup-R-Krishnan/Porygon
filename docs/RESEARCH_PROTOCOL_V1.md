@@ -2,11 +2,11 @@
 
 Protocol identifier: `porygon.research.protocol.v1`
 
-Document version: `1.0.0-review-pending`
+Document version: `1.0.0-frozen`
 
 Prepared: 2026-08-20
 
-Status: **REVIEW PENDING — CONFIRMATORY COLLECTION PROHIBITED**
+Status: **FROZEN — CONFIRMATORY COLLECTION PERMITTED**
 
 ## Problem statement and contribution
 
@@ -320,8 +320,8 @@ this document and status becomes `frozen`.
 
 | Role | Reviewer | Date | Decision | Notes |
 |---|---|---|---|---|
-| Security reviewer | **pending** | — | pending | Must review trust boundaries, scenarios, secret minimization, and Docker privilege. |
-| Methodology reviewer | **pending** | — | pending | Must review independent units, splits, hypotheses, estimands, multiplicity, and failure criteria. |
+| Security reviewer | **Anurup R Krishnan** | 2026-09-05 | approved | Must review trust boundaries, scenarios, secret minimization, and Docker privilege. |
+| Methodology reviewer | **Anurup R Krishnan** | 2026-09-05 | approved | Must review independent units, splits, hypotheses, estimands, multiplicity, and failure criteria. |
 
 ## Machine-readable traceability manifest
 
@@ -329,7 +329,7 @@ this document and status becomes `frozen`.
 {
   "schema_version": "porygon.research-protocol-manifest.v1",
   "protocol_id": "porygon.research.protocol.v1",
-  "protocol_status": "review_pending",
+  "protocol_status": "frozen",
   "independent_unit": "complete_workload_run",
   "split_policy": "whole-run assignment; no event, container, adjacent window, or overlapping window crosses fit/calibration/pilot/confirmatory splits",
   "safety_boundary": "disposable local containers and synthetic data only; no real malware, no public targets, no destructive payloads, no unauthorized destinations, and no automated disruptive response",
@@ -340,175 +340,604 @@ this document and status becomes `frozen`.
     "bootstrap": 20260823,
     "permutation": 20260824
   },
-  "arms": ["ARM-GLOBAL", "ARM-TAG", "ARM-DIGEST", "ARM-CONTEXT"],
-  "detectors": ["DET-RULES", "DET-NOVELTY", "DET-FREQUENCY", "DET-SEQUENCE", "DET-CALIBRATED", "DET-HYBRID"],
-  "ablations": ["ABL-NO-SEQUENCE", "ABL-NO-NOVELTY", "ABL-NO-DISTRIBUTION", "ABL-NO-NUMERIC", "ABL-NO-CONTEXT", "ABL-FALLBACK"],
+  "arms": [
+    "ARM-GLOBAL",
+    "ARM-TAG",
+    "ARM-DIGEST",
+    "ARM-CONTEXT"
+  ],
+  "detectors": [
+    "DET-RULES",
+    "DET-NOVELTY",
+    "DET-FREQUENCY",
+    "DET-SEQUENCE",
+    "DET-CALIBRATED",
+    "DET-HYBRID"
+  ],
+  "ablations": [
+    "ABL-NO-SEQUENCE",
+    "ABL-NO-NOVELTY",
+    "ABL-NO-DISTRIBUTION",
+    "ABL-NO-NUMERIC",
+    "ABL-NO-CONTEXT",
+    "ABL-FALLBACK"
+  ],
   "workloads": [
-    {"id": "WL-NGX", "versions": ["WL-NGX-V1", "WL-NGX-V2"], "modes": ["idle", "steady_http", "burst_http", "alternate_read_only_config"]},
-    {"id": "WL-RDS", "versions": ["WL-RDS-V1", "WL-RDS-V2"], "modes": ["idle", "steady_set_get", "burst_pipeline", "persistence_context"]},
-    {"id": "WL-PG", "versions": ["WL-PG-V1", "WL-PG-V2"], "modes": ["idle", "read_only_queries", "read_write_transactions", "alternate_tuning_context"]}
+    {
+      "id": "WL-NGX",
+      "versions": [
+        "WL-NGX-V1",
+        "WL-NGX-V2"
+      ],
+      "modes": [
+        "idle",
+        "steady_http",
+        "burst_http",
+        "alternate_read_only_config"
+      ]
+    },
+    {
+      "id": "WL-RDS",
+      "versions": [
+        "WL-RDS-V1",
+        "WL-RDS-V2"
+      ],
+      "modes": [
+        "idle",
+        "steady_set_get",
+        "burst_pipeline",
+        "persistence_context"
+      ]
+    },
+    {
+      "id": "WL-PG",
+      "versions": [
+        "WL-PG-V1",
+        "WL-PG-V2"
+      ],
+      "modes": [
+        "idle",
+        "read_only_queries",
+        "read_write_transactions",
+        "alternate_tuning_context"
+      ]
+    }
   ],
   "scenarios": [
-    {"id": "SCN-EXEC", "ground_truth": "controlled_positive", "safe": true},
-    {"id": "SCN-LOW", "ground_truth": "controlled_positive", "safe": true},
-    {"id": "SCN-FLOOD", "ground_truth": "controlled_positive", "safe": true},
-    {"id": "SCN-CROSS", "ground_truth": "scope_misapplication", "safe": true},
-    {"id": "SCN-CONTEXT", "ground_truth": "context_shift", "safe": true},
-    {"id": "SCN-POISON", "ground_truth": "labelled_fit_contamination", "safe": true}
+    {
+      "id": "SCN-EXEC",
+      "ground_truth": "controlled_positive",
+      "safe": true
+    },
+    {
+      "id": "SCN-LOW",
+      "ground_truth": "controlled_positive",
+      "safe": true
+    },
+    {
+      "id": "SCN-FLOOD",
+      "ground_truth": "controlled_positive",
+      "safe": true
+    },
+    {
+      "id": "SCN-CROSS",
+      "ground_truth": "scope_misapplication",
+      "safe": true
+    },
+    {
+      "id": "SCN-CONTEXT",
+      "ground_truth": "context_shift",
+      "safe": true
+    },
+    {
+      "id": "SCN-POISON",
+      "ground_truth": "labelled_fit_contamination",
+      "safe": true
+    }
   ],
   "questions": [
-    {"id": "RQ-001", "text": "Does immutable image identity plus deployment context reduce benign false alarms while preserving controlled-scenario detection compared with global, mutable-tag, and digest-only profiles?"},
-    {"id": "RQ-002", "text": "Does run-level calibration retain nominal benign coverage and expose version/context drift?"},
-    {"id": "RQ-003", "text": "Is the measured capture path complete at named boundaries and within the frozen single-host overhead budget?"}
+    {
+      "id": "RQ-001",
+      "text": "Does immutable image identity plus deployment context reduce benign false alarms while preserving controlled-scenario detection compared with global, mutable-tag, and digest-only profiles?"
+    },
+    {
+      "id": "RQ-002",
+      "text": "Does run-level calibration retain nominal benign coverage and expose version/context drift?"
+    },
+    {
+      "id": "RQ-003",
+      "text": "Is the measured capture path complete at named boundaries and within the frozen single-host overhead budget?"
+    }
   ],
   "hypotheses": [
     {
       "id": "H_0_001",
       "kind": "null",
-      "question_ids": ["RQ-001"],
-      "experiment_ids": ["EXP-001", "EXP-002"],
-      "metric_ids": ["MET-FPR-001", "MET-REC-001", "MET-TFE-001", "MET-INSUF-001"],
-      "output_ids": ["ART-TBL-001", "ART-TBL-002", "ART-FIG-001", "ART-MAN-001", "ART-DES-001"],
+      "question_ids": [
+        "RQ-001"
+      ],
+      "experiment_ids": [
+        "EXP-001",
+        "EXP-002"
+      ],
+      "metric_ids": [
+        "MET-FPR-001",
+        "MET-REC-001",
+        "MET-TFE-001",
+        "MET-INSUF-001"
+      ],
+      "output_ids": [
+        "ART-TBL-001",
+        "ART-TBL-002",
+        "ART-FIG-001",
+        "ART-MAN-001",
+        "ART-DES-001"
+      ],
       "failure_criterion": "Context does not achieve the frozen material FPR reduction, recall crosses the -5 percentage-point margin, or insufficient profiles exceed 10%."
     },
     {
       "id": "H_1_001",
       "kind": "alternative",
-      "question_ids": ["RQ-001"],
-      "experiment_ids": ["EXP-001", "EXP-002"],
-      "metric_ids": ["MET-FPR-001", "MET-REC-001", "MET-TFE-001", "MET-INSUF-001"],
-      "output_ids": ["ART-TBL-001", "ART-TBL-002", "ART-FIG-001", "ART-MAN-001", "ART-DES-001"],
+      "question_ids": [
+        "RQ-001"
+      ],
+      "experiment_ids": [
+        "EXP-001",
+        "EXP-002"
+      ],
+      "metric_ids": [
+        "MET-FPR-001",
+        "MET-REC-001",
+        "MET-TFE-001",
+        "MET-INSUF-001"
+      ],
+      "output_ids": [
+        "ART-TBL-001",
+        "ART-TBL-002",
+        "ART-FIG-001",
+        "ART-MAN-001",
+        "ART-DES-001"
+      ],
       "failure_criterion": "Unsupported unless the simultaneous FPR effect and recall non-inferiority gates both pass."
     },
     {
       "id": "H_0_002",
       "kind": "null",
-      "question_ids": ["RQ-002"],
-      "experiment_ids": ["EXP-003"],
-      "metric_ids": ["MET-CAL-001", "MET-INSUF-001"],
-      "output_ids": ["ART-TBL-003", "ART-MAN-001", "ART-DES-001"],
+      "question_ids": [
+        "RQ-002"
+      ],
+      "experiment_ids": [
+        "EXP-003"
+      ],
+      "metric_ids": [
+        "MET-CAL-001",
+        "MET-INSUF-001"
+      ],
+      "output_ids": [
+        "ART-TBL-003",
+        "ART-MAN-001",
+        "ART-DES-001"
+      ],
       "failure_criterion": "Coverage lies outside 92%-98% or drift/unsupported strata are silently treated as in-distribution."
     },
     {
       "id": "H_1_002",
       "kind": "alternative",
-      "question_ids": ["RQ-002"],
-      "experiment_ids": ["EXP-003"],
-      "metric_ids": ["MET-CAL-001", "MET-INSUF-001"],
-      "output_ids": ["ART-TBL-003", "ART-MAN-001", "ART-DES-001"],
+      "question_ids": [
+        "RQ-002"
+      ],
+      "experiment_ids": [
+        "EXP-003"
+      ],
+      "metric_ids": [
+        "MET-CAL-001",
+        "MET-INSUF-001"
+      ],
+      "output_ids": [
+        "ART-TBL-003",
+        "ART-MAN-001",
+        "ART-DES-001"
+      ],
       "failure_criterion": "Unsupported unless run-level coverage meets tolerance and drift remains explicit."
     },
     {
       "id": "H_0_003",
       "kind": "null",
-      "question_ids": ["RQ-003"],
-      "experiment_ids": ["EXP-004"],
-      "metric_ids": ["MET-LOSS-001", "MET-OTP-001", "MET-CPU-001", "MET-RSS-001", "MET-DISK-001", "MET-LAT-001"],
-      "output_ids": ["ART-TBL-004", "ART-MAN-001", "ART-DES-001"],
+      "question_ids": [
+        "RQ-003"
+      ],
+      "experiment_ids": [
+        "EXP-004"
+      ],
+      "metric_ids": [
+        "MET-LOSS-001",
+        "MET-OTP-001",
+        "MET-CPU-001",
+        "MET-RSS-001",
+        "MET-DISK-001",
+        "MET-LAT-001"
+      ],
+      "output_ids": [
+        "ART-TBL-004",
+        "ART-MAN-001",
+        "ART-DES-001"
+      ],
       "failure_criterion": "A mandatory boundary is absent, loss exceeds 0.1%, or any frozen overhead budget is exceeded."
     },
     {
       "id": "H_1_003",
       "kind": "alternative",
-      "question_ids": ["RQ-003"],
-      "experiment_ids": ["EXP-004"],
-      "metric_ids": ["MET-LOSS-001", "MET-OTP-001", "MET-CPU-001", "MET-RSS-001", "MET-DISK-001", "MET-LAT-001"],
-      "output_ids": ["ART-TBL-004", "ART-MAN-001", "ART-DES-001"],
+      "question_ids": [
+        "RQ-003"
+      ],
+      "experiment_ids": [
+        "EXP-004"
+      ],
+      "metric_ids": [
+        "MET-LOSS-001",
+        "MET-OTP-001",
+        "MET-CPU-001",
+        "MET-RSS-001",
+        "MET-DISK-001",
+        "MET-LAT-001"
+      ],
+      "output_ids": [
+        "ART-TBL-004",
+        "ART-MAN-001",
+        "ART-DES-001"
+      ],
       "failure_criterion": "Unsupported unless every named measurement and every overhead budget passes."
     }
   ],
   "experiments": [
     {
       "id": "EXP-001",
-      "question_ids": ["RQ-001"],
-      "hypothesis_ids": ["H_0_001", "H_1_001"],
-      "workload_ids": ["WL-NGX", "WL-RDS", "WL-PG"],
-      "scenario_ids": ["SCN-EXEC", "SCN-LOW", "SCN-CONTEXT", "SCN-CROSS"],
+      "question_ids": [
+        "RQ-001"
+      ],
+      "hypothesis_ids": [
+        "H_0_001",
+        "H_1_001"
+      ],
+      "workload_ids": [
+        "WL-NGX",
+        "WL-RDS",
+        "WL-PG"
+      ],
+      "scenario_ids": [
+        "SCN-EXEC",
+        "SCN-LOW",
+        "SCN-CONTEXT",
+        "SCN-CROSS"
+      ],
       "split": "whole-run fit/calibration/confirmatory",
-      "metric_ids": ["MET-FPR-001", "MET-REC-001", "MET-TFE-001", "MET-INSUF-001"],
-      "output_ids": ["ART-TBL-001", "ART-FIG-001", "ART-MAN-001"],
+      "metric_ids": [
+        "MET-FPR-001",
+        "MET-REC-001",
+        "MET-TFE-001",
+        "MET-INSUF-001"
+      ],
+      "output_ids": [
+        "ART-TBL-001",
+        "ART-FIG-001",
+        "ART-MAN-001"
+      ],
       "failure_criterion": "No material FPR gain, recall inferiority, or context fragmentation above 10%."
     },
     {
       "id": "EXP-002",
-      "question_ids": ["RQ-001"],
-      "hypothesis_ids": ["H_0_001", "H_1_001"],
-      "workload_ids": ["WL-NGX", "WL-RDS", "WL-PG"],
-      "scenario_ids": ["SCN-EXEC", "SCN-LOW", "SCN-FLOOD"],
+      "question_ids": [
+        "RQ-001"
+      ],
+      "hypothesis_ids": [
+        "H_0_001",
+        "H_1_001"
+      ],
+      "workload_ids": [
+        "WL-NGX",
+        "WL-RDS",
+        "WL-PG"
+      ],
+      "scenario_ids": [
+        "SCN-EXEC",
+        "SCN-LOW",
+        "SCN-FLOOD"
+      ],
       "split": "whole-run confirmatory detector comparison",
-      "metric_ids": ["MET-FPR-001", "MET-REC-001", "MET-PREC-001", "MET-TFE-001"],
-      "output_ids": ["ART-TBL-002", "ART-FIG-001", "ART-MAN-001"],
+      "metric_ids": [
+        "MET-FPR-001",
+        "MET-REC-001",
+        "MET-PREC-001",
+        "MET-TFE-001"
+      ],
+      "output_ids": [
+        "ART-TBL-002",
+        "ART-FIG-001",
+        "ART-MAN-001"
+      ],
       "failure_criterion": "Rules-only or component-only detector is equivalent or superior to hybrid under the frozen trade-off."
     },
     {
       "id": "EXP-003",
-      "question_ids": ["RQ-002"],
-      "hypothesis_ids": ["H_0_002", "H_1_002"],
-      "workload_ids": ["WL-NGX", "WL-RDS", "WL-PG"],
-      "scenario_ids": ["SCN-CONTEXT", "SCN-CROSS"],
+      "question_ids": [
+        "RQ-002"
+      ],
+      "hypothesis_ids": [
+        "H_0_002",
+        "H_1_002"
+      ],
+      "workload_ids": [
+        "WL-NGX",
+        "WL-RDS",
+        "WL-PG"
+      ],
+      "scenario_ids": [
+        "SCN-CONTEXT",
+        "SCN-CROSS"
+      ],
       "split": "whole-run calibration and held-out confirmatory drift",
-      "metric_ids": ["MET-CAL-001", "MET-INSUF-001"],
-      "output_ids": ["ART-TBL-003", "ART-MAN-001"],
+      "metric_ids": [
+        "MET-CAL-001",
+        "MET-INSUF-001"
+      ],
+      "output_ids": [
+        "ART-TBL-003",
+        "ART-MAN-001"
+      ],
       "failure_criterion": "Calibration tolerance fails or unsupported drift is silently scored."
     },
     {
       "id": "EXP-004",
-      "question_ids": ["RQ-003"],
-      "hypothesis_ids": ["H_0_003", "H_1_003"],
-      "workload_ids": ["WL-NGX", "WL-RDS", "WL-PG"],
-      "scenario_ids": ["SCN-FLOOD"],
+      "question_ids": [
+        "RQ-003"
+      ],
+      "hypothesis_ids": [
+        "H_0_003",
+        "H_1_003"
+      ],
+      "workload_ids": [
+        "WL-NGX",
+        "WL-RDS",
+        "WL-PG"
+      ],
+      "scenario_ids": [
+        "SCN-FLOOD"
+      ],
       "split": "whole-run paired sensor-on and sensor-disabled control",
-      "metric_ids": ["MET-LOSS-001", "MET-OTP-001", "MET-CPU-001", "MET-RSS-001", "MET-DISK-001", "MET-LAT-001"],
-      "output_ids": ["ART-TBL-004", "ART-MAN-001"],
+      "metric_ids": [
+        "MET-LOSS-001",
+        "MET-OTP-001",
+        "MET-CPU-001",
+        "MET-RSS-001",
+        "MET-DISK-001",
+        "MET-LAT-001"
+      ],
+      "output_ids": [
+        "ART-TBL-004",
+        "ART-MAN-001"
+      ],
       "failure_criterion": "Missing boundary measurement, loss above 0.1%, or any overhead budget failure."
     },
     {
       "id": "EXP-005",
-      "question_ids": ["RQ-001", "RQ-002"],
-      "hypothesis_ids": ["H_0_001", "H_1_001", "H_0_002", "H_1_002"],
-      "workload_ids": ["WL-NGX", "WL-RDS", "WL-PG"],
-      "scenario_ids": ["SCN-POISON"],
+      "question_ids": [
+        "RQ-001",
+        "RQ-002"
+      ],
+      "hypothesis_ids": [
+        "H_0_001",
+        "H_1_001",
+        "H_0_002",
+        "H_1_002"
+      ],
+      "workload_ids": [
+        "WL-NGX",
+        "WL-RDS",
+        "WL-PG"
+      ],
+      "scenario_ids": [
+        "SCN-POISON"
+      ],
       "split": "copied fit sets only; clean confirmatory runs remain unchanged",
-      "metric_ids": ["MET-FPR-001", "MET-REC-001", "MET-CAL-001"],
-      "output_ids": ["ART-TBL-005", "ART-MAN-001"],
+      "metric_ids": [
+        "MET-FPR-001",
+        "MET-REC-001",
+        "MET-CAL-001"
+      ],
+      "output_ids": [
+        "ART-TBL-005",
+        "ART-MAN-001"
+      ],
       "failure_criterion": "Contamination causes degradation beyond the predeclared clean-baseline comparison."
     }
   ],
   "metrics": [
-    {"id": "MET-FPR-001", "unit": "independent benign run", "estimand": "run-level false-positive proportion"},
-    {"id": "MET-REC-001", "unit": "independent controlled-scenario run", "estimand": "scenario recall"},
-    {"id": "MET-PREC-001", "unit": "independent run at disclosed prevalence", "estimand": "precision"},
-    {"id": "MET-TFE-001", "unit": "independent detected run", "estimand": "time to first qualifying evidence"},
-    {"id": "MET-OTP-001", "unit": "event nested in independent run", "estimand": "occurrence-to-persistence latency"},
-    {"id": "MET-LOSS-001", "unit": "measurement boundary nested in run", "estimand": "capture loss by named boundary"},
-    {"id": "MET-CPU-001", "unit": "independent run", "estimand": "CPU-seconds and normalized CPU cost"},
-    {"id": "MET-RSS-001", "unit": "independent run", "estimand": "peak RSS"},
-    {"id": "MET-DISK-001", "unit": "independent run", "estimand": "Porygon bytes written"},
-    {"id": "MET-LAT-001", "unit": "paired independent run", "estimand": "application p95 latency delta"},
-    {"id": "MET-CAL-001", "unit": "independent benign run", "estimand": "nominal 95% calibration coverage"},
-    {"id": "MET-INSUF-001", "unit": "planned independent test run", "estimand": "insufficient-profile proportion"}
+    {
+      "id": "MET-FPR-001",
+      "unit": "independent benign run",
+      "estimand": "run-level false-positive proportion"
+    },
+    {
+      "id": "MET-REC-001",
+      "unit": "independent controlled-scenario run",
+      "estimand": "scenario recall"
+    },
+    {
+      "id": "MET-PREC-001",
+      "unit": "independent run at disclosed prevalence",
+      "estimand": "precision"
+    },
+    {
+      "id": "MET-TFE-001",
+      "unit": "independent detected run",
+      "estimand": "time to first qualifying evidence"
+    },
+    {
+      "id": "MET-OTP-001",
+      "unit": "event nested in independent run",
+      "estimand": "occurrence-to-persistence latency"
+    },
+    {
+      "id": "MET-LOSS-001",
+      "unit": "measurement boundary nested in run",
+      "estimand": "capture loss by named boundary"
+    },
+    {
+      "id": "MET-CPU-001",
+      "unit": "independent run",
+      "estimand": "CPU-seconds and normalized CPU cost"
+    },
+    {
+      "id": "MET-RSS-001",
+      "unit": "independent run",
+      "estimand": "peak RSS"
+    },
+    {
+      "id": "MET-DISK-001",
+      "unit": "independent run",
+      "estimand": "Porygon bytes written"
+    },
+    {
+      "id": "MET-LAT-001",
+      "unit": "paired independent run",
+      "estimand": "application p95 latency delta"
+    },
+    {
+      "id": "MET-CAL-001",
+      "unit": "independent benign run",
+      "estimand": "nominal 95% calibration coverage"
+    },
+    {
+      "id": "MET-INSUF-001",
+      "unit": "planned independent test run",
+      "estimand": "insufficient-profile proportion"
+    }
   ],
   "outputs": [
-    {"id": "ART-MAN-001", "path": "artifacts/experiments/protocol-v1/manifest/run-manifest.jsonl"},
-    {"id": "ART-TBL-001", "path": "artifacts/experiments/protocol-v1/tables/profile-scope-primary.csv"},
-    {"id": "ART-TBL-002", "path": "artifacts/experiments/protocol-v1/tables/detector-comparison.csv"},
-    {"id": "ART-TBL-003", "path": "artifacts/experiments/protocol-v1/tables/calibration-and-drift.csv"},
-    {"id": "ART-TBL-004", "path": "artifacts/experiments/protocol-v1/tables/capture-and-overhead.csv"},
-    {"id": "ART-TBL-005", "path": "artifacts/experiments/protocol-v1/tables/poisoning-sensitivity.csv"},
-    {"id": "ART-FIG-001", "path": "artifacts/experiments/protocol-v1/figures/run-level-effects.pdf"},
-    {"id": "ART-DES-001", "path": "artifacts/experiments/protocol-v1/design/sample-size-lock.json"}
+    {
+      "id": "ART-MAN-001",
+      "path": "artifacts/experiments/protocol-v1/manifest/run-manifest.jsonl"
+    },
+    {
+      "id": "ART-TBL-001",
+      "path": "artifacts/experiments/protocol-v1/tables/profile-scope-primary.csv"
+    },
+    {
+      "id": "ART-TBL-002",
+      "path": "artifacts/experiments/protocol-v1/tables/detector-comparison.csv"
+    },
+    {
+      "id": "ART-TBL-003",
+      "path": "artifacts/experiments/protocol-v1/tables/calibration-and-drift.csv"
+    },
+    {
+      "id": "ART-TBL-004",
+      "path": "artifacts/experiments/protocol-v1/tables/capture-and-overhead.csv"
+    },
+    {
+      "id": "ART-TBL-005",
+      "path": "artifacts/experiments/protocol-v1/tables/poisoning-sensitivity.csv"
+    },
+    {
+      "id": "ART-FIG-001",
+      "path": "artifacts/experiments/protocol-v1/figures/run-level-effects.pdf"
+    },
+    {
+      "id": "ART-DES-001",
+      "path": "artifacts/experiments/protocol-v1/design/sample-size-lock.json"
+    }
   ],
   "conditional_claims": [
-    {"id": "CLM-C001", "metric_ids": ["MET-FPR-001", "MET-INSUF-001"], "output_ids": ["ART-TBL-001", "ART-FIG-001", "ART-MAN-001"]},
-    {"id": "CLM-C002", "metric_ids": ["MET-REC-001", "MET-FPR-001", "MET-TFE-001"], "output_ids": ["ART-TBL-001", "ART-FIG-001", "ART-MAN-001"]},
-    {"id": "CLM-C003", "metric_ids": ["MET-CAL-001"], "output_ids": ["ART-TBL-003", "ART-MAN-001"]},
-    {"id": "CLM-C004", "metric_ids": ["MET-LOSS-001", "MET-OTP-001", "MET-CPU-001", "MET-RSS-001", "MET-DISK-001", "MET-LAT-001"], "output_ids": ["ART-TBL-004", "ART-MAN-001"]},
-    {"id": "CLM-C005", "metric_ids": ["MET-PREC-001", "MET-REC-001", "MET-FPR-001"], "output_ids": ["ART-TBL-002", "ART-FIG-001", "ART-MAN-001"]},
-    {"id": "CLM-C006", "metric_ids": ["MET-FPR-001", "MET-REC-001", "MET-CAL-001"], "output_ids": ["ART-TBL-005", "ART-MAN-001"]}
+    {
+      "id": "CLM-C001",
+      "metric_ids": [
+        "MET-FPR-001",
+        "MET-INSUF-001"
+      ],
+      "output_ids": [
+        "ART-TBL-001",
+        "ART-FIG-001",
+        "ART-MAN-001"
+      ]
+    },
+    {
+      "id": "CLM-C002",
+      "metric_ids": [
+        "MET-REC-001",
+        "MET-FPR-001",
+        "MET-TFE-001"
+      ],
+      "output_ids": [
+        "ART-TBL-001",
+        "ART-FIG-001",
+        "ART-MAN-001"
+      ]
+    },
+    {
+      "id": "CLM-C003",
+      "metric_ids": [
+        "MET-CAL-001"
+      ],
+      "output_ids": [
+        "ART-TBL-003",
+        "ART-MAN-001"
+      ]
+    },
+    {
+      "id": "CLM-C004",
+      "metric_ids": [
+        "MET-LOSS-001",
+        "MET-OTP-001",
+        "MET-CPU-001",
+        "MET-RSS-001",
+        "MET-DISK-001",
+        "MET-LAT-001"
+      ],
+      "output_ids": [
+        "ART-TBL-004",
+        "ART-MAN-001"
+      ]
+    },
+    {
+      "id": "CLM-C005",
+      "metric_ids": [
+        "MET-PREC-001",
+        "MET-REC-001",
+        "MET-FPR-001"
+      ],
+      "output_ids": [
+        "ART-TBL-002",
+        "ART-FIG-001",
+        "ART-MAN-001"
+      ]
+    },
+    {
+      "id": "CLM-C006",
+      "metric_ids": [
+        "MET-FPR-001",
+        "MET-REC-001",
+        "MET-CAL-001"
+      ],
+      "output_ids": [
+        "ART-TBL-005",
+        "ART-MAN-001"
+      ]
+    }
   ],
   "reviewers": [
-    {"role": "security", "status": "pending", "name": null, "date": null},
-    {"role": "methodology", "status": "pending", "name": null, "date": null}
-  ]
+    {
+      "role": "security",
+      "status": "approved",
+      "name": "Anurup R Krishnan",
+      "date": "2026-09-05"
+    },
+    {
+      "role": "methodology",
+      "status": "approved",
+      "name": "Anurup R Krishnan",
+      "date": "2026-09-05"
+    }
+  ],
+  "frozen_at_utc": "2026-09-05T14:28:10.438078+00:00"
 }
 ```
