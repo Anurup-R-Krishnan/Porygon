@@ -198,9 +198,25 @@ Not implemented or claimed:
 
 Exit condition: `./scripts/verify_phase8.sh` proves exact digest/image binding, scan idempotency, CycloneDX persistence, immutable enrichment snapshots, and the exploitation claim boundary on a real Docker host.
 
-## Phase 9: Experimental Evaluation and Paper
+## Phase 9: Experimental Evaluation and Paper — In progress
 
 **Goal:** produce defensible results.
+
+Two runners exist, and they produce different classes of evidence. The
+dependency-free artifact/replay smoke harness validates provenance and loss
+reconciliation on a synthetic fixture; it is not research data. The
+real-container pilot runner pulls the six frozen workload coordinates by
+immutable digest, computes the runtime-context fingerprint, drives deterministic
+seeded load, executes the safe scenarios as sequence-numbered canaries, and
+reconciles them from the generator through Falco to PostgreSQL. Both are
+recorded as `research_eligible: false`.
+
+Confirmatory collection remains gated on the two human protocol approvals, and
+the runner refuses to start it while the protocol is review-pending. Detector
+comparison arms, the six ablations, load regimes, outage/recovery timing,
+resource sampling, and every paper table are still unimplemented. See
+[`EXPERIMENT_ACCEPTANCE.md`](EXPERIMENT_ACCEPTANCE.md) and
+[`EXPERIMENT_REPRODUCIBILITY.md`](EXPERIMENT_REPRODUCIBILITY.md).
 
 Evaluation:
 
