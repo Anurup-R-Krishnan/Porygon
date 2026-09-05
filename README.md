@@ -535,7 +535,25 @@ make verify-live-safe
 
 # 5. Run live vulnerability scanner & enrichment suite
 make verify-scanner-live
+
+# 5b. Real-container acceptance: pinned digest, disposable container, reconciled telemetry
+make verify-experiment-live
+
+# 6. Validate the dependency-free experiment artifact contract (synthetic)
+make experiment-smoke
+make experiment-replay RUN_DIR=artifacts/experiments/local/smoke-fixture
+
+# 7. Run a real-container pilot against pinned image digests (requires `make up`)
+make experiment-pilot PILOT_ARGS="--workloads WL-NGX-V1 --scenarios SCN-EXEC --replicas 1"
+make experiment-validate RUN_DIR=artifacts/experiments/local/<run-id>
 ```
+
+> [!WARNING]
+> **Evidence classes are not interchangeable.** The smoke fixture is synthetic.
+> The pilot uses real containers but is collected while the research protocol is
+> review-pending. Both record `research_eligible: false`. Only a confirmatory run
+> — which the runner refuses to start until the protocol is frozen by independent
+> security and methodology review — may support a research claim.
 
 > [!IMPORTANT]
 > **Controlled Disruptive Response Gate**: The live response test (`make verify-response-live`) pauses and stops containers. It requires `PORYGON_RESPONSE_EXECUTION_MODE=live` in `.env` and must only be executed in an isolated test environment. It is never included in `make verify`.
@@ -555,17 +573,18 @@ The verification suite (`./scripts/verify_all.sh`) validates an 11-stage operati
 10. Validates immutable scan-time intelligence snapshots and finding stages.
 11. Confirms that modifying experiment references generates distinct scan identities.
 
-### Packaged Component Validation Metrics
+### Current verification notes
 
-```text
-Backend test suite:     51 passed
-Collector test suite:    5 passed
-Telemetry test suite:    5 passed
-Responder test suite:    5 passed
-Scanner test suite:      3 passed
-───────────────────────────────────
-Total Component Tests:  69 passed (91 aggregate unit tests)
-```
+Service unit suites pass 112 tests (backend 74, telemetry 20, collector 8,
+responder 5, scanner 5). The stdlib-only experiment harness adds 41 tests, which
+`make verify-unit` now runs on the host.
+
+The local experiment smoke fixture is synthetic and validates artifact
+provenance and replay only. The real-container pilot runner exercises the whole
+capture path against pinned image digests, but pilot data is still not research
+evidence. Confirmatory collection remains prohibited while the research protocol
+is review-pending. See [`docs/execution-status.md`](docs/execution-status.md) for
+the evidence-based module matrix and the current blockers.
 
 Additionally validated during CI/CD checks:
 - Python linting and code style via **Ruff**
@@ -582,6 +601,11 @@ Additionally validated during CI/CD checks:
 
 For in-depth architectural specifications, threat models, and research protocols:
 
+- **Pilot Results UI**: `artifacts/results.html` — regenerate with `python3 scripts/render_results.py`
+- **Implementation Status Matrix (evidence-based)**: [`docs/execution-status.md`](docs/execution-status.md)
+- **Design Decisions & Trade-offs**: [`docs/design-decisions.md`](docs/design-decisions.md)
+- **Demonstration Path**: [`docs/DEMO.md`](docs/DEMO.md)
+- **Verification Report**: [`docs/final-verification-report.md`](docs/final-verification-report.md)
 - **System Architecture**: [`docs/PHASE8_ARCHITECTURE.md`](docs/PHASE8_ARCHITECTURE.md)
 - **Vulnerability Evidence Model**: [`docs/VULNERABILITY_EVIDENCE_MODEL_V1.md`](docs/VULNERABILITY_EVIDENCE_MODEL_V1.md)
 - **Threat Model & Security Boundary Analysis**: [`docs/THREAT_MODEL_V1.md`](docs/THREAT_MODEL_V1.md)
@@ -589,4 +613,6 @@ For in-depth architectural specifications, threat models, and research protocols
 - **Response Policy & Guardrails**: [`docs/RESPONSE_POLICY_V1.md`](docs/RESPONSE_POLICY_V1.md)
 - **Behavioural Distance Scoring Model**: [`docs/SCORING_MODEL_V1.md`](docs/SCORING_MODEL_V1.md) & [`docs/SCORING_MODEL_CALIBRATED.md`](docs/SCORING_MODEL_CALIBRATED.md)
 - **Research Protocol & Experimental Design**: [`docs/RESEARCH_PROTOCOL_V1.md`](docs/RESEARCH_PROTOCOL_V1.md)
+- **Experiment Reproducibility**: [`docs/EXPERIMENT_REPRODUCIBILITY.md`](docs/EXPERIMENT_REPRODUCIBILITY.md)
+- **Phase 9 Acceptance Boundary**: [`docs/EXPERIMENT_ACCEPTANCE.md`](docs/EXPERIMENT_ACCEPTANCE.md)
 - **Audit & Subsystem Verification Reports**: [`docs/AUDIT_REPORT_PHASES_1_7.md`](docs/AUDIT_REPORT_PHASES_1_7.md)
