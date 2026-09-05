@@ -314,7 +314,7 @@ class CalibratedRarityScore(Base):
     __tablename__ = "calibrated_rarity_scores"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('scored', 'insufficient_data')",
+            "status IN ('scored', 'insufficient_data', 'drift_detected')",
             name="ck_calibrated_rarity_scores_status",
         ),
         CheckConstraint(
@@ -343,6 +343,7 @@ class CalibratedRarityScore(Base):
     component_registry_id: Mapped[str] = mapped_column(String(64), nullable=False)
     test_run_id: Mapped[str] = mapped_column(String(128), nullable=False)
     evidence_set_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    test_context_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     test_statistic: Mapped[float] = mapped_column(Float, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     p_value: Mapped[float | None] = mapped_column(Float, nullable=True)

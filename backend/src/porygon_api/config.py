@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     vulnerability_max_findings: int = Field(default=50000, ge=1, le=500000)
     vulnerability_runtime_event_limit: int = Field(default=10000, ge=0, le=100000)
     sbom_max_components: int = Field(default=500000, ge=1, le=2000000)
+    raw_event_retention_days: int = Field(default=30, ge=1, le=3650)
+    retention_max_delete_batch: int = Field(default=50000, ge=1, le=1000000)
 
     @property
     def database_url(self) -> URL:

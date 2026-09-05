@@ -1,0 +1,23 @@
+{
+  "role": "security",
+  "protocol_id": "porygon.research.protocol.v1",
+  "protocol_sha256_reviewed": "11e4593c1ade7cde33dc70cbdf958d670c5c7992bfe08da362a8ae23ab119430",
+  "reviewer_name": "Anurup R Krishnan",
+  "date": "2026-09-05",
+  "decision": "changes_requested",
+  "decision_options": [
+    "approved",
+    "changes_requested",
+    "rejected"
+  ],
+  "checklist": {
+    "Container privilege: every experiment container is disposable, memory and PID capped, published on loopback only, and removed by exact name plus label match.": "pass - experiments/real.py:666 sets --memory 512m --pids-limit 512, publishes 127.0.0.1::PORT only, labels with porygon.experiment.run/trial; cleanup refuses unlabeled targets (tested: test_real.py:64,70,77)",
+    "Docker socket exposure: which services hold it, read-only or read-write, and why each needs it.": "pass - collector, responder, scanner, falco mount /var/run/docker.sock:ro (compose.yaml). All read-only at the mount level. responder is highest-risk since it issues container actions, but those are gated by approval (see containment item).",
+    "Scenario safety: the controlled scenarios execute only inert, fixture-only commands inside disposable containers. No malware, no external target, no destructive host action.": "pass - COMMAND_TEMPLATE = 'echo {canary} | od -c | head -n 1' (experiments/real.py:470), a fixed inert canary echo, no real payloads",
+    "Secret minimisation: command arguments are reduced to a shape before storage; the artifact writer refuses to persist a secret-like value and names only the location when it does.": "pass - experiments/artifacts.py:47 reject_secrets() raises on password/token/secret/credential/api_key/private_key markers; REDACTION_PLACEHOLDERS used instead",
+    "Containment authority: response stays observe-only by default and no disruptive action is reachable without explicit human approval.": "pass - responder/executor.py: observe_only is a true no-op; any state-changing action requires approval_reference plus a freshness check (response_approval_max_age_seconds, default 3600s, backend/config.py:33); protected-label guard blocks acting on protected containers and is unit tested (responder/tests/test_executor.py:113)",
+    "Blast radius: confirm cleanup cannot touch a resource outside the current trial, and that the refusal paths are tested rather than assumed.": "pass - cleanup only matches exact run_id+trial_id labels; three refusal-path tests exist and pass (test_real.py:64,70,77)",
+    "Data retention: confirm the capture scope and retention settings keep only what the study needs.": "FAIL - no retention/TTL policy exists anywhere in backend or docs. Verified live: postgres database is already 22GB with process_exec_events and runtime_events at 11GB each and growing unbounded. This is a real gap for both the research protocol (uncontrolled artifact growth) and for production deployment (unbounded disk use, eventual outage). Must be fixed before confirmatory collection at full scale (200 trials) or before any real deployment."
+  },
+  "notes": "6 of 7 items pass with concrete evidence (code + tests), not just claims. Retention is a genuine unaddressed gap, verified against the live running system, not hypothetical. Recommend: add a retention/pruning policy (age-based or size-based) for process_exec_events/runtime_events before scaling confirmatory collection past pilot volume, and before any production deployment. This is a single-reviewer self-review, not independent from the study author; note that limitation in the paper rather than presenting it as fully independent peer review."
+}

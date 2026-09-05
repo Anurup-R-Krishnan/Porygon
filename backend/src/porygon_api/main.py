@@ -22,6 +22,7 @@ from porygon_api.calibrated_rarity import (
     sha256_json,
 )
 from porygon_api.run_calibration import build_calibration_artifact, score_test_block
+from porygon_api.retention import apply_retention
 from porygon_api.config import get_settings
 from porygon_api.detection import (
     CORRELATION_WINDOW_SECONDS,
@@ -91,6 +92,7 @@ from porygon_api.schemas import (
     ResponseRecommendationOut,
     ResponseRollbackRequestIn,
     ResponseRetryRequestIn,
+    RetentionRunOut,
     ProcessEventSummary,
     ProcessExecEventBatchIn,
     ProcessExecEventBatchOut,
@@ -1259,6 +1261,10 @@ def create_calibrated_score(
     if run_membership is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Test run overlaps model fit or calibration runs")
 
+    context_drifted = (
+        payload.test_context_hash is not None and payload.test_context_hash != model.profile_context_hash
+    )
+
     blocks = list(
         db.scalars(
             select(CalibrationBlock)
@@ -1272,14 +1278,29 @@ def create_calibrated_score(
         "runs": [{"run_id": block.run_id, "block_statistic": block.block_statistic} for block in blocks],
         "calibration_hash": model.calibration_hash,
     }
-    try:
-        result = score_test_block(
-            artifact,
-            test_run_id=payload.test_run_id,
-            test_statistic=payload.test_statistic,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    if context_drifted:
+        # The test run's declared identity does not match the identity the
+        # calibration set was fit on. Exchangeability cannot be assumed, so
+        # this is reported as an explicit outcome instead of being scored
+        # against a calibration set it was never drawn from.
+        result: dict[str, Any] = {
+            "status": "drift_detected",
+            "p_value": None,
+            "rarity": None,
+            "n": len(blocks),
+            "reason": "test_context_hash does not match model.profile_context_hash",
+            "profile_context_hash": model.profile_context_hash,
+            "test_context_hash": payload.test_context_hash,
+        }
+    else:
+        try:
+            result = score_test_block(
+                artifact,
+                test_run_id=payload.test_run_id,
+                test_statistic=payload.test_statistic,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     idempotency_key = sha256_json(
         {
@@ -1292,6 +1313,7 @@ def create_calibrated_score(
             "calibration_hash": model.calibration_hash,
             "test_run_id": payload.test_run_id,
             "evidence_set_hash": payload.evidence_set_hash,
+            "test_context_hash": payload.test_context_hash,
             "test_statistic": payload.test_statistic,
             "window_start": payload.window_start.isoformat() if payload.window_start else None,
             "window_end": payload.window_end.isoformat() if payload.window_end else None,
@@ -1313,8 +1335,13 @@ def create_calibrated_score(
         component_registry_id=model.component_registry_id,
         test_run_id=payload.test_run_id,
         evidence_set_hash=payload.evidence_set_hash,
+        test_context_hash=payload.test_context_hash,
         test_statistic=payload.test_statistic,
-        status="scored" if result["status"] == "calibrated" else "insufficient_data",
+        status=(
+            "drift_detected"
+            if result["status"] == "drift_detected"
+            else "scored" if result["status"] == "calibrated" else "insufficient_data"
+        ),
         p_value=result["p_value"],
         rarity=result["rarity"],
         calibration_hash=model.calibration_hash,
@@ -3483,3 +3510,42 @@ def get_vulnerability_intel(cve_id: str, db: Session = Depends(get_db)) -> Vulne
     if record is None:
         raise HTTPException(status_code=404, detail="Vulnerability intelligence not found")
     return record
+
+
+@app.post(
+    "/internal/v1/retention/run",
+    response_model=RetentionRunOut,
+    tags=["internal"],
+    dependencies=[Depends(require_internal_token)],
+)
+def run_retention(
+    dry_run: bool = Query(default=True),
+    db: Session = Depends(get_db),
+) -> RetentionRunOut:
+    """Delete raw process-execution and runtime evidence older than the
+    configured retention window (PORYGON_RAW_EVENT_RETENTION_DAYS, default 30
+    days), in batches bounded by PORYGON_RETENTION_MAX_DELETE_BATCH.
+
+    Behaviour profiles, calibrated models, anomaly scores, and detections are
+    never touched: they store their own aggregated evidence and do not hold a
+    live reference into raw events (see porygon_api.retention module docstring).
+
+    Defaults to dry_run=true so a caller sees exactly what would be deleted
+    before committing to it. Call again with dry_run=false, repeatedly, until
+    the reported counts reach zero, to fully drain a large backlog without
+    holding one long transaction.
+    """
+    result = apply_retention(
+        db,
+        retention_days=settings.raw_event_retention_days,
+        max_delete_batch=settings.retention_max_delete_batch,
+        dry_run=dry_run,
+    )
+    if not dry_run:
+        db.commit()
+    return RetentionRunOut(
+        cutoff=result.cutoff,
+        process_exec_events_deleted=result.process_exec_events_deleted,
+        runtime_events_deleted=result.runtime_events_deleted,
+        dry_run=result.dry_run,
+    )

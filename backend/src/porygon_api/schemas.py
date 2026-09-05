@@ -15,6 +15,13 @@ class HealthResponse(BaseModel):
     database: Literal["up", "down", "not_checked"]
 
 
+class RetentionRunOut(BaseModel):
+    cutoff: datetime
+    process_exec_events_deleted: int
+    runtime_events_deleted: int
+    dry_run: bool
+
+
 class HeartbeatIn(BaseModel):
     service_name: str = Field(min_length=1, max_length=64, pattern=r"^[a-z0-9][a-z0-9_-]*$")
     instance_id: str = Field(min_length=1, max_length=128)
@@ -413,6 +420,7 @@ class CalibratedScoreCreateIn(BaseModel):
     model_id: str = Field(min_length=36, max_length=36)
     test_run_id: str = Field(min_length=1, max_length=128)
     evidence_set_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    test_context_hash: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     test_statistic: float = Field(ge=0)
     window_start: datetime | None = None
     window_end: datetime | None = None
@@ -446,8 +454,9 @@ class CalibratedRarityScoreOut(BaseModel):
     component_registry_id: str
     test_run_id: str
     evidence_set_hash: str
+    test_context_hash: str | None
     test_statistic: float
-    status: Literal["scored", "insufficient_data"]
+    status: Literal["scored", "insufficient_data", "drift_detected"]
     p_value: float | None
     rarity: float | None
     calibration_hash: str
