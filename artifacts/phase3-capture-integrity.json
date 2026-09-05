@@ -8,13 +8,13 @@
     },
     "postgres_row_growth_after_replay": 0,
     "telemetry_dead_letters_retained": 0,
-    "telemetry_outbox_events_during_backend_outage": 8,
+    "telemetry_outbox_events_during_backend_outage": 10,
     "telemetry_spool_overflow_attempts_observed": 0
   },
   "canary": {
-    "container_name": "porygon-phase3-20260820t115509z-236203"
+    "container_name": "porygon-phase3-20260905t073351z-1165062"
   },
-  "run_id": "20260820t115509z-236203",
+  "run_id": "20260905t073351z-1165062",
   "schema_version": "porygon.capture-integrity.v1",
   "unmeasured_boundaries": [
     "Kernel-to-eBPF events not emitted to Falco",
