@@ -361,10 +361,11 @@ def stage_analysis(ctx: dict) -> dict:
         if entry.get("score_id"):
             try:
                 detection = _post(base, "/internal/v1/detections/run",
-                                  {"score_id": entry["score_id"]}, token)
+                                  {"anomaly_score_id": entry["score_id"]}, token)
                 run = detection.get("run", {})
                 entry["rule_matches"] = run.get("matches_count")
                 entry["incident_created"] = run.get("incident_created")
+                entry["detection_status"] = run.get("status")
             except urllib.error.HTTPError as error:
                 entry["detection_error"] = error.read().decode("utf-8", "replace")[:200]
         entry["status"] = "analysed"
