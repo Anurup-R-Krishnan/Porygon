@@ -457,7 +457,7 @@
                   <div class="text-[11px] text-white/40 font-mono mt-0.5">sys_enter_execve / connect</div>
                   <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
                     <span class="text-white/40">Events:</span>
-                    <span class="text-cyan-300 font-bold" x-text="(events?.length || 40) + ' buffered'"></span>
+                    <span class="text-cyan-300 font-bold" x-text="systemInfo.process_exec_events != null ? (events?.length || 0) + ' buffered (' + systemInfo.process_exec_events.toLocaleString() + ' lifetime)' : 'loading…'"></span>
                   </div>
                 </div>
 
@@ -471,7 +471,7 @@
                   <div class="text-[11px] text-white/40 font-mono mt-0.5">FIFO outbox • Namespace PIDs</div>
                   <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
                     <span class="text-white/40">Mapped:</span>
-                    <span class="text-blue-300 font-bold" x-text="(containers?.length || 0) + ' containers'"></span>
+                    <span class="text-blue-300 font-bold" x-text="systemInfo.known_containers != null ? systemInfo.known_containers.toLocaleString() + ' containers' : 'loading…'"></span>
                   </div>
                 </div>
 
@@ -485,7 +485,7 @@
                   <div class="text-[11px] text-white/40 font-mono mt-0.5">Static packages • EPSS • KEV</div>
                   <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
                     <span class="text-white/40">Catalog:</span>
-                    <span class="text-indigo-300 font-bold" x-text="(evidenceCounts?.package_present || 136) + ' CVEs'"></span>
+                    <span class="text-indigo-300 font-bold" x-text="systemInfo.vulnerability_findings != null ? systemInfo.vulnerability_findings.toLocaleString() + ' CVEs' : 'loading…'"></span>
                   </div>
                 </div>
 
@@ -526,8 +526,8 @@
                     </div>
                   </div>
                   <div class="flex items-center gap-3 text-[11px] font-mono border-t sm:border-t-0 pt-2 sm:pt-0 border-white/5">
-                    <span class="rounded-full bg-violet-500/20 text-violet-300 px-3 py-1 font-bold">~5ms Batch Latency</span>
-                    <span class="rounded-full bg-emerald-400/10 text-emerald-300 px-3 py-1 font-bold">Sub-5ms Query Time</span>
+                    <span class="rounded-full bg-violet-500/20 text-violet-300 px-3 py-1 font-bold">Outbox Batch Ingestion</span>
+                    <span class="rounded-full bg-emerald-400/10 text-emerald-300 px-3 py-1 font-bold">PostgreSQL Query Layer</span>
                   </div>
                 </div>
               </div>
@@ -580,7 +580,7 @@
                   <div class="text-[11px] text-white/40 font-mono mt-0.5">POR-DET-001 to POR-DET-007 • Shell, Root, Dropper Evasion</div>
                   <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
                     <span class="text-white/40">Guardrails:</span>
-                    <span class="text-orange-300 font-bold" x-text="(rules?.length || 7) + ' active detection rules'"></span>
+                    <span class="text-orange-300 font-bold" x-text="(rules?.length || 0) + ' active detection rules'"></span>
                   </div>
                 </div>
 
@@ -634,7 +634,7 @@
                   <div class="text-[11px] text-white/40 font-mono mt-0.5">Package &rarr; Deployed &rarr; Memory &rarr; Port</div>
                   <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
                     <span class="text-white/40">In Memory:</span>
-                    <span class="text-emerald-300 font-bold" x-text="(evidenceCounts?.runtime_observed || 4) + ' CVEs observed'"></span>
+                    <span class="text-emerald-300 font-bold" x-text="(evidenceCounts?.runtime_observed ?? 0) + ' CVEs observed'"></span>
                   </div>
                 </div>
 

@@ -1,4 +1,19 @@
 // Porygon Alpine.js State & Chart Controller — fully wired to backend (v0.8.0)
+
+// Chart.js instances live outside Alpine's reactive scope. If stored directly
+// as a component property (e.g. `charts: {}` inside Alpine.data()), Alpine
+// wraps the object -- and everything inside it, including each Chart.js
+// instance's large, self-referencing internal state -- in a reactive Proxy.
+// Chart.js's own internal mutations then re-trigger Alpine's reactive
+// getters recursively, which is exactly the
+// "RangeError: Maximum call stack size exceeded" observed in the browser
+// console on the Process Graph tab (traced to Object.get in alpinejs's
+// reactivity implementation, called from inside chart.js's rendering path).
+// Keeping the real Chart.js instances in this plain, non-reactive object and
+// exposing them to the component via a getter fixes it without touching any
+// of the many `chartRegistry.X` call sites throughout this file.
+const chartRegistry = {};
+
 document.addEventListener('alpine:init', () => {
   Alpine.data('porygonApp', () => ({
     // Navigation
@@ -279,23 +294,33 @@ document.addEventListener('alpine:init', () => {
     getNodeMetricValue(nodeId) {
       const node = this.processGraphNodes[nodeId];
       if (!node) return '—';
+      const info = this.systemInfo || {};
       switch (node.metricType) {
         case 'events':
-          return (this.events?.length || 40) + ' buffered (2.7M lifetime)';
+          // Real lifetime process-exec count from GET /api/v1/system/info
+          // (process_exec_events), not a hardcoded "2.7M" string. Shows a
+          // neutral placeholder rather than a fake number if info hasn't
+          // loaded yet.
+          return info.process_exec_events != null
+            ? `${(this.events?.length || 0)} buffered (${info.process_exec_events.toLocaleString()} lifetime)`
+            : 'loading…';
         case 'containers':
-          return (this.containers?.length || 0) + ' containers mapped';
+          // Real total from system/info.known_containers, not
+          // this.containers.length, which is capped at the /api/v1/containers
+          // fetch's limit=100 and would silently under-report past 100.
+          return info.known_containers != null ? `${info.known_containers.toLocaleString()} containers mapped` : 'loading…';
         case 'scans':
-          return (this.evidenceCounts?.package_present || 136) + ' static CVEs';
+          return info.vulnerability_findings != null ? `${info.vulnerability_findings.toLocaleString()} static CVEs` : 'loading…';
         case 'collector':
-          return 'Online (~5ms latency)';
+          return info.registered_services != null ? `${info.registered_services} services online` : 'loading…';
         case 'distance':
           return (this.currentAnomalyScore || 0).toFixed(3) + ' [' + (this.currentScoreBand || 'normal').toUpperCase() + ']';
         case 'rules':
-          return (this.rules?.length || 7) + ' active rules';
+          return (this.rules?.length || 0) + ' active rules';
         case 'incidents':
-          return (this.incidents?.length || 0) + ' total (' + this.incidents.filter(i => i.status === 'open').length + ' open)';
+          return info.incidents != null ? `${info.incidents} total (${info.open_incidents ?? 0} open)` : `${this.incidents?.length || 0} total`;
         case 'reachability':
-          return (this.evidenceCounts?.runtime_observed || 4) + ' CVEs observed in memory';
+          return (this.evidenceCounts?.runtime_observed ?? 0) + ' CVEs observed in memory';
         case 'containment':
           return this.operatorToken ? 'AUTHORIZED (Token Set)' : 'LOCKED (Token Required)';
         default:
@@ -325,8 +350,15 @@ document.addEventListener('alpine:init', () => {
       } catch(e){}
     },
 
-    // Chart References
-    charts: {},
+    // Chart.js instances are NOT kept as an Alpine component property at
+    // all (no `charts: {}`, no getter). Even a getter returning the plain
+    // chartRegistry object still let Alpine's underlying @vue/reactivity
+    // wrap it once accessed as `this.charts.x`, reproducing the exact
+    // "Maximum call stack size exceeded" crash traced into Chart.js's
+    // render path. Every call site in this file uses the module-level
+    // `chartRegistry` constant directly (see top of file) instead of
+    // `this.charts`, which never puts a Chart.js instance anywhere near
+    // Alpine's reactive proxy.
 
     async init() {
       console.log('Initializing Porygon Dashboard with Alpine.js — ethreal glass');
@@ -485,12 +517,24 @@ document.addEventListener('alpine:init', () => {
             if (latest && latest.total_score != null) {
               this.currentAnomalyScore = latest.total_score;
               this.currentScoreBand = latest.score_band || this._bandForScore(latest.total_score);
-              // extract unseen tokens / contributors from explanation if present
+              // extract unseen tokens / contributors from explanation if present.
+              // Real bug found live: GET /api/v1/anomaly-scores/{id}'s
+              // explanation.unseen_tokens is an array of objects
+              // ({feature, token, proportion} — verified against the live
+              // backend), but this.unseenTokens is rendered with
+              // `x-for="tok in unseenTokens" :key="tok"` and used as
+              // `'unseen: ' + tok`, both of which expect plain strings.
+              // Assigning the raw objects here made Alpine use a whole
+              // object as an x-for key (console warning, once per real
+              // score fetched) and made every token render as
+              // "unseen: [object Object]" instead of the real value.
+              // Extracting .token fixes both.
               const exp = latest.explanation || {};
               const families = (latest.components && latest.components.categorical_distance && latest.components.categorical_distance.families) || {};
+              const asTokenStrings = (arr) => arr.map(t => (t && typeof t === 'object') ? (t.token ?? JSON.stringify(t)) : t);
               // fallback: explanation.novel_executables etc.
-              if (exp.unseen_tokens) this.unseenTokens = exp.unseen_tokens.slice(0,12);
-              else if (exp.novel_tokens) this.unseenTokens = exp.novel_tokens.slice(0,12);
+              if (exp.unseen_tokens) this.unseenTokens = [...new Set(asTokenStrings(exp.unseen_tokens))].slice(0,12);
+              else if (exp.novel_tokens) this.unseenTokens = [...new Set(asTokenStrings(exp.novel_tokens))].slice(0,12);
               else {
                 // synthesize from categorical families top_observed where baseline_support small
                 const toks = [];
@@ -524,7 +568,7 @@ document.addEventListener('alpine:init', () => {
       if (this.currentAnomalyScore != null) {
         this.currentScoreBand = this._bandForScore(this.currentAnomalyScore);
       }
-      if (this.charts.radar && this.currentAnomalyScore > 0.5) {
+      if (chartRegistry.radar && this.currentAnomalyScore > 0.5) {
         this.updateRadarChart(this.unseenTokens[0] || 'novel_process');
       }
     },
@@ -676,7 +720,7 @@ document.addEventListener('alpine:init', () => {
         const dataPoints = this.scores && this.scores.length ? this.scores.slice(0,7).reverse().map(s => s.total_score || 0) : [0.03, 0.04, 0.02, 0.05, 0.03, 0.08, this.currentAnomalyScore];
         // ensure last point reflects current
         if (dataPoints.length) dataPoints[dataPoints.length-1] = this.currentAnomalyScore;
-        this.charts.timeline = new Chart(timelineCtx, {
+        chartRegistry.timeline = new Chart(timelineCtx, {
           type: 'line',
           data: {
             labels,
@@ -757,7 +801,7 @@ document.addEventListener('alpine:init', () => {
       // 2. Score Composition Doughnut Chart — ethereal violet/emerald
       const compCtx = document.getElementById('anomalyCompositionChart');
       if (compCtx) {
-        this.charts.composition = new Chart(compCtx, {
+        chartRegistry.composition = new Chart(compCtx, {
           type: 'doughnut',
           data: {
             labels: ['CATEGORICAL 50%', 'NOVELTY 30%', 'NUMERIC 20%'],
@@ -800,7 +844,7 @@ document.addEventListener('alpine:init', () => {
       // 3. Evidence Ladder Bar Chart
       const ladderCtx = document.getElementById('evidenceLadderChart');
       if (ladderCtx) {
-        this.charts.ladder = new Chart(ladderCtx, {
+        chartRegistry.ladder = new Chart(ladderCtx, {
           type: 'bar',
           data: {
             labels: ['[01] PACKAGE_PRESENT', '[02] DEPLOYED', '[03] RUNTIME_OBSERVED', '[04] PORT_PUBLISHED'],
@@ -858,7 +902,7 @@ document.addEventListener('alpine:init', () => {
       // 4. Live Radar Flow Chart (if present)
       const radarCtx = document.getElementById('syscallRadarChart');
       if (radarCtx) {
-        this.charts.radar = new Chart(radarCtx, {
+        chartRegistry.radar = new Chart(radarCtx, {
           type: 'radar',
           data: {
             labels: ['epoll_wait', 'read', 'write', 'sendto', 'recvfrom', 'execve', 'connect', 'mmap', 'ptrace'],
@@ -902,8 +946,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     updateTimelineChart() {
-      if (!this.charts.timeline) return;
-      const chart = this.charts.timeline;
+      if (!chartRegistry.timeline) return;
+      const chart = chartRegistry.timeline;
       // if we have real scores, rebuild labels+data from this.scores
       if (this.scores && this.scores.length) {
         const recent = this.scores.slice(0,7).reverse();
@@ -922,8 +966,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     updateEvidenceLadderChart() {
-      if (!this.charts.ladder) return;
-      const chart = this.charts.ladder;
+      if (!chartRegistry.ladder) return;
+      const chart = chartRegistry.ladder;
       chart.data.datasets[0].data = [
         this.evidenceCounts.package_present,
         this.evidenceCounts.deployed,
@@ -934,8 +978,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     updateRadarChart(detectedProcess) {
-      if (!this.charts.radar) return;
-      const chart = this.charts.radar;
+      if (!chartRegistry.radar) return;
+      const chart = chartRegistry.radar;
       let liveData = [92, 83, 81, 75, 72, 0, 0, 5, 0];
       if (detectedProcess) {
         liveData = [40, 30, 30, 20, 20, 95, 85, 90, 60];
@@ -944,9 +988,9 @@ document.addEventListener('alpine:init', () => {
       chart.update();
       if (detectedProcess) {
         setTimeout(() => {
-          if (!this.isExecutingAttack && this.charts.radar) {
-            this.charts.radar.data.datasets[1].data = [90, 85, 80, 70, 70, 0, 0, 5, 0];
-            this.charts.radar.update();
+          if (!this.isExecutingAttack && chartRegistry.radar) {
+            chartRegistry.radar.data.datasets[1].data = [90, 85, 80, 70, 70, 0, 0, 5, 0];
+            chartRegistry.radar.update();
           }
         }, 8000);
       }
