@@ -127,7 +127,11 @@ def test_protocol_status_is_read_from_the_document(tmp_path):
     frozen = tmp_path / "frozen.md"
     frozen.write_text("Status: **FROZEN**\n", encoding="utf-8")
     assert real.protocol_status(frozen) == "frozen"
-    assert real.protocol_status(ROOT / "docs/RESEARCH_PROTOCOL_V1.md") == "review_pending"
+    # The live protocol document's status is a project decision, not a fixed
+    # fixture value: this only checks the function returns one of the two
+    # values the parser recognizes, not which one, so a legitimate freeze
+    # (scripts/review_gate.py apply) never breaks this test.
+    assert real.protocol_status(ROOT / "docs/RESEARCH_PROTOCOL_V1.md") in {"review_pending", "frozen"}
 
 
 # --------------------------------------------------------------------------
@@ -255,9 +259,22 @@ def test_pilot_replay_is_deterministic(tmp_path):
         run.replay(run_dir)
 
 
-def test_confirmatory_stays_refused_while_the_protocol_is_review_pending():
+def test_confirmatory_stays_refused_while_the_protocol_is_review_pending(tmp_path):
+    pending = tmp_path / "pending.md"
+    pending.write_text("Status: **REVIEW PENDING — PROHIBITED**\n", encoding="utf-8")
     with pytest.raises(ArtifactError, match="frozen"):
-        run.confirmatory(ROOT / "docs/RESEARCH_PROTOCOL_V1.md")
+        run.confirmatory(pending)
+
+
+def test_confirmatory_stays_refused_even_once_frozen_until_the_matrix_is_implemented(tmp_path):
+    """confirmatory() is a deliberate two-stage gate: freezing the protocol
+    document is necessary but not sufficient. It must also stay refused until
+    the approved workload matrix runner actually exists, so a frozen protocol
+    alone can never accidentally start collecting confirmatory data."""
+    frozen = tmp_path / "frozen.md"
+    frozen.write_text("Status: **FROZEN**\n", encoding="utf-8")
+    with pytest.raises(ArtifactError, match="workload matrix"):
+        run.confirmatory(frozen)
 
 
 def test_long_trial_names_stay_unique_instead_of_colliding():
