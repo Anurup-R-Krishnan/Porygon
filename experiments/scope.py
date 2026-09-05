@@ -211,7 +211,19 @@ def compare_scopes(
     test-split trial under every scope, and return per-scope FPR/recall raw
     counts ready for experiments/analysis.py."""
     identities = load_trial_identities(run_dir)
-    fit = [i for i in identities if i.split == "fit"]
+    # A behavior-profile fit set must only ever contain benign evidence.
+    # assign_split() assigns purely by trial_id hash and has no notion of
+    # scenario vs benign, so a scenario (attack-like) trial can land in the
+    # "fit" split by chance; if it is used to build the reference, "normal"
+    # becomes contaminated with attack-shaped processes (id, cat, etc.),
+    # which was verified to inflate JS distance on ordinary benign test
+    # trials and produce false positives that had nothing to do with scope.
+    # Every real behavior-profile pipeline (backend/baseline.py) has the same
+    # requirement implicitly, since it is only ever pointed at a training
+    # interval a human has already confirmed is benign; here, where scenario
+    # trials are deliberately interleaved for scheduling reasons, filtering
+    # is mandatory rather than implicit.
+    fit = [i for i in identities if i.split == "fit" and not i.is_scenario]
     test = [i for i in identities if i.split in ("test", "calibration")]
 
     results: dict[str, Any] = {"threshold": threshold, "fit_trials": len(fit), "test_trials": len(test), "scopes": {}}
