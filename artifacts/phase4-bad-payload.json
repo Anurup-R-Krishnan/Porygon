@@ -1,0 +1,11 @@
+{
+  "approval_reference": "scripts/verify_phase4.sh",
+  "approved_by": "phase4-verifier",
+  "image_digest": "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+  "minimum_nonempty_windows": 1,
+  "minimum_process_events": 999999,
+  "notes": "Controlled Phase 4 acceptance profile bad",
+  "training_end": "2026-09-05T07:34:27.528198+00:00",
+  "training_start": "2026-09-05T07:34:07.700966+00:00",
+  "window_seconds": 45
+}
