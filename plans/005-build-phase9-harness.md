@@ -50,7 +50,7 @@ Porygon has functional artifacts but no reproducible experiment command, no meas
 **In scope**:
 
 - `experiments/` (create: runner, workload generators, safe scenarios, metrics collectors, analysis, plotting, schemas, tests)
-- `docs/PHASE9_ACCEPTANCE.md` (create)
+- `docs/EXPERIMENT_ACCEPTANCE.md` (create)
 - `docs/EXPERIMENT_REPRODUCIBILITY.md` (create)
 - `Makefile`, `compose.yaml`, `.env.example` for explicit experiment profiles/targets
 - README Phase 9 status and exact commands
