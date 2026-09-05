@@ -6,8 +6,9 @@
   <title>Porygon — Kernel Intelligence • Ethereal Glass</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Premium: Plus Jakarta Sans + Space Grotesk + Instrument Serif + JetBrains Mono (for telemetry data only) -->
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Premium: Satoshi + Plus Jakarta Sans + Space Grotesk + JetBrains Mono -->
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,300,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -15,9 +16,9 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['"Plus Jakarta Sans"','system-ui','sans-serif'],
-            display: ['"Clash Display"','"Space Grotesk"','sans-serif'],
-            serif: ['"Instrument Serif"','serif'],
+            sans: ['"Satoshi"', '"Plus Jakarta Sans"','system-ui','sans-serif'],
+            display: ['"Satoshi"', '"Space Grotesk"','sans-serif'],
+            serif: ['"Satoshi"','sans-serif'],
             mono: ['"JetBrains Mono"','ui-monospace','monospace'],
           },
           colors: {
@@ -69,18 +70,21 @@
         <i class="ph ph-shield-check text-[18px]"></i>
       </div>
       <div class="hidden sm:block min-w-0">
-        <div class="font-display font-bold tracking-[-0.02em] leading-none text-[15px] flex items-center gap-2">PORYGON <span class="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-sans font-semibold tracking-[0.14em] uppercase text-white/70 ring-1 ring-white/10">modern-eBPF</span></div>
-        <div class="text-[11px] tracking-[0.14em] uppercase font-medium text-white/50">Runtime Intelligence — v1.0 research</div>
+        <div class="font-display font-bold tracking-[-0.02em] leading-none text-[15px] flex items-center gap-2">PORYGON <span class="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-sans font-semibold tracking-[0.14em] uppercase text-white/70 ring-1 ring-white/10">eBPF</span></div>
+        <div class="text-[11px] tracking-[0.14em] uppercase font-medium text-white/50">Runtime Intelligence</div>
       </div>
       <div class="sm:hidden font-display font-bold text-[14px] tracking-tight">PORYGON®</div>
     </div>
 
     <!-- Desktop pills -->
     <div class="hidden lg:flex items-center gap-1 rounded-full bg-black/20 p-1 ring-1 ring-white/5">
-      <button @click="activeTab='overview'" :class="activeTab==='overview' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="rounded-full px-4 py-2 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]">Overview</button>
+      <button @click="activeTab='overview'" :class="activeTab==='overview' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]">Overview</button>
+      <button @click="activeTab='pathway'" :class="activeTab==='pathway' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] flex items-center gap-1"><i class="ph ph-git-fork text-[13px]"></i> Process Graph</button>
       <button @click="activeTab='telemetry'" :class="activeTab==='telemetry' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] flex items-center gap-1.5">Telemetry <span class="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-mono" x-text="events.length">0</span></button>
       <button @click="activeTab='anomalies'" :class="activeTab==='anomalies' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]">Math</button>
       <button @click="activeTab='incidents'" :class="activeTab==='incidents' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] flex items-center gap-1.5">Incidents <span class="rounded-full bg-amber-400/20 text-amber-200 px-1.5 py-0.5 text-[10px] font-mono" x-text="incidents.length">0</span></button>
+      <button @click="activeTab='pipeline'" :class="activeTab==='pipeline' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]">Pipeline</button>
+      <button @click="activeTab='vulnerabilities'" :class="activeTab==='vulnerabilities' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]">Reachability</button>
     </div>
 
     <div class="flex items-center gap-2">
@@ -91,8 +95,11 @@
       <button @click="refreshAllData()" class="hidden sm:inline-flex group h-9 w-9 grid place-items-center rounded-full bg-white text-black transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-105 active:scale-[0.98]" title="Sync live telemetry">
         <i class="ph ph-arrows-clockwise text-[16px] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:rotate-180"></i>
       </button>
-      <button @click="if(operatorToken){ if(confirm('Operator token stored ('+operatorToken.slice(0,6)+'...). Clear?')) clearOperatorToken(); } else { const v=prompt('Paste X-Porygon-Operator-Token from .env (PORYGON_OPERATOR_API_TOKEN)'); if(v) { operatorToken=v.trim(); showToast('Operator token stored locally','success'); } }" class="hidden sm:inline-flex group h-9 w-9 grid place-items-center rounded-full ring-1 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-105 active:scale-[0.98]" :class="operatorToken ? 'bg-emerald-400 text-black ring-emerald-400' : 'bg-white/10 text-white/70 ring-white/10 hover:bg-white hover:text-black'" :title="operatorToken ? 'Operator token set — click to clear' : 'Set operator token for containment approval'">
+      <button @click="manageOperatorToken()" class="hidden sm:inline-flex group h-9 w-9 grid place-items-center rounded-full ring-1 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-105 active:scale-[0.98]" :class="operatorToken ? 'bg-emerald-400 text-black ring-emerald-400' : 'bg-white/10 text-white/70 ring-white/10 hover:bg-white hover:text-black'" :title="operatorToken ? 'Operator token set — click to clear' : 'Set operator token for containment approval'">
         <i class="ph text-[14px]" :class="operatorToken ? 'ph-key' : 'ph-lock-key'"></i>
+      </button>
+      <button @click="showDocsModal = true" class="hidden sm:inline-flex group h-9 w-9 grid place-items-center rounded-full bg-white/10 text-white/80 ring-1 ring-white/10 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-105 hover:bg-white hover:text-black active:scale-[0.98]" title="Porygon Architecture Blueprint & Guide">
+        <i class="ph ph-book-open text-[15px]"></i>
       </button>
       <!-- CTA island — button-in-button -->
       <button @click="activeTab='simulator'" class="btn-island group hidden sm:inline-flex items-center gap-3 rounded-full bg-white px-1.5 py-1.5 pr-2 text-black font-semibold text-[13px] tracking-tight shadow-[0_8px_24px_rgba(255,255,255,0.18),inset_0_1px_1px_rgba(255,255,255,0.6)] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]">
@@ -112,49 +119,56 @@
   <!-- Full-screen glass overlay — staggered mask reveal -->
   <div x-show="navOpen" x-transition:enter="transition duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 z-30 grid place-items-center bg-black/70 backdrop-blur-3xl p-6 lg:hidden" @click.self="navOpen=false">
     <div class="w-full max-w-sm rounded-[2rem] bg-white p-2 shadow-[0_24px_64px_rgba(0,0,0,0.5)]">
-      <div class="rounded-[1.7rem] bg-[#FDFBF7] p-6 flex flex-col gap-5">
+      <div class="rounded-[calc(2rem-0.5rem)] bg-[#FDFBF7] p-6 flex flex-col gap-5">
         <div class="flex items-center justify-between">
           <span class="rounded-full bg-black px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white">Navigation</span>
           <button @click="navOpen=false" class="grid h-8 w-8 place-items-center rounded-full bg-black text-white"><i class="ph ph-x text-sm"></i></button>
         </div>
         <div class="flex flex-col gap-2">
-          <template x-for="(item,i) in [{id:'overview',label:'Overview & Metrics'},{id:'telemetry',label:'eBPF Telemetry'},{id:'anomalies',label:'Behavioural Distance'},{id:'incidents',label:'Incidents & Containment'},{id:'pipeline',label:'Pipeline Trace'},{id:'vulnerabilities',label:'Vulnerability Reachability'},{id:'simulator',label:'Live Attack Testing'}]" :key="item.id">
+          <template x-for="(item,i) in [{id:'overview',label:'Overview & Metrics'},{id:'pathway',label:'Process Architecture Graph'},{id:'telemetry',label:'eBPF Telemetry'},{id:'anomalies',label:'Behavioural Distance'},{id:'incidents',label:'Incidents & Containment'},{id:'pipeline',label:'Pipeline Trace'},{id:'vulnerabilities',label:'Vulnerability Reachability'},{id:'simulator',label:'Live Attack Testing'}]" :key="item.id">
             <button @click="activeTab=item.id; navOpen=false" class="group flex items-center justify-between rounded-full px-5 py-4 text-left transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]" :class="activeTab===item.id ? 'bg-black text-white' : 'bg-white ring-1 ring-black/5 hover:bg-black hover:text-white'" :style="`transition-delay: ${i*60}ms`">
               <span class="font-display font-semibold text-[17px] tracking-tight translate-y-0 opacity-100" x-text="item.label"></span>
               <span class="grid h-8 w-8 place-items-center rounded-full bg-black/5 group-hover:bg-white/15 transition-colors"><i class="ph ph-arrow-right text-sm"></i></span>
             </button>
           </template>
         </div>
+        <div class="pt-3 border-t border-black/10 flex items-center justify-between gap-2">
+          <button @click="refreshAllData(); navOpen=false" class="flex-1 flex items-center justify-center gap-1.5 rounded-full bg-black/5 hover:bg-black hover:text-white px-3 py-2 text-[12px] font-bold ring-1 ring-black/10 transition-all">
+            <i class="ph ph-arrows-clockwise"></i> Sync
+          </button>
+          <button @click="manageOperatorToken(); navOpen=false" class="flex-1 flex items-center justify-center gap-1.5 rounded-full bg-black/5 hover:bg-black hover:text-white px-3 py-2 text-[12px] font-bold ring-1 ring-black/10 transition-all">
+            <i class="ph ph-key"></i> Token
+          </button>
+          <button @click="showDocsModal=true; navOpen=false" class="flex-1 flex items-center justify-center gap-1.5 rounded-full bg-black/5 hover:bg-black hover:text-white px-3 py-2 text-[12px] font-bold ring-1 ring-black/10 transition-all">
+            <i class="ph ph-book"></i> Docs
+          </button>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- HERO — Cinematic spatial rhythm + Asymmetrical Bento -->
-  <section class="relative min-h-[100dvh] px-4 pb-24 pt-32">
+  <!-- HERO — Technical Systems Architecture Console -->
+  <section x-show="activeTab==='overview'" x-transition.opacity.duration.400 class="relative min-h-[85dvh] px-4 pb-20 pt-28">
     <div class="mx-auto max-w-[1280px]">
-      <!-- Eyebrow -->
-      <div class="reveal flex justify-center">
-        <span class="rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/80 ring-1 ring-white/10">Runtime Security • Research Platform — Jensen-Shannon Intelligence</span>
-      </div>
-
-      <!-- Massive typography — instrument serif + clash -->
-      <div class="reveal mt-8 text-center" style="transition-delay:80ms">
-        <h1 class="font-display font-bold leading-[0.85] tracking-[-0.04em] text-white">
-          <span class="block text-[clamp(2.8rem,8vw,6.2rem)]">Kernel-level</span>
-          <span class="block font-serif italic font-normal tracking-[-0.03em] text-[clamp(2.8rem,8vw,6.2rem)] text-white/90">behavioural</span>
-          <span class="block text-[clamp(2.8rem,8vw,6.2rem)]">intelligence.</span>
+      <!-- Clean technical headline without AI tropes -->
+      <div class="reveal mt-6 text-center" style="transition-delay:80ms">
+        <h1 class="font-display font-extrabold leading-[0.94] tracking-[-0.035em] text-white">
+          <span class="block text-[clamp(2.4rem,6.8vw,5.4rem)]">Kernel-Level Behavioral Intelligence</span>
+          <span class="block text-[clamp(1.4rem,3.8vw,2.8rem)] text-white/70 font-mono tracking-tight mt-2">&amp; Runtime Verification</span>
         </h1>
-        <p class="mx-auto mt-6 max-w-[640px] text-[17px] leading-relaxed text-white/60 font-medium">Porygon couples modern-eBPF syscall telemetry with Docker lifecycle events — digest-bound baselines, explainable Jensen-Shannon distance, deterministic detection, and human-approved containment.</p>
+        <p class="mx-auto mt-6 max-w-[680px] text-[15px] sm:text-[16px] leading-relaxed text-white/65 font-sans">
+          Continuous eBPF syscall telemetry correlated with Docker lifecycle events. Deterministic detection, digest-bound empirical baselines, and human-governed containment leases.
+        </p>
       </div>
 
-      <!-- CTAs island -->
+      <!-- Action console controls -->
       <div class="reveal mt-8 flex flex-wrap justify-center gap-3" style="transition-delay:160ms">
-        <button @click="activeTab='simulator'" class="btn-island group inline-flex items-center gap-3 rounded-full bg-white px-2 py-2 pl-6 text-[14px] font-semibold tracking-tight text-black shadow-[0_16px_40px_rgba(255,255,255,0.16),inset_0_1px_1px_rgba(255,255,255,0.7)] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]">
-          Launch Live Simulation
-          <span class="grid h-9 w-9 place-items-center rounded-full bg-black text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-1 group-hover:-translate-y-[1px] group-hover:scale-105"><i class="ph ph-play text-[14px]"></i></span>
+        <button @click="activeTab='pathway'" class="btn-island group inline-flex items-center gap-3 rounded-full bg-white px-2 py-2 pl-6 text-[13px] font-mono uppercase tracking-wider font-bold text-black shadow-[0_16px_40px_rgba(255,255,255,0.16),inset_0_1px_1px_rgba(255,255,255,0.7)] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]">
+          Explore Process Graph
+          <span class="grid h-9 w-9 place-items-center rounded-full bg-black text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:scale-105"><i class="ph ph-git-fork text-[15px]"></i></span>
         </button>
-        <button @click="activeTab='overview'" class="inline-flex items-center gap-2 rounded-full bg-white/10 px-6 py-3 text-[14px] font-semibold tracking-tight text-white ring-1 ring-white/10 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white hover:text-black hover:scale-[1.02] active:scale-[0.98]">
-          <i class="ph ph-chart-line-up text-[16px]"></i> View Live Metrics
+        <button @click="activeTab='telemetry'" class="inline-flex items-center gap-2 rounded-full bg-white/10 px-6 py-3 text-[13px] font-mono tracking-tight text-white ring-1 ring-white/15 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white hover:text-black hover:scale-[1.02] active:scale-[0.98]">
+          <i class="ph ph-activity text-[15px]"></i> Live Telemetry Stream
         </button>
       </div>
 
@@ -187,7 +201,7 @@
               <div class="flex items-start justify-between gap-4">
                 <div>
                   <span class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-black">porygon.distance.v1</span>
-                  <h3 class="mt-4 font-display text-[28px] font-bold tracking-tight leading-none">Behavioural Distance <span class="font-serif italic font-normal text-white/70">Timeline</span></h3>
+                  <h3 class="mt-4 font-display text-[28px] font-bold tracking-tight leading-none">Behavioural Distance Timeline</h3>
                   <p class="mt-2 max-w-[44ch] text-[13px] leading-relaxed text-white/50">Explainable Jensen-Shannon divergence across categorical executables, parent trees, UID, and CWD. Threshold <span class="text-amber-200">0.50</span> • Extreme <span class="text-red-300">0.75</span></p>
                 </div>
                 <div class="hidden sm:flex flex-col items-end gap-1 rounded-2xl bg-white p-3 text-black">
@@ -205,7 +219,7 @@
                 <span class="font-mono text-[11px] tracking-[0.08em] uppercase text-white/40">0.00 — 1.00 base-2</span>
               </div>
 
-              <div class="chart-glass mt-6 rounded-[1.25rem] p-3 sm:p-4">
+              <div class="chart-glass mt-6 rounded-2xl p-3 sm:p-4">
                 <div class="h-[280px]"><canvas id="anomalyTimelineChart"></canvas></div>
               </div>
 
@@ -271,7 +285,7 @@
     <!-- Pill filter bar — glass -->
     <div class="reveal sticky top-[84px] z-20 -mx-4 px-4 sm:mx-0 sm:px-0">
       <div class="mx-auto flex w-full max-w-[960px] items-center gap-2 overflow-x-auto rounded-full border border-white/10 bg-black/40 px-2 py-2 backdrop-blur-2xl scrollbar-none">
-        <template x-for="t in [{id:'overview',label:'Overview'},{id:'telemetry',label:'Telemetry'},{id:'anomalies',label:'Math'},{id:'incidents',label:'Incidents'},{id:'pipeline',label:'Pipeline'},{id:'vulnerabilities',label:'Reachability'},{id:'simulator',label:'Simulator'}]" :key="t.id">
+        <template x-for="t in [{id:'overview',label:'Overview'},{id:'pathway',label:'Process Graph'},{id:'telemetry',label:'Telemetry'},{id:'anomalies',label:'Math'},{id:'incidents',label:'Incidents'},{id:'pipeline',label:'Pipeline'},{id:'vulnerabilities',label:'Reachability'},{id:'simulator',label:'Simulator'}]" :key="t.id">
           <button @click="activeTab=t.id" class="tab-pill whitespace-nowrap rounded-full px-5 py-2.5 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] flex items-center gap-2 flex-shrink-0" :class="activeTab===t.id ? 'active' : 'text-white/60 hover:text-white hover:bg-white/10'">
             <span x-text="t.label"></span>
             <span x-show="t.id==='telemetry'" class="tab-count rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-mono" x-text="events.length"></span>
@@ -315,11 +329,35 @@
           </div>
         </div>
 
+        <!-- Microservice Fleet Health -->
+        <div class="md:col-span-12 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
+          <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-5">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <span class="text-[10px] font-bold uppercase tracking-[0.16em] text-white/40">Core Subsystem Telemetry & Microservices</span>
+              <span class="rounded-full bg-emerald-400/10 text-emerald-300 px-2.5 py-0.5 text-[10px] font-bold uppercase ring-1 ring-emerald-400/20" x-text="services.filter(s=>s.status==='healthy').length + '/' + services.length + ' Healthy'"></span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <template x-for="s in services" :key="s.service_name">
+                <div class="rounded-2xl bg-white/[0.03] p-3 ring-1 ring-white/5 flex items-center justify-between">
+                  <div>
+                    <div class="font-semibold text-[13px] capitalize" x-text="s.service_name"></div>
+                    <div class="text-[10px] text-white/40 font-mono" x-text="s.instance_id || 'active'"></div>
+                  </div>
+                  <span class="flex items-center gap-1.5 text-[10px] font-bold uppercase" :class="s.status==='healthy'?'text-emerald-400':'text-red-400'">
+                    <span class="h-2 w-2 rounded-full" :class="s.status==='healthy'?'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]':'bg-red-400'"></span>
+                    <span x-text="s.status"></span>
+                  </span>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+
         <!-- Containers table — double-bezel wide -->
         <div class="md:col-span-12 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
           <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6 sm:p-7">
             <div class="flex flex-wrap items-center justify-between gap-3">
-              <h3 class="font-display text-[20px] font-bold tracking-tight">Discovered containers <span class="font-serif italic font-normal text-white/60">& immutable digests</span></h3>
+              <h3 class="font-display text-[20px] font-bold tracking-tight">Discovered Containers &amp; Image Digests</h3>
               <span class="rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-black" x-text="containers.length + ' containers'">0 containers</span>
             </div>
             <div class="mt-6 overflow-x-auto rounded-2xl ring-1 ring-white/10">
@@ -329,8 +367,13 @@
                 </thead>
                 <tbody class="divide-y divide-white/5">
                   <template x-for="c in containers" :key="c.container_id">
-                    <tr class="transition-colors duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white/[0.03]">
-                      <td class="px-4 py-3 font-semibold" x-text="c.container_name"></td>
+                    <tr @click="selectContainer(c)" class="cursor-pointer transition-colors duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]" :class="selectedContainer===c.container_id ? 'bg-white/15' : 'hover:bg-white/[0.04]'">
+                      <td class="px-4 py-3 font-semibold">
+                        <div class="flex items-center gap-2">
+                          <span x-show="selectedContainer===c.container_id" class="h-1.5 w-1.5 rounded-full bg-violet-400 animate-pulse"></span>
+                          <span x-text="c.container_name"></span>
+                        </div>
+                      </td>
                       <td class="px-4 py-3 font-mono text-[12px] text-white/50" x-text="c.container_id.substring(0,12)"></td>
                       <td class="px-4 py-3 font-mono text-[12px] text-white/60 max-w-[280px] truncate" :title="c.image_digest" x-text="c.image_digest || c.image_ref"></td>
                       <td class="px-4 py-3"><span class="rounded-full px-2.5 py-1 text-[11px] font-bold uppercase" :class="c.current_snapshot?.state?.running ? 'bg-emerald-400 text-black' : 'bg-white/10 text-white/60'" x-text="c.current_snapshot?.state?.running ? 'Running' : 'Stopped'"></span></td>
@@ -346,6 +389,354 @@
       </div>
     </section>
 
+    <!-- PROCESS ARCHITECTURE & TOPOLOGICAL PATHWAY GRAPH -->
+    <section x-show="activeTab==='pathway'" x-transition.opacity.duration.500 class="py-12">
+      <div class="p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
+        <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6 sm:p-8">
+          
+          <!-- Pathway Header & Mode Selector -->
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-white/10">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-black">Topological Pipeline</span>
+                <span class="rounded-full bg-emerald-400/10 text-emerald-300 px-3 py-1 text-[10px] font-bold uppercase ring-1 ring-emerald-400/20">9 Connected Stages • 4 Tiers</span>
+              </div>
+              <h3 class="mt-3 font-display text-[26px] sm:text-[32px] font-bold tracking-tight text-white leading-tight">
+                Process Architecture &amp; System Flow
+              </h3>
+              <p class="mt-1 text-[13px] text-white/50 max-w-2xl">
+                End-to-end telemetry graph from Linux kernel ring buffers to Docker lifecycle correlation, Jensen-Shannon divergence scoring, and human-approved containment.
+              </p>
+            </div>
+
+            <!-- Pathway Modes Switcher -->
+            <div class="flex flex-wrap items-center gap-1.5 rounded-2xl bg-black/40 p-1.5 ring-1 ring-white/10">
+              <button @click="setGraphMode('all')" class="rounded-xl px-3.5 py-2 text-[12px] font-mono font-bold tracking-tight transition-all duration-300" :class="graphPathwayMode==='all' ? 'bg-white text-black shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'">
+                Full Architecture (9 Nodes)
+              </button>
+              <button @click="setGraphMode('attack')" class="rounded-xl px-3.5 py-2 text-[12px] font-mono font-bold tracking-tight transition-all duration-300 flex items-center gap-1.5" :class="graphPathwayMode==='attack' ? 'bg-red-500 text-white shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'">
+                <span class="h-1.5 w-1.5 rounded-full bg-red-400"></span> Attack Detection Flow
+              </button>
+              <button @click="setGraphMode('reachability')" class="rounded-xl px-3.5 py-2 text-[12px] font-mono font-bold tracking-tight transition-all duration-300 flex items-center gap-1.5" :class="graphPathwayMode==='reachability' ? 'bg-emerald-400 text-black shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'">
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Vulnerability Reachability
+              </button>
+            </div>
+          </div>
+
+          <!-- Active Mode Explanatory Banner -->
+          <div class="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-white/[0.02] px-4 py-2.5 ring-1 ring-white/5 text-[12px] text-white/60 font-mono">
+            <div class="flex items-center gap-2">
+              <i class="ph ph-info text-white/40"></i>
+              <span x-show="graphPathwayMode==='all'">Viewing complete DAG: All 4 system tiers active across data capture, analysis, and containment.</span>
+              <span x-show="graphPathwayMode==='attack'" class="text-red-300">Active Trace: Syscall Execve &rarr; Docker Namespaces &rarr; Ingestion Gateway &rarr; JS Divergence &rarr; Detection Rules &rarr; Incident Ticket &rarr; Containment Lease.</span>
+              <span x-show="graphPathwayMode==='reachability'" class="text-emerald-300">Active Trace: CycloneDX SBOM &rarr; Image Digest Match &rarr; Kernel Memory Trace &rarr; 4-Stage Reachability Funnel &rarr; Noise Elimination.</span>
+            </div>
+            <span class="text-[11px] text-white/40 uppercase tracking-widest hidden sm:inline">Click any node to inspect telemetry</span>
+          </div>
+
+          <!-- GRAPH CONTAINER -->
+          <div class="mt-8 relative pathway-grid rounded-3xl p-4 sm:p-6 ring-1 ring-white/10 bg-black/40 overflow-hidden">
+            
+            <!-- TIER 1: KERNEL & SYSTEM SOURCES -->
+            <div>
+              <div class="flex items-center justify-between mb-3 px-1">
+                <span class="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-cyan-400 flex items-center gap-1.5">
+                  <span class="h-2 w-2 rounded-full bg-cyan-400"></span> Tier 1: Kernel &amp; System Event Sources
+                </span>
+                <span class="text-[10px] font-mono text-white/40 uppercase">Low-level capture &bull; Zero agent overhead</span>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                
+                <!-- Node 1: eBPF -->
+                <div @click="selectGraphNode('ebpf')" class="pathway-node rounded-2xl p-4 ring-1 transition-all" :class="[selectedGraphNode==='ebpf' ? 'bg-cyan-500/10 ring-cyan-400/80 shadow-lg shadow-cyan-500/10' : 'bg-white/[0.03] ring-white/10 hover:bg-white/[0.06]', !isNodeInCurrentMode('ebpf') ? 'pathway-node-dimmed' : '']">
+                  <div class="flex items-center justify-between">
+                    <span class="rounded-full bg-cyan-400/10 text-cyan-300 border border-cyan-400/30 px-2 py-0.5 text-[10px] font-mono font-bold">STAGE 01</span>
+                    <i class="ph ph-cpu text-cyan-400 text-lg"></i>
+                  </div>
+                  <div class="mt-3 font-display text-[15px] font-bold text-white tracking-tight">eBPF Probes</div>
+                  <div class="text-[11px] text-white/40 font-mono mt-0.5">sys_enter_execve / connect</div>
+                  <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
+                    <span class="text-white/40">Events:</span>
+                    <span class="text-cyan-300 font-bold" x-text="(events?.length || 40) + ' buffered'"></span>
+                  </div>
+                </div>
+
+                <!-- Node 2: Docker Spool -->
+                <div @click="selectGraphNode('docker')" class="pathway-node rounded-2xl p-4 ring-1 transition-all" :class="[selectedGraphNode==='docker' ? 'bg-blue-500/10 ring-blue-400/80 shadow-lg shadow-blue-500/10' : 'bg-white/[0.03] ring-white/10 hover:bg-white/[0.06]', !isNodeInCurrentMode('docker') ? 'pathway-node-dimmed' : '']">
+                  <div class="flex items-center justify-between">
+                    <span class="rounded-full bg-blue-400/10 text-blue-300 border border-blue-400/30 px-2 py-0.5 text-[10px] font-mono font-bold">STAGE 02</span>
+                    <i class="ph ph-cube text-blue-400 text-lg"></i>
+                  </div>
+                  <div class="mt-3 font-display text-[15px] font-bold text-white tracking-tight">Docker Lifecycle Spool</div>
+                  <div class="text-[11px] text-white/40 font-mono mt-0.5">FIFO outbox • Namespace PIDs</div>
+                  <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
+                    <span class="text-white/40">Mapped:</span>
+                    <span class="text-blue-300 font-bold" x-text="(containers?.length || 0) + ' containers'"></span>
+                  </div>
+                </div>
+
+                <!-- Node 3: SBOM & Scanner -->
+                <div @click="selectGraphNode('sbom')" class="pathway-node rounded-2xl p-4 ring-1 transition-all" :class="[selectedGraphNode==='sbom' ? 'bg-indigo-500/10 ring-indigo-400/80 shadow-lg shadow-indigo-500/10' : 'bg-white/[0.03] ring-white/10 hover:bg-white/[0.06]', !isNodeInCurrentMode('sbom') ? 'pathway-node-dimmed' : '']">
+                  <div class="flex items-center justify-between">
+                    <span class="rounded-full bg-indigo-400/10 text-indigo-300 border border-indigo-400/30 px-2 py-0.5 text-[10px] font-mono font-bold">STAGE 03</span>
+                    <i class="ph ph-shield-check text-indigo-400 text-lg"></i>
+                  </div>
+                  <div class="mt-3 font-display text-[15px] font-bold text-white tracking-tight">CycloneDX SBOM &amp; Trivy</div>
+                  <div class="text-[11px] text-white/40 font-mono mt-0.5">Static packages • EPSS • KEV</div>
+                  <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
+                    <span class="text-white/40">Catalog:</span>
+                    <span class="text-indigo-300 font-bold" x-text="(evidenceCounts?.package_present || 136) + ' CVEs'"></span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- CONNECTOR 1 -> 2 -->
+            <div class="my-4 flex items-center justify-center">
+              <div class="flex items-center gap-3 text-white/20 font-mono text-[11px]">
+                <div class="h-[1px] w-12 sm:w-24 bg-gradient-to-r from-transparent to-white/20"></div>
+                <div class="flex items-center gap-1.5 text-white/40">
+                  <i class="ph ph-arrow-down animate-bounce"></i>
+                  <span>CONVERGING KERNEL &amp; CONTAINER METADATA</span>
+                  <i class="ph ph-arrow-down animate-bounce"></i>
+                </div>
+                <div class="h-[1px] w-12 sm:w-24 bg-gradient-to-l from-transparent to-white/20"></div>
+              </div>
+            </div>
+
+            <!-- TIER 2: INGESTION & NORMALIZATION -->
+            <div>
+              <div class="flex items-center justify-between mb-3 px-1">
+                <span class="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-violet-400 flex items-center gap-1.5">
+                  <span class="h-2 w-2 rounded-full bg-violet-400"></span> Tier 2: Ingestion Gateway &amp; Normalizer
+                </span>
+                <span class="text-[10px] font-mono text-white/40 uppercase">PostgreSQL 17 &bull; Outbox Buffer</span>
+              </div>
+
+              <!-- Node 4: Collector Gateway -->
+              <div @click="selectGraphNode('collector')" class="pathway-node rounded-2xl p-5 ring-1 transition-all" :class="[selectedGraphNode==='collector' ? 'bg-violet-500/10 ring-violet-400/80 shadow-lg shadow-violet-500/10' : 'bg-white/[0.03] ring-white/10 hover:bg-white/[0.06]', !isNodeInCurrentMode('collector') ? 'pathway-node-dimmed' : '']">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div class="flex items-center gap-3">
+                    <span class="rounded-full bg-violet-400/10 text-violet-300 border border-violet-400/30 px-2.5 py-1 text-[10px] font-mono font-bold">STAGE 04</span>
+                    <i class="ph ph-brackets-curly text-violet-400 text-xl"></i>
+                    <div>
+                      <div class="font-display text-[16px] font-bold text-white tracking-tight">Telemetry Normalization Gateway</div>
+                      <div class="text-[12px] text-white/40 font-mono">Resolves Process Ancestry • Canonicalizes Paths • Maps Image SHA-256</div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3 text-[11px] font-mono border-t sm:border-t-0 pt-2 sm:pt-0 border-white/5">
+                    <span class="rounded-full bg-violet-500/20 text-violet-300 px-3 py-1 font-bold">~5ms Batch Latency</span>
+                    <span class="rounded-full bg-emerald-400/10 text-emerald-300 px-3 py-1 font-bold">Sub-5ms Query Time</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CONNECTOR 2 -> 3 -->
+            <div class="my-4 flex items-center justify-center">
+              <div class="flex items-center gap-3 text-white/20 font-mono text-[11px]">
+                <div class="h-[1px] w-12 sm:w-24 bg-gradient-to-r from-transparent to-white/20"></div>
+                <div class="flex items-center gap-1.5 text-white/40">
+                  <i class="ph ph-split-horizontal"></i>
+                  <span>PARALLEL ANALYTIC &amp; DETERMINISTIC EVALUATION</span>
+                  <i class="ph ph-split-horizontal"></i>
+                </div>
+                <div class="h-[1px] w-12 sm:w-24 bg-gradient-to-l from-transparent to-white/20"></div>
+              </div>
+            </div>
+
+            <!-- TIER 3: ANALYTICS & RULES MATRIX -->
+            <div>
+              <div class="flex items-center justify-between mb-3 px-1">
+                <span class="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-amber-400 flex items-center gap-1.5">
+                  <span class="h-2 w-2 rounded-full bg-amber-400"></span> Tier 3: Mathematical Analytics &amp; Deterministic Rules
+                </span>
+                <span class="text-[10px] font-mono text-white/40 uppercase">Information Theory &bull; Zero Black-Box ML</span>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <!-- Node 5: JS Engine -->
+                <div @click="selectGraphNode('js_engine')" class="pathway-node rounded-2xl p-4 ring-1 transition-all" :class="[selectedGraphNode==='js_engine' ? 'bg-amber-500/10 ring-amber-400/80 shadow-lg shadow-amber-500/10' : 'bg-white/[0.03] ring-white/10 hover:bg-white/[0.06]', !isNodeInCurrentMode('js_engine') ? 'pathway-node-dimmed' : '']">
+                  <div class="flex items-center justify-between">
+                    <span class="rounded-full bg-amber-400/10 text-amber-300 border border-amber-400/30 px-2 py-0.5 text-[10px] font-mono font-bold">STAGE 05</span>
+                    <i class="ph ph-function text-amber-400 text-lg"></i>
+                  </div>
+                  <div class="mt-3 font-display text-[15px] font-bold text-white tracking-tight">Jensen-Shannon Distance Engine</div>
+                  <div class="text-[11px] text-white/40 font-mono mt-0.5">D_JS(P || Q) • Categorical 50% / Novelty 30% / Numeric 20%</div>
+                  <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
+                    <span class="text-white/40">Live Score:</span>
+                    <span class="text-amber-300 font-bold" x-text="(currentAnomalyScore || 0).toFixed(3) + ' [' + (currentScoreBand || 'normal').toUpperCase() + ']'"></span>
+                  </div>
+                </div>
+
+                <!-- Node 6: Deterministic Rules -->
+                <div @click="selectGraphNode('rules')" class="pathway-node rounded-2xl p-4 ring-1 transition-all" :class="[selectedGraphNode==='rules' ? 'bg-orange-500/10 ring-orange-400/80 shadow-lg shadow-orange-500/10' : 'bg-white/[0.03] ring-white/10 hover:bg-white/[0.06]', !isNodeInCurrentMode('rules') ? 'pathway-node-dimmed' : '']">
+                  <div class="flex items-center justify-between">
+                    <span class="rounded-full bg-orange-400/10 text-orange-300 border border-orange-400/30 px-2 py-0.5 text-[10px] font-mono font-bold">STAGE 06</span>
+                    <i class="ph ph-list-checks text-orange-400 text-lg"></i>
+                  </div>
+                  <div class="mt-3 font-display text-[15px] font-bold text-white tracking-tight">Deterministic Rules Matrix</div>
+                  <div class="text-[11px] text-white/40 font-mono mt-0.5">POR-DET-001 to POR-DET-007 • Shell, Root, Dropper Evasion</div>
+                  <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
+                    <span class="text-white/40">Guardrails:</span>
+                    <span class="text-orange-300 font-bold" x-text="(rules?.length || 7) + ' active detection rules'"></span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- CONNECTOR 3 -> 4 -->
+            <div class="my-4 flex items-center justify-center">
+              <div class="flex items-center gap-3 text-white/20 font-mono text-[11px]">
+                <div class="h-[1px] w-12 sm:w-24 bg-gradient-to-r from-transparent to-white/20"></div>
+                <div class="flex items-center gap-1.5 text-white/40">
+                  <i class="ph ph-arrow-down animate-bounce"></i>
+                  <span>CORRELATION, VERIFICATION &amp; CONTAINMENT</span>
+                  <i class="ph ph-arrow-down animate-bounce"></i>
+                </div>
+                <div class="h-[1px] w-12 sm:w-24 bg-gradient-to-l from-transparent to-white/20"></div>
+              </div>
+            </div>
+
+            <!-- TIER 4: CORRELATION, REACHABILITY & CONTAINMENT -->
+            <div>
+              <div class="flex items-center justify-between mb-3 px-1">
+                <span class="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-emerald-400 flex items-center gap-1.5">
+                  <span class="h-2 w-2 rounded-full bg-emerald-400"></span> Tier 4: Correlation, Dynamic Verification &amp; Actuation
+                </span>
+                <span class="text-[10px] font-mono text-white/40 uppercase">Human-Governed &bull; Zero Dead Code</span>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                <!-- Node 7: Incidents -->
+                <div @click="selectGraphNode('incidents')" class="pathway-node rounded-2xl p-4 ring-1 transition-all" :class="[selectedGraphNode==='incidents' ? 'bg-red-500/10 ring-red-400/80 shadow-lg shadow-red-500/10' : 'bg-white/[0.03] ring-white/10 hover:bg-white/[0.06]', !isNodeInCurrentMode('incidents') ? 'pathway-node-dimmed' : '']">
+                  <div class="flex items-center justify-between">
+                    <span class="rounded-full bg-red-400/10 text-red-300 border border-red-400/30 px-2 py-0.5 text-[10px] font-mono font-bold">STAGE 07</span>
+                    <i class="ph ph-warning-octagon text-red-400 text-lg"></i>
+                  </div>
+                  <div class="mt-3 font-display text-[15px] font-bold text-white tracking-tight">Incident Evidence Graph</div>
+                  <div class="text-[11px] text-white/40 font-mono mt-0.5">Correlates rules + D_JS spikes by digest</div>
+                  <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
+                    <span class="text-white/40">Incidents:</span>
+                    <span class="text-red-300 font-bold" x-text="incidents.filter(i=>i.status==='open').length + ' open (' + incidents.length + ' total)'"></span>
+                  </div>
+                </div>
+
+                <!-- Node 8: Reachability -->
+                <div @click="selectGraphNode('reachability')" class="pathway-node rounded-2xl p-4 ring-1 transition-all" :class="[selectedGraphNode==='reachability' ? 'bg-emerald-500/10 ring-emerald-400/80 shadow-lg shadow-emerald-500/10' : 'bg-white/[0.03] ring-white/10 hover:bg-white/[0.06]', !isNodeInCurrentMode('reachability') ? 'pathway-node-dimmed' : '']">
+                  <div class="flex items-center justify-between">
+                    <span class="rounded-full bg-emerald-400/10 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 text-[10px] font-mono font-bold">STAGE 08</span>
+                    <i class="ph ph-funnel text-emerald-400 text-lg"></i>
+                  </div>
+                  <div class="mt-3 font-display text-[15px] font-bold text-white tracking-tight">4-Stage Reachability Funnel</div>
+                  <div class="text-[11px] text-white/40 font-mono mt-0.5">Package &rarr; Deployed &rarr; Memory &rarr; Port</div>
+                  <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
+                    <span class="text-white/40">In Memory:</span>
+                    <span class="text-emerald-300 font-bold" x-text="(evidenceCounts?.runtime_observed || 4) + ' CVEs observed'"></span>
+                  </div>
+                </div>
+
+                <!-- Node 9: Containment -->
+                <div @click="selectGraphNode('containment')" class="pathway-node rounded-2xl p-4 ring-1 transition-all" :class="[selectedGraphNode==='containment' ? 'bg-rose-500/10 ring-rose-400/80 shadow-lg shadow-rose-500/10' : 'bg-white/[0.03] ring-white/10 hover:bg-white/[0.06]', !isNodeInCurrentMode('containment') ? 'pathway-node-dimmed' : '']">
+                  <div class="flex items-center justify-between">
+                    <span class="rounded-full bg-rose-400/10 text-rose-300 border border-rose-400/30 px-2 py-0.5 text-[10px] font-mono font-bold">STAGE 09</span>
+                    <i class="ph ph-lock-key text-rose-400 text-lg"></i>
+                  </div>
+                  <div class="mt-3 font-display text-[15px] font-bold text-white tracking-tight">Containment Lease Engine</div>
+                  <div class="text-[11px] text-white/40 font-mono mt-0.5">Cryptographic operator token &bull; Fail-safe</div>
+                  <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
+                    <span class="text-white/40">Status:</span>
+                    <span class="text-rose-300 font-bold" x-text="operatorToken ? 'AUTHORIZED' : 'LOCKED'"></span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+          <!-- DETAILED NODE INSPECTOR DRAWER -->
+          <div x-show="selectedGraphNode && processGraphNodes[selectedGraphNode]" class="mt-8 p-1.5 rounded-[2rem] bg-white/10 ring-1 ring-white/20">
+            <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6 sm:p-8">
+              
+              <!-- Inspector Header -->
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-white/10">
+                <div class="flex items-center gap-3">
+                  <div class="grid h-12 w-12 place-items-center rounded-2xl bg-white/10 text-white text-2xl ring-1 ring-white/20">
+                    <i :class="'ph ' + processGraphNodes[selectedGraphNode].icon"></i>
+                  </div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="rounded-full px-2.5 py-0.5 text-[10px] font-mono font-bold uppercase border" :class="processGraphNodes[selectedGraphNode].badgeColor" x-text="processGraphNodes[selectedGraphNode].tag"></span>
+                      <span class="text-[11px] font-mono text-white/40 uppercase" x-text="processGraphNodes[selectedGraphNode].tier"></span>
+                    </div>
+                    <h4 class="text-[20px] font-display font-bold text-white tracking-tight mt-0.5" x-text="processGraphNodes[selectedGraphNode].name"></h4>
+                  </div>
+                </div>
+
+                <!-- Jump to specialized view button -->
+                <button @click="jumpToNodeTab(processGraphNodes[selectedGraphNode].targetTab)" class="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[12px] font-mono font-bold text-black hover:bg-white/90 hover:scale-105 active:scale-95 transition-all">
+                  <span>Open Dedicated View</span>
+                  <i class="ph ph-arrow-up-right"></i>
+                </button>
+              </div>
+
+              <!-- Inspector 3-Column Specifications Grid -->
+              <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Col 1: Functional Overview & Live Status -->
+                <div class="space-y-4">
+                  <div>
+                    <div class="text-[10px] font-mono font-bold uppercase tracking-[0.14em] text-white/40">Architectural Function</div>
+                    <p class="mt-1.5 text-[13px] text-white/70 leading-relaxed" x-text="processGraphNodes[selectedGraphNode].summary"></p>
+                  </div>
+                  <div class="p-3.5 rounded-2xl bg-white/[0.03] ring-1 ring-white/5 space-y-2 font-mono text-[12px]">
+                    <div class="flex items-center justify-between">
+                      <span class="text-white/40">Subsystem State:</span>
+                      <span class="font-bold flex items-center gap-1.5" :class="processGraphNodes[selectedGraphNode].statusColor">
+                        <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span x-text="processGraphNodes[selectedGraphNode].status"></span>
+                      </span>
+                    </div>
+                    <div class="flex items-center justify-between pt-2 border-t border-white/5">
+                      <span class="text-white/40" x-text="processGraphNodes[selectedGraphNode].liveMetricKey + ':'"></span>
+                      <span class="text-white font-bold" x-text="getNodeMetricValue(selectedGraphNode)"></span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Col 2: Kernel Hook / Mathematical Model -->
+                <div>
+                  <div class="text-[10px] font-mono font-bold uppercase tracking-[0.14em] text-white/40">Kernel Hook / Mathematical Model</div>
+                  <div class="mt-1.5 rounded-2xl bg-black p-4 font-mono text-[12px] text-emerald-300 ring-1 ring-white/10 overflow-x-auto min-h-[140px] flex items-center">
+                    <pre class="whitespace-pre-wrap leading-relaxed" x-text="processGraphNodes[selectedGraphNode].technicalHook"></pre>
+                  </div>
+                  <div class="mt-2 text-[11px] font-mono text-white/40">Auditable, frozen specification without opaque heuristic weights.</div>
+                </div>
+
+                <!-- Col 3: Inputs & Outputs Pipeline Contract -->
+                <div class="space-y-3 font-mono text-[12px]">
+                  <div>
+                    <div class="text-[10px] font-bold uppercase tracking-[0.14em] text-white/40">Upstream Input Data</div>
+                    <div class="mt-1.5 p-3 rounded-xl bg-white/[0.03] ring-1 ring-white/5 text-white/70 text-[11px] leading-relaxed" x-text="processGraphNodes[selectedGraphNode].inputSource"></div>
+                  </div>
+                  <div>
+                    <div class="text-[10px] font-bold uppercase tracking-[0.14em] text-white/40">Downstream Produced Artifact</div>
+                    <div class="mt-1.5 p-3 rounded-xl bg-white/[0.03] ring-1 ring-white/5 text-emerald-300 text-[11px] leading-relaxed" x-text="processGraphNodes[selectedGraphNode].outputArtifact"></div>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
     <!-- TELEMETRY -->
     <section x-show="activeTab==='telemetry'" x-transition.opacity.duration.500 class="py-12">
       <div class="p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
@@ -353,12 +744,13 @@
           <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
               <span class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-black">sys_enter_execve</span>
-              <h3 class="mt-3 font-display text-[22px] font-bold tracking-tight">Kernel process <span class="font-serif italic font-normal text-white/60">telemetry stream</span></h3>
+              <h3 class="mt-3 font-display text-[22px] font-bold tracking-tight">Kernel Process Telemetry Stream</h3>
             </div>
             <div class="flex items-center gap-2 rounded-full bg-white p-1.5 pl-4 ring-1 ring-black/5 w-full sm:w-auto">
               <i class="ph ph-magnifying-glass text-black/40"></i>
-              <input type="text" placeholder="Filter executable..." x-model="eventFilter" class="bg-transparent text-[13px] font-medium placeholder:text-black/30 focus:outline-none w-full sm:w-64">
-              <span class="hidden sm:grid h-8 w-8 place-items-center rounded-full bg-black text-white"><i class="ph ph-arrow-right text-sm"></i></span>
+              <input type="text" placeholder="Filter executable, process, container..." x-model="eventFilter" class="bg-transparent text-[13px] font-medium placeholder:text-black/30 focus:outline-none w-full sm:w-64">
+              <button x-show="eventFilter" @click="eventFilter=''; selectedContainer=null" class="grid h-8 w-8 place-items-center rounded-full bg-black text-white hover:bg-black/80 transition-colors" title="Clear filter"><i class="ph ph-x text-sm"></i></button>
+              <span x-show="!eventFilter" class="hidden sm:grid h-8 w-8 place-items-center rounded-full bg-black text-white"><i class="ph ph-arrow-right text-sm"></i></span>
             </div>
           </div>
           <div class="mt-6 max-h-[560px] overflow-auto rounded-2xl ring-1 ring-white/10">
@@ -367,7 +759,7 @@
                 <tr><th class="px-3 py-3">Timestamp</th><th class="px-3 py-3">Process</th><th class="px-3 py-3">Executable</th><th class="px-3 py-3">Parent</th><th class="px-3 py-3">UID</th><th class="px-3 py-3">Container</th><th class="px-3 py-3">Command</th></tr>
               </thead>
               <tbody class="divide-y divide-white/5">
-                <template x-for="e in events.filter(ev => !eventFilter || (ev.process_name + ev.executable + ev.command_line).toLowerCase().includes(eventFilter.toLowerCase()))" :key="e.event_id || e.occurred_at">
+                <template x-for="e in events.filter(ev => !eventFilter || [ev.process_name, ev.executable, ev.command_line, ev.container_id, ev.container_name].filter(Boolean).join(' ').toLowerCase().includes(eventFilter.toLowerCase()))" :key="e.event_id || e.occurred_at">
                   <tr class="hover:bg-white/[0.03] transition-colors duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]">
                     <td class="px-3 py-2.5 font-mono text-[11px] text-white/40" x-text="new Date(e.occurred_at).toLocaleTimeString() + '.' + String(new Date(e.occurred_at).getMilliseconds()).padStart(3,'0')"></td>
                     <td class="px-3 py-2.5"><span class="rounded-full px-2 py-1 text-[11px] font-bold" :class="['sh','bash','xmrig','wget','curl'].includes(e.process_name) ? 'bg-red-500 text-white' : 'bg-white/10 text-white'" x-text="e.process_name"></span></td>
@@ -381,7 +773,7 @@
               </tbody>
             </table>
           </div>
-          <p class="mt-3 text-[11px] font-medium uppercase tracking-[0.08em] text-white/30">Falco modern-eBPF • container.id != host • /var/log/porygon/falco-events.jsonl</p>
+          <p class="mt-3 text-[11px] font-medium uppercase tracking-[0.08em] text-white/30">Falco eBPF • container.id != host • /var/log/porygon/falco-events.jsonl</p>
         </div>
       </div>
     </section>
@@ -392,7 +784,7 @@
         <div class="md:col-span-7 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
           <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-white p-7 text-black">
             <span class="rounded-full bg-black px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white">Jensen-Shannon • Base-2</span>
-            <h3 class="mt-3 font-display text-[22px] font-bold tracking-tight">Information-theoretic <span class="font-serif italic font-normal">distance</span></h3>
+            <h3 class="mt-3 font-display text-[22px] font-bold tracking-tight">Information-Theoretic Distance</h3>
             <div class="mt-4 rounded-2xl bg-black p-5 font-mono text-[13px] leading-relaxed text-emerald-300">
               <div>M <span class="text-white/40">=</span> 0.5 × (P + Q)</div>
               <div>D<span class="text-white/40">_JS</span>(P || Q) <span class="text-white/40">=</span> sqrt( 0.5 × D_KL(P || M) + 0.5 × D_KL(Q || M) )</div>
@@ -416,7 +808,6 @@
             <p class="mt-4 text-[11px] font-medium uppercase tracking-[0.08em] text-white/30">Calibrated rarity per global repository frequency</p>
           </div>
         </div>
-        </div>
       </div>
       
       <!-- Radar Visualizer -->
@@ -425,7 +816,7 @@
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
               <span class="rounded-full bg-violet-500 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white">Live Visualizer</span>
-              <h3 class="mt-3 font-display text-[22px] font-bold tracking-tight">System Call <span class="font-serif italic font-normal text-white/60">Execution Flow Deviation</span></h3>
+              <h3 class="mt-3 font-display text-[22px] font-bold tracking-tight">System Call Flow Deviation Radar</h3>
               <p class="mt-1 text-[13px] text-white/50">Watch how the container's execution footprint violently deviates from the baseline when malicious calls are introduced.</p>
             </div>
             <div class="flex gap-2">
@@ -433,7 +824,7 @@
               <span class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-red-500"><span class="h-2 w-2 rounded-full bg-red-500"></span> Live Trace</span>
             </div>
           </div>
-          <div class="chart-glass mt-6 rounded-[1.25rem] p-4 flex justify-center">
+          <div class="chart-glass mt-6 rounded-2xl p-4 flex justify-center">
             <div class="h-[350px] w-full max-w-[600px]"><canvas id="syscallRadarChart"></canvas></div>
           </div>
         </div>
@@ -445,34 +836,37 @@
       <div class="grid grid-cols-1 gap-6 md:grid-cols-12">
         <div class="md:col-span-7 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
           <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6">
-            <div class="flex items-center justify-between"><h3 class="font-display text-[18px] font-bold tracking-tight">Active <span class="font-serif italic font-normal text-white/60">incidents</span></h3><span class="rounded-full bg-red-500 px-3 py-1 text-[11px] font-bold text-white" x-text="incidents.length + ' open'">0 open</span></div>
-            <div x-show="incidents.length===0" class="mt-6 grid place-items-center rounded-[1.5rem] bg-white/5 p-10 ring-1 ring-white/10 text-center">
+            <div class="flex items-center justify-between"><h3 class="font-display text-[18px] font-bold tracking-tight">Active Security Incidents</h3><span class="rounded-full px-3 py-1 text-[11px] font-bold text-white" :class="incidents.filter(i=>i.status==='open').length>0 ? 'bg-red-500' : 'bg-white/10 text-white/70'" x-text="incidents.filter(i=>i.status==='open').length + ' open (' + incidents.length + ' total)'">0 open</span></div>
+            <div x-show="incidents.length===0" class="mt-6 grid place-items-center rounded-2xl bg-white/5 p-10 ring-1 ring-white/10 text-center">
               <span class="grid h-10 w-10 place-items-center rounded-full bg-emerald-400 text-black"><i class="ph ph-check text-lg"></i></span>
               <div class="mt-3 font-display font-bold">All workloads normal</div><div class="text-[12px] text-white/40">No deterministic rule violations.</div>
             </div>
             <div class="mt-4 flex flex-col gap-3">
               <template x-for="inc in incidents" :key="inc.incident_id">
-                <div class="rounded-[1.5rem] bg-white p-5 text-black shadow-[0_8px_24px_rgba(0,0,0,0.2)]">
-                  <div class="flex items-center justify-between gap-2"><span class="font-mono text-[11px] font-bold text-red-600" x-text="inc.incident_id"></span><span class="rounded-full bg-red-500 px-2 py-1 text-[10px] font-bold uppercase text-white" x-text="inc.status"></span></div>
+                <div class="rounded-2xl bg-white p-5 text-black shadow-[0_8px_24px_rgba(0,0,0,0.2)]">
+                  <div class="flex items-center justify-between gap-2"><span class="font-mono text-[11px] font-bold text-red-600" x-text="inc.incident_id"></span><span class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase text-white" :class="inc.status==='open' ? 'bg-red-500' : inc.status==='acknowledged' ? 'bg-amber-400 text-black' : 'bg-emerald-500'" x-text="inc.status"></span></div>
                   <div class="mt-2 font-semibold text-[13px] leading-tight" x-text="inc.summary || 'Anomalous process deviation detected'"></div>
-                  <div class="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-black/40">Target <b class="text-black" x-text="inc.target_container_name || 'porygon-demo-test'"></b></div>
-                  <div class="mt-3 grid grid-cols-3 gap-2 rounded-2xl bg-black/[0.04] p-3 ring-1 ring-black/5">
+                  <div class="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-black/40">Target <b class="text-black" x-text="getIncidentContainerName(inc)"></b></div>
+                  <div class="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-black/[0.04] p-3 ring-1 ring-black/5">
                     <div><div class="text-[10px] font-bold uppercase tracking-[0.14em] text-black/40">Severity</div><div class="font-display text-[18px] font-bold text-red-600" x-text="(inc.severity_score||0.90).toFixed(2)"></div></div>
                     <div><div class="text-[10px] font-bold uppercase tracking-[0.14em] text-black/40">Confidence</div><div class="font-display text-[18px] font-bold" x-text="(inc.confidence_score||0.95).toFixed(2)"></div></div>
                     <div><div class="text-[10px] font-bold uppercase tracking-[0.14em] text-black/40">Distance</div><div class="font-display text-[18px] font-bold" x-text="(inc.anomaly_score||0.82).toFixed(2)"></div></div>
                   </div>
-                  <div class="mt-3 flex flex-wrap gap-1.5"><template x-for="rid in (inc.rules_triggered||['POR-DET-001','POR-DET-002'])" :key="rid"><span class="rounded-full bg-black px-2.5 py-1 text-[11px] font-bold text-white" x-text="rid"></span></template></div>
-                  <button @click="openPipelineForIncident(inc)" class="mt-3 flex w-full items-center justify-between rounded-2xl bg-black/[0.04] px-4 py-2.5 ring-1 ring-black/5 hover:bg-black hover:text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group">
+                  <div class="mt-3 flex flex-wrap gap-1.5"><template x-for="rid in getIncidentRules(inc)" :key="rid"><span class="rounded-full bg-black px-2.5 py-1 text-[11px] font-bold text-white" x-text="rid"></span></template></div>
+                  <button @click="openPipelineForIncident(inc)" class="mt-3 flex w-full items-center justify-between rounded-xl bg-black/[0.04] px-4 py-2.5 ring-1 ring-black/5 hover:bg-black hover:text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group">
                     <span class="text-[12px] font-bold flex items-center gap-1.5"><i class="ph ph-git-branch"></i> Trace pipeline: raw event → rule → incident</span>
                     <i class="ph ph-arrow-right text-sm"></i>
                   </button>
-                  <div class="mt-4 rounded-2xl bg-black p-1.5">
-                    <div class="rounded-[1rem] bg-white/5 p-3 ring-1 ring-white/10">
-                      <div class="text-[10px] font-bold uppercase tracking-[0.14em] text-white/60 flex items-center gap-1.5"><i class="ph ph-shield text-white"></i> Human-in-the-loop lease</div>
+                  <div class="mt-4 rounded-xl bg-black p-1.5">
+                    <div class="rounded-[calc(0.75rem-0.375rem)] bg-white/5 p-3 ring-1 ring-white/10">
+                      <div class="text-[10px] font-bold uppercase tracking-[0.14em] text-white/60 flex items-center justify-between gap-1.5">
+                        <span class="flex items-center gap-1.5"><i class="ph ph-shield text-white"></i> Human-in-the-loop lease</span>
+                        <span x-show="inc.approved_action" class="text-emerald-400 font-bold lowercase" x-text="'action: ' + inc.approved_action"></span>
+                      </div>
                       <div class="mt-3 flex flex-wrap gap-2">
-                        <button @click="approveContainment(inc,'observe_only')" class="rounded-full bg-white/10 px-4 py-2 text-[12px] font-semibold text-white ring-1 ring-white/10 hover:bg-white hover:text-black transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]">Observe</button>
-                        <button @click="approveContainment(inc,'pause_container')" class="rounded-full bg-amber-400 px-4 py-2 text-[12px] font-bold text-black hover:scale-[1.02] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]">Pause</button>
-                        <button @click="approveContainment(inc,'stop_container')" class="rounded-full bg-red-500 px-4 py-2 text-[12px] font-bold text-white hover:scale-[1.02] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]">Stop</button>
+                        <button :disabled="inc.status==='acknowledged' || inc.status==='resolved'" @click="approveContainment(inc,'observe_only')" class="rounded-full bg-white/10 px-4 py-2 text-[12px] font-semibold text-white ring-1 ring-white/10 hover:bg-white hover:text-black transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] disabled:opacity-40">Observe</button>
+                        <button :disabled="inc.status==='acknowledged' || inc.status==='resolved'" @click="approveContainment(inc,'pause_container')" class="rounded-full bg-amber-400 px-4 py-2 text-[12px] font-bold text-black hover:scale-[1.02] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] disabled:opacity-40">Pause</button>
+                        <button :disabled="inc.status==='acknowledged' || inc.status==='resolved'" @click="approveContainment(inc,'stop_container')" class="rounded-full bg-red-500 px-4 py-2 text-[12px] font-bold text-white hover:scale-[1.02] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] disabled:opacity-40">Stop</button>
                       </div>
                     </div>
                   </div>
@@ -483,7 +877,7 @@
         </div>
         <div class="md:col-span-5 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
           <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-white p-6 text-black">
-            <h3 class="font-display text-[16px] font-bold tracking-tight">Deterministic rules <span class="font-serif italic font-normal text-black/50">v1</span></h3>
+            <h3 class="font-display text-[16px] font-bold tracking-tight">Deterministic Rules Matrix (v1)</h3>
             <div class="mt-4 flex flex-col gap-2">
               <template x-for="r in rules" :key="r.rule_id">
                 <div class="flex items-center justify-between gap-3 rounded-2xl bg-black/[0.03] p-3 ring-1 ring-black/5">
@@ -501,14 +895,14 @@
     <section x-show="activeTab==='pipeline'" x-transition.opacity.duration.500 class="py-12">
       <div class="text-center">
         <span class="rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/60">detection_runs → incident_evidence</span>
-        <h3 class="mt-4 font-display text-[32px] font-bold tracking-tight leading-none">How <span class="font-serif italic font-normal text-white/60">one alert</span> is built.</h3>
-        <p class="mx-auto mt-3 max-w-[640px] text-[13px] leading-relaxed text-white/50">Every node below is a real database row for this incident — not illustrative. Falco's kernel-level syscall capture feeds process_exec_events; deterministic rules in backend/detection.py match against the active behavior profile; matched evidence is chained into this incident in sequence_no order.</p>
+        <h3 class="mt-4 font-display text-[32px] font-bold tracking-tight leading-none">Deterministic Pipeline Trace Engine</h3>
       </div>
 
-      <div class="mt-8 grid grid-cols-1 gap-6 md:grid-cols-12">
-        <div class="md:col-span-4 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
+      <div class="mt-10 grid gap-6 lg:grid-cols-12">
+        <!-- Incidents List Selector -->
+        <div class="lg:col-span-4 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
           <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6">
-            <h4 class="font-display text-[15px] font-bold tracking-tight">Select an <span class="font-serif italic font-normal text-white/60">incident</span></h4>
+            <h4 class="font-display text-[15px] font-bold tracking-tight">Select Target Incident</h4>
             <div class="mt-4 flex flex-col gap-2 max-h-[420px] overflow-y-auto pr-1">
               <template x-for="inc in incidents" :key="inc.incident_id">
                 <button @click="openPipelineForIncident(inc)" class="text-left rounded-2xl px-4 py-3 ring-1 transition-all duration-500" :class="pipelineIncidentId===inc.incident_id ? 'bg-white text-black ring-white' : 'bg-white/5 text-white ring-white/10 hover:bg-white/10'">
@@ -526,7 +920,7 @@
           </div>
         </div>
 
-        <div class="md:col-span-8 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
+        <div class="lg:col-span-8 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
           <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6 sm:p-7 min-h-[420px]">
             <div x-show="!pipelineIncidentId" class="grid place-items-center h-[360px] text-center">
               <div>
@@ -545,8 +939,65 @@
 
             <template x-if="pipelineIncidentId && !pipelineLoading && !pipelineError">
               <div>
+                <!-- REAL DIVERGENCE DETAIL — how much this window deviated
+                     from the trained baseline, per feature family, from
+                     GET /api/v1/anomaly-scores/{score_id} (the same
+                     Jensen-Shannon scorer used in production). -->
+                <div x-show="pipelineScoreLoading" class="rounded-2xl bg-white/5 p-4 ring-1 ring-white/10 mb-6 text-[12px] text-white/40 animate-pulse">
+                  Fetching real divergence breakdown…
+                </div>
+                <div x-show="pipelineScoreError" class="rounded-2xl bg-red-500/10 p-4 ring-1 ring-red-500/30 mb-6 text-[12px] text-red-300" x-text="pipelineScoreError"></div>
+
+                <template x-if="pipelineScoreDetail">
+                  <div class="rounded-[1.5rem] bg-white/5 p-5 ring-1 ring-white/10 mb-6">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-white/50">Behavioural distance from trained baseline</div>
+                        <div class="mt-1 flex items-baseline gap-2">
+                          <span class="font-display text-[36px] font-black tracking-tight" :class="pipelineScoreDetail.score_band==='baseline_like' ? 'text-emerald-400' : pipelineScoreDetail.score_band==='elevated' ? 'text-amber-400' : 'text-red-400'" x-text="pipelineScoreDetail.total_score.toFixed(3)"></span>
+                          <span class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase" :class="pipelineScoreDetail.score_band==='baseline_like' ? 'bg-emerald-400/20 text-emerald-300' : pipelineScoreDetail.score_band==='elevated' ? 'bg-amber-400/20 text-amber-300' : 'bg-red-400/20 text-red-300'" x-text="pipelineScoreDetail.score_band"></span>
+                        </div>
+                      </div>
+                      <div class="text-right text-[11px] font-mono text-white/40">
+                        <div>window: <span x-text="new Date(pipelineScoreDetail.window_start).toLocaleTimeString()"></span> – <span x-text="new Date(pipelineScoreDetail.window_end).toLocaleTimeString()"></span></div>
+                        <div><span x-text="pipelineScoreDetail.process_event_count"></span> process events scored</div>
+                      </div>
+                    </div>
+
+                    <!-- Per-family JS-distance bars: real numbers, not illustrative -->
+                    <div class="mt-4 space-y-2">
+                      <template x-for="[family, detail] in Object.entries(pipelineScoreDetail.components?.categorical_distance?.families || {})" :key="family">
+                        <div x-show="detail.available">
+                          <div class="flex items-center justify-between text-[11px] font-mono text-white/60 mb-1">
+                            <span x-text="family"></span>
+                            <span class="font-bold" :class="detail.distance >= 0.5 ? 'text-red-300' : detail.distance >= 0.25 ? 'text-amber-300' : 'text-white/50'" x-text="detail.distance.toFixed(3) + ' JS-distance'"></span>
+                          </div>
+                          <div class="h-2 rounded-full bg-white/10 overflow-hidden">
+                            <div class="h-full rounded-full transition-all duration-700" :class="detail.distance >= 0.5 ? 'bg-red-400' : detail.distance >= 0.25 ? 'bg-amber-400' : 'bg-emerald-400'" :style="`width: ${divergencePercent(detail.distance)}%`"></div>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+
+                    <!-- The exact tokens that were never seen in the baseline -->
+                    <div class="mt-5 pt-4 border-t border-white/10" x-show="(pipelineScoreDetail.explanation?.unseen_tokens || []).length">
+                      <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-white/50 mb-2">Never seen in the trained baseline</div>
+                      <div class="flex flex-wrap gap-1.5">
+                        <template x-for="tok in (pipelineScoreDetail.explanation?.unseen_tokens || []).slice(0, 12)" :key="tok.feature + tok.token">
+                          <span class="rounded-full bg-red-500/10 ring-1 ring-red-500/30 px-2.5 py-1 text-[11px] font-mono text-red-300" :title="tok.feature">
+                            <span x-text="tok.token"></span>
+                            <span class="text-red-300/50 ml-1" x-text="'(' + (tok.proportion*100).toFixed(0) + '%)'"></span>
+                          </span>
+                        </template>
+                      </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-white/10 text-[11px] text-white/40" x-text="pipelineScoreDetail.explanation?.interpretation"></div>
+                  </div>
+                </template>
+
                 <div class="flex items-center justify-between gap-3">
-                  <h4 class="font-display text-[16px] font-bold tracking-tight">Evidence chain <span class="font-serif italic font-normal text-white/50" x-text="'(' + pipelineTimeline.length + ' rows)'"></span></h4>
+                  <h4 class="font-display text-[16px] font-bold tracking-tight">Evidence Chain <span class="font-mono text-white/50 text-[13px]" x-text="'(' + pipelineTimeline.length + ' events)'"></span></h4>
                   <span x-show="pipelineTimeline.length && pipelineTimeline[0]._synthetic" class="rounded-full bg-amber-400/20 text-amber-200 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.1em]">Synthetic demo trace — not persisted</span>
                 </div>
 
@@ -567,6 +1018,7 @@
                           <span class="ml-auto font-mono text-[10px] text-white/40" x-text="new Date(row.occurred_at).toLocaleTimeString()"></span>
                         </div>
                         <div class="mt-2 text-[13px] font-semibold leading-snug" x-text="row.summary || row.source_id"></div>
+                        <div x-show="row.rule_id && rulesMeta[row.rule_id]?.description" class="mt-1 text-[11px] text-white/60 leading-snug" x-text="rulesMeta[row.rule_id]?.description"></div>
                         <div class="mt-1 font-mono text-[10px] text-white/30 truncate" x-text="'source_id: ' + row.source_id"></div>
                       </div>
                     </div>
@@ -590,14 +1042,59 @@
     <section x-show="activeTab==='vulnerabilities'" x-transition.opacity.duration.500 class="py-12">
       <div class="p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
         <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6 sm:p-7">
-          <div class="flex flex-wrap items-center justify-between gap-3"><h3 class="font-display text-[20px] font-bold tracking-tight">4-stage <span class="font-serif italic font-normal text-white/60">reachability funnel</span></h3><span class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-black">CycloneDX • EPSS • KEV</span></div>
-          <div class="chart-glass mt-6 rounded-[1.25rem] p-4"><div class="h-[220px]"><canvas id="evidenceLadderChart"></canvas></div></div>
+          <div class="flex flex-wrap items-center justify-between gap-3"><h3 class="font-display text-[20px] font-bold tracking-tight">4-Stage Reachability Verification Funnel</h3><span class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-black">CycloneDX • EPSS • KEV</span></div>
+          <div class="chart-glass mt-6 rounded-2xl p-4"><div class="h-[220px]"><canvas id="evidenceLadderChart"></canvas></div></div>
           <div class="mt-6 grid gap-2">
-            <div class="flex items-center justify-between rounded-2xl bg-white/5 p-4 ring-1 ring-white/10"><div class="flex items-center gap-3"><span class="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-[12px] font-bold">1</span><div><div class="text-[12px] font-bold uppercase tracking-[0.06em]">Stage 1 — package_present</div><div class="text-[11px] text-white/40">File signature on disk inside image</div></div></div><span class="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-black" x-text="evidenceCounts.package_present + ' CVEs'"></span></div>
-            <div class="flex items-center justify-between rounded-2xl bg-white/5 p-4 ring-1 ring-white/10"><div class="flex items-center gap-3"><span class="grid h-8 w-8 place-items-center rounded-full bg-emerald-400 text-black text-[12px] font-bold">2</span><div><div class="text-[12px] font-bold uppercase tracking-[0.06em]">Stage 2 — deployed</div><div class="text-[11px] text-white/40">Exact digest running on host</div></div></div><span class="rounded-full bg-emerald-400 px-3 py-1 text-[12px] font-bold text-black" x-text="evidenceCounts.deployed + ' CVEs'"></span></div>
-            <div class="flex items-center justify-between rounded-2xl bg-amber-400 p-4 text-black ring-1 ring-amber-300"><div class="flex items-center gap-3"><span class="grid h-8 w-8 place-items-center rounded-full bg-black text-white text-[12px] font-bold">3</span><div><div class="text-[12px] font-bold uppercase tracking-[0.06em]">Stage 3 — runtime_observed</div><div class="text-[11px] text-black/60">eBPF observed in memory</div></div></div><span class="rounded-full bg-black px-3 py-1 text-[12px] font-bold text-white" x-text="evidenceCounts.runtime_observed + ' CVEs'"></span></div>
-            <div class="flex items-center justify-between rounded-2xl bg-red-500 p-4 text-white ring-1 ring-red-400"><div class="flex items-center gap-3"><span class="grid h-8 w-8 place-items-center rounded-full bg-white text-red-600 text-[12px] font-bold">4</span><div><div class="text-[12px] font-bold uppercase tracking-[0.06em]">Stage 4 — port_published</div><div class="text-[11px] text-white/80">Running + public port exposed</div></div></div><span class="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-red-600" x-text="evidenceCounts.runtime_observed_and_port_published + ' CVEs'"></span></div>
+            <div @click="reachabilityFilter = reachabilityFilter==='package_present' ? 'all' : 'package_present'" class="cursor-pointer flex items-center justify-between rounded-2xl bg-white/5 p-4 transition-all duration-300" :class="reachabilityFilter==='package_present' ? 'ring-2 ring-white bg-white/10' : 'ring-1 ring-white/10 hover:bg-white/[0.08]'"><div class="flex items-center gap-3"><span class="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-[12px] font-bold">1</span><div><div class="text-[12px] font-bold uppercase tracking-[0.06em]">Stage 1 — package_present</div><div class="text-[11px] text-white/40">File signature on disk inside image (click to filter)</div></div></div><span class="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-black" x-text="evidenceCounts.package_present + ' CVEs'"></span></div>
+            <div @click="reachabilityFilter = reachabilityFilter==='deployed' ? 'all' : 'deployed'" class="cursor-pointer flex items-center justify-between rounded-2xl bg-white/5 p-4 transition-all duration-300" :class="reachabilityFilter==='deployed' ? 'ring-2 ring-emerald-400 bg-white/10' : 'ring-1 ring-white/10 hover:bg-white/[0.08]'"><div class="flex items-center gap-3"><span class="grid h-8 w-8 place-items-center rounded-full bg-emerald-400 text-black text-[12px] font-bold">2</span><div><div class="text-[12px] font-bold uppercase tracking-[0.06em]">Stage 2 — deployed</div><div class="text-[11px] text-white/40">Exact digest running on host (click to filter)</div></div></div><span class="rounded-full bg-emerald-400 px-3 py-1 text-[12px] font-bold text-black" x-text="evidenceCounts.deployed + ' CVEs'"></span></div>
+            <div @click="reachabilityFilter = reachabilityFilter==='runtime_observed' ? 'all' : 'runtime_observed'" class="cursor-pointer flex items-center justify-between rounded-2xl bg-amber-400 p-4 text-black transition-all duration-300" :class="reachabilityFilter==='runtime_observed' ? 'ring-2 ring-black shadow-lg scale-[1.01]' : 'ring-1 ring-amber-300 hover:scale-[1.005]'"><div class="flex items-center gap-3"><span class="grid h-8 w-8 place-items-center rounded-full bg-black text-white text-[12px] font-bold">3</span><div><div class="text-[12px] font-bold uppercase tracking-[0.06em]">Stage 3 — runtime_observed</div><div class="text-[11px] text-black/60">eBPF observed in memory (click to filter)</div></div></div><span class="rounded-full bg-black px-3 py-1 text-[12px] font-bold text-white" x-text="evidenceCounts.runtime_observed + ' CVEs'"></span></div>
+            <div @click="reachabilityFilter = reachabilityFilter==='runtime_observed_and_port_published' ? 'all' : 'runtime_observed_and_port_published'" class="cursor-pointer flex items-center justify-between rounded-2xl bg-red-500 p-4 text-white transition-all duration-300" :class="reachabilityFilter==='runtime_observed_and_port_published' ? 'ring-2 ring-white shadow-lg scale-[1.01]' : 'ring-1 ring-red-400 hover:scale-[1.005]'"><div class="flex items-center gap-3"><span class="grid h-8 w-8 place-items-center rounded-full bg-white text-red-600 text-[12px] font-bold">4</span><div><div class="text-[12px] font-bold uppercase tracking-[0.06em]">Stage 4 — port_published</div><div class="text-[11px] text-white/80">Running + public port exposed (click to filter)</div></div></div><span class="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-red-600" x-text="evidenceCounts.runtime_observed_and_port_published + ' CVEs'"></span></div>
           </div>
+
+          <!-- Reachable Findings Drill-down -->
+          <div x-show="vulnerabilityFindings.length > 0" class="mt-8 pt-6 border-t border-white/10">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div>
+                <h4 class="font-display text-[16px] font-bold tracking-tight">Observed Findings <span class="text-white/50 text-[13px] font-mono" x-text="'(' + filteredVulnerabilities.length + ' records)'"></span></h4>
+                <p class="text-[12px] text-white/40 mt-0.5">Correlated from active containers, digest manifests, and Falco kernel probes.</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span x-show="reachabilityFilter !== 'all'" class="rounded-full bg-amber-400 text-black px-2.5 py-1 text-[10px] font-bold uppercase flex items-center gap-1.5">
+                  <span x-text="'Stage: ' + reachabilityFilter"></span>
+                  <button @click="reachabilityFilter='all'" class="hover:opacity-75 font-bold" title="Clear filter"><i class="ph ph-x"></i></button>
+                </span>
+                <span class="rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold uppercase text-white/70">Verified In-Memory</span>
+              </div>
+            </div>
+            <div class="overflow-x-auto rounded-2xl ring-1 ring-white/10 max-h-[360px] overflow-y-auto">
+              <table class="w-full text-left text-[12px]">
+                <thead class="sticky top-0 bg-[#0A0A0F] text-[10px] font-bold uppercase tracking-[0.14em] text-white/40">
+                  <tr>
+                    <th class="px-3 py-2.5">CVE ID</th>
+                    <th class="px-3 py-2.5">Severity</th>
+                    <th class="px-3 py-2.5">Package</th>
+                    <th class="px-3 py-2.5">Stage</th>
+                    <th class="px-3 py-2.5">EPSS Probability</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-white/5">
+                  <template x-for="v in filteredVulnerabilities.slice(0, 40)" :key="v.finding_id || v.cve_id">
+                    <tr class="hover:bg-white/[0.03] transition-colors">
+                      <td class="px-3 py-2 font-mono font-bold text-red-400" x-text="v.cve_id"></td>
+                      <td class="px-3 py-2"><span class="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" :class="v.severity==='CRITICAL'?'bg-red-500 text-white':v.severity==='HIGH'?'bg-amber-400 text-black':'bg-white/10 text-white'" x-text="v.severity || 'UNKNOWN'"></span></td>
+                      <td class="px-3 py-2 font-mono text-white/70" x-text="v.package_name + (v.installed_version ? '@' + v.installed_version : v.package_version ? '@' + v.package_version : '')"></td>
+                      <td class="px-3 py-2"><span class="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" :class="v.evidence_stage==='runtime_observed'?'bg-amber-400 text-black':'bg-white/10 text-white/70'" x-text="v.evidence_stage"></span></td>
+                      <td class="px-3 py-2 font-mono text-white/50" x-text="v.epss_score != null ? (v.epss_score * 100).toFixed(1) + '%' : '—'"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+              <div x-show="filteredVulnerabilities.length === 0" class="p-8 text-center text-white/40 text-[12px]">
+                No CVE findings matching the selected reachability stage.
+              </div>
+            </div>
+          </div>
+
           <p class="mt-4 text-center text-[11px] font-bold uppercase tracking-[0.12em] text-white/30">Exploit_status = not_established — exposure context ≠ proof of exploitability</p>
         </div>
       </div>
@@ -607,7 +1104,7 @@
     <section x-show="activeTab==='simulator'" x-transition.opacity.duration.500 class="py-12">
       <div class="text-center">
         <span class="rounded-full bg-red-500 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white">Real-time injections — 8 vectors</span>
-        <h3 class="mt-4 font-display text-[32px] font-bold tracking-tight leading-none">Trigger <span class="font-serif italic font-normal text-white/60">controlled</span> deviations.</h3>
+        <h3 class="mt-4 font-display text-[32px] font-bold tracking-tight leading-none">Attack Scenario Injection Lab</h3>
         <p class="mx-auto mt-3 max-w-[640px] text-[13px] leading-relaxed text-white/50">Disposable labeled containers • audited from generator through Falco to PostgreSQL • zero-loss reconciliation.</p>
       </div>
 
@@ -620,14 +1117,14 @@
           </div>
         </div>
         <div class="md:col-span-6 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
-          <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6 text-white flex flex-col justify-between h-full ring-1 ring-white/10">
+          <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6 text-white flex flex-col justify-between h-full">
             <div><div class="flex items-center gap-2"><span class="grid h-8 w-8 place-items-center rounded-full bg-amber-400 text-black"><i class="ph ph-download text-sm"></i></span><span class="font-display font-bold text-[15px] tracking-tight">Dual-Use Tool Dropper</span><span class="ml-auto rounded-full bg-amber-400 px-2 py-1 text-[10px] font-bold text-black">POR-DET-005</span></div><p class="mt-2 text-[12px] leading-relaxed text-white/50">Shell → <code class="rounded bg-white/10 px-1 py-0.5 font-mono text-[11px]">wget</code> within 120 s correlation window.</p><div class="mt-3 rounded-2xl bg-white/5 p-3 font-mono text-[11px] text-white/70 ring-1 ring-white/10">/bin/sh → /usr/bin/wget payload</div></div>
             <button :disabled="isExecutingAttack" @click="triggerAttackScenario({ id: 'shell_to_tool', name: 'Shell-to-Tool Sequence', rules: ['POR-DET-002', 'POR-DET-004', 'POR-DET-005'] })" class="btn-island mt-4 flex w-full items-center justify-between rounded-full bg-amber-400 px-2 py-2 pl-5 text-black transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.01] active:scale-[0.98] disabled:opacity-40"><span class="text-[13px] font-bold">Trigger Shell → Tool</span><span class="grid h-8 w-8 place-items-center rounded-full bg-black text-white"><i class="ph ph-arrow-right text-sm"></i></span></button>
           </div>
         </div>
 
         <div class="md:col-span-4 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
-          <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6 text-white flex flex-col h-full ring-1 ring-white/10">
+          <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6 text-white flex flex-col h-full">
             <div class="flex items-center gap-2"><span class="grid h-8 w-8 place-items-center rounded-full bg-white/10 ring-1 ring-white/10"><i class="ph ph-coins text-sm"></i></span><span class="font-semibold text-[13px] tracking-tight">Cryptominer</span></div>
             <p class="mt-2 text-[11px] leading-relaxed text-white/50">XMRig + EICAR signature.</p>
             <div class="mt-3 rounded-2xl bg-white/5 p-3 font-mono text-[10px] text-white/60 ring-1 ring-white/10 leading-relaxed">xmrig --version<br>cat eicar.com.txt</div>
@@ -643,7 +1140,7 @@
           </div>
         </div>
         <div class="md:col-span-4 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
-          <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6 text-white flex flex-col h-full ring-1 ring-white/10">
+          <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6 text-white flex flex-col h-full">
             <div class="flex items-center gap-2"><span class="grid h-8 w-8 place-items-center rounded-full bg-white/10 ring-1 ring-white/10"><i class="ph ph-radar text-sm"></i></span><span class="font-semibold text-[13px] tracking-tight">Network Scan</span></div>
             <p class="mt-2 text-[11px] leading-relaxed text-white/50">Nmap / nc discovery — POR-DET-004</p>
             <div class="mt-3 rounded-2xl bg-white/5 p-3 font-mono text-[10px] text-white/60 ring-1 ring-white/10">nc -z -w1 127.0.0.1 80 8080 3000</div>
@@ -660,7 +1157,7 @@
           </div>
         </div>
         <div class="md:col-span-6 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
-          <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6 text-white flex flex-col h-full ring-1 ring-white/10">
+          <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6 text-white flex flex-col h-full">
             <div class="flex items-center gap-2"><span class="grid h-8 w-8 place-items-center rounded-full bg-amber-400 text-black"><i class="ph ph-trash text-sm"></i></span><span class="font-display font-bold text-[14px] tracking-tight">Anti-Forensics — Log Clearing</span></div>
             <p class="mt-2 text-[12px] leading-relaxed text-white/50">Clears audit logs — shell redirection audit trail.</p>
             <div class="mt-3 rounded-2xl bg-white/5 p-3 font-mono text-[11px] text-white/60 ring-1 ring-white/10">echo "" &gt; /var/log/bootstrap.log</div>
@@ -673,7 +1170,7 @@
           <div class="inner-bezel flex flex-col md:flex-row items-center justify-between gap-6 rounded-[calc(2rem-0.375rem)] bg-white p-6 sm:p-7 text-black">
             <div>
               <span class="rounded-full bg-violet-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white">Ecosystem lab</span>
-              <h4 class="mt-3 font-display text-[20px] font-bold tracking-tight leading-none">OWASP Juice Shop <span class="font-serif italic font-normal text-black/50">— multi-tier Node.js</span></h4>
+              <h4 class="mt-3 font-display text-[20px] font-bold tracking-tight leading-none">OWASP Juice Shop <span class="font-mono text-[13px] font-normal text-black/60">— Multi-Tier Node.js</span></h4>
               <p class="mt-2 text-[12px] leading-relaxed text-black/50">Loaded with OWASP Top 10 (XSS, SQLi, RCE). Monitored live at <span class="rounded bg-black px-1.5 py-0.5 font-mono text-[11px] text-white">127.0.0.1:3001</span></p>
               <p class="mt-1 font-mono text-[11px] text-black/30">bkimminich/juice-shop:latest</p>
             </div>
@@ -687,19 +1184,22 @@
         <div class="md:col-span-7 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
           <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6">
             <div class="flex items-center justify-between">
-              <h4 class="font-display font-bold tracking-tight flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)] animate-pulse"></span> Live execution <span class="font-serif italic font-normal text-white/50">console</span></h4>
-              <span class="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-white/60 ring-1 ring-white/10">eBPF stream</span>
+              <h4 class="font-display font-bold tracking-tight flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)] animate-pulse"></span> Live Execution Console</h4>
             </div>
-            <div class="mt-4 h-[300px] overflow-auto rounded-2xl bg-black p-4 font-mono text-[11px] leading-relaxed ring-1 ring-white/10">
-              <template x-for="(log, idx) in terminalLogs" :key="idx">
-                <div class="flex gap-2 py-0.5"><span class="text-white/20" x-text="'[' + log.time + ']'"></span><span class="font-bold" :class="log.type==='error' ? 'text-red-400' : log.type==='success' ? 'text-emerald-400' : 'text-violet-300'" x-text="'[' + log.tag + ']'"></span><span class="text-white/70" x-text="'› ' + log.msg"></span></div>
+            <div class="mt-4 flex-1 rounded-2xl bg-black p-4 font-mono text-[12px] text-white/80 ring-1 ring-white/10 max-h-[340px] overflow-y-auto space-y-2">
+              <template x-for="log in terminalLogs" :key="log.time + log.msg">
+                <div class="flex items-start gap-2">
+                  <span class="text-white/40" x-text="log.time"></span>
+                  <span class="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase" :class="log.type==='error'?'bg-red-500/20 text-red-400':log.type==='success'?'bg-emerald-500/20 text-emerald-400':'bg-white/10 text-white/70'" x-text="log.tag"></span>
+                  <span class="flex-1 break-all" :class="log.type==='error'?'text-red-300':log.type==='success'?'text-emerald-300':''" x-text="log.msg"></span>
+                </div>
               </template>
             </div>
           </div>
         </div>
         <div class="md:col-span-5 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
-          <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-white p-6 text-black h-full">
-            <div class="flex items-center justify-between"><h4 class="font-display font-bold tracking-tight">Current <span class="font-serif italic font-normal text-black/50">vector</span></h4><span class="rounded-full bg-black px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white" x-text="currentScoreBand.toUpperCase()">baseline_like</span></div>
+          <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-white p-6 sm:p-7 text-black flex flex-col justify-between">
+            <div class="flex items-center justify-between"><h4 class="font-display font-bold tracking-tight">Current Behavioral Vector</h4><span class="rounded-full bg-black px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white" x-text="currentScoreBand.toUpperCase()">baseline_like</span></div>
             <div class="mt-4 space-y-2">
               <div class="flex items-center justify-between rounded-2xl bg-black/[0.04] px-4 py-3 ring-1 ring-black/5"><span class="text-[12px] font-semibold">Categorical — 50%</span><span class="font-display font-bold">0.50</span></div>
               <div class="flex items-center justify-between rounded-2xl bg-black/[0.04] px-4 py-3 ring-1 ring-black/5"><span class="text-[12px] font-semibold">Novelty — 30%</span><span class="font-display font-bold">0.30</span></div>
@@ -721,16 +1221,121 @@
     <div class="p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
       <div class="inner-bezel flex flex-col sm:flex-row items-center justify-between gap-4 rounded-[calc(2rem-0.375rem)] bg-white px-6 py-5 text-black">
         <div class="text-center sm:text-left">
-          <div class="font-display font-bold tracking-tight">PORYGON® <span class="font-serif italic font-normal text-black/50">— Tactical telemetry — REV 1.0</span></div>
+          <div class="font-display font-bold tracking-tight">PORYGON® <span class="font-mono text-black/60 text-[12px] font-normal tracking-normal">— Container Security Intelligence</span></div>
           <div class="text-[11px] font-medium uppercase tracking-[0.08em] text-black/40">com.porygon.protected=true — immune • © 2026 • Built for declassified blueprints</div>
         </div>
         <div class="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em]">
           <span class="rounded-full bg-black px-3 py-1.5 text-white">HAZARD — DETECTION ACTIVE</span>
-          <span class="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-black/5 px-3 py-1.5 ring-1 ring-black/5"><i class="ph ph-book text-sm"></i> Docs</span>
+          <button @click="showDocsModal = true" class="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-black/5 hover:bg-black hover:text-white px-3.5 py-1.5 ring-1 ring-black/10 transition-all duration-300 cursor-pointer" title="View Porygon Architecture Blueprint & Guide"><i class="ph ph-book text-sm"></i> Docs</button>
         </div>
       </div>
     </div>
   </footer>
+
+  <!-- Documentation Modal -->
+  <div x-show="showDocsModal" x-transition.opacity.duration.300 class="fixed inset-0 z-50 grid place-items-center bg-black/80 backdrop-blur-2xl p-4 sm:p-6" @click.self="showDocsModal=false" style="display: none;">
+    <div class="w-full max-w-3xl rounded-[2rem] bg-white p-2 text-black shadow-[0_32px_96px_rgba(0,0,0,0.6)]">
+      <div class="inner-bezel rounded-[calc(2rem-0.5rem)] bg-[#FDFBF7] p-6 sm:p-8 flex flex-col max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-4 border-b border-black/10">
+          <div>
+            <span class="rounded-full bg-black px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white">Architectural Blueprint</span>
+            <h3 class="mt-2 font-display text-[22px] font-bold tracking-tight">Porygon System Architecture</h3>
+          </div>
+          <button @click="showDocsModal=false" class="grid h-9 w-9 place-items-center rounded-full bg-black text-white hover:scale-105 transition-transform"><i class="ph ph-x text-sm"></i></button>
+        </div>
+
+        <!-- Nav tabs for docs -->
+        <div class="mt-6 flex flex-wrap gap-2">
+          <button @click="docsTab='mental_model'" class="rounded-full px-4 py-1.5 text-[12px] font-bold transition-colors" :class="docsTab==='mental_model'?'bg-black text-white':'bg-black/5 text-black hover:bg-black/10'">1. Mental Model</button>
+          <button @click="docsTab='ebpf'" class="rounded-full px-4 py-1.5 text-[12px] font-bold transition-colors" :class="docsTab==='ebpf'?'bg-black text-white':'bg-black/5 text-black hover:bg-black/10'">2. eBPF</button>
+          <button @click="docsTab='math'" class="rounded-full px-4 py-1.5 text-[12px] font-bold transition-colors" :class="docsTab==='math'?'bg-black text-white':'bg-black/5 text-black hover:bg-black/10'">3. Jensen-Shannon Math</button>
+          <button @click="docsTab='ladder'" class="rounded-full px-4 py-1.5 text-[12px] font-bold transition-colors" :class="docsTab==='ladder'?'bg-black text-white':'bg-black/5 text-black hover:bg-black/10'">4. Evidence Ladder</button>
+          <button @click="docsTab='vectors'" class="rounded-full px-4 py-1.5 text-[12px] font-bold transition-colors" :class="docsTab==='vectors'?'bg-black text-white':'bg-black/5 text-black hover:bg-black/10'">5. Attack Vectors</button>
+        </div>
+
+        <div class="mt-6 text-[14px] leading-relaxed text-black/80 space-y-4">
+          <div x-show="docsTab==='mental_model'">
+            <h4 class="font-display font-bold text-[17px] text-black">The Predictable Container Rule</h4>
+            <p>In cloud computing, software containers are supposed to be <strong>predictable and repetitive</strong>. A container running PostgreSQL executes query routines millions of times a day; it should never suddenly spawn an interactive shell (<code>/bin/sh</code>) or connect to an outbound IP to download payloads.</p>
+            <p class="text-[13px] text-black/60">Instead of relying on opaque, unpredictable AI guesses or noisy static CVE scanners, Porygon watches the Linux operating system directly, measures mathematically how far live behavior deviates from baseline, and produces auditable, deterministic incident evidence.</p>
+          </div>
+
+          <div x-show="docsTab==='ebpf'">
+            <h4 class="font-display font-bold text-[17px] text-black">eBPF & Kernel Syscall Ingestion</h4>
+            <p>Porygon attaches eBPF ring buffers directly to <code>sys_enter_execve</code> inside the Linux kernel. Every process spawned by any container is captured with zero userland binary modification.</p>
+            <div class="rounded-2xl bg-black p-4 font-mono text-[12px] text-emerald-300">
+              <div>Falco kernel eBPF probe → /var/log/porygon/falco-events.jsonl</div>
+              <div>Telemetry Adapter (spool outbox.db) → POST /internal/v1/process-events/batch</div>
+              <div>PostgreSQL 17 (process_exec_events) • 0% userland overhead</div>
+            </div>
+          </div>
+
+          <div x-show="docsTab==='math'">
+            <h4 class="font-display font-bold text-[17px] text-black">Information-Theoretic Jensen-Shannon Distance</h4>
+            <p>Porygon scores deviation between baseline distribution <code>P</code> and live distribution <code>Q</code> using the symmetric, finite base-2 Jensen-Shannon distance:</p>
+            <div class="rounded-2xl bg-black p-4 font-mono text-[12px] text-emerald-300">
+              <div>M = 0.5 × (P + Q)</div>
+              <div>D_JS(P || Q) = sqrt( 0.5 × D_KL(P || M) + 0.5 × D_KL(Q || M) )</div>
+              <div class="mt-2 text-white/50">Categorical (50%) + Novelty (30%) + Robust Z (20%) = D_JS ∈ [0.00, 1.00]</div>
+            </div>
+            <p class="text-[13px] text-black/60">Threshold <code>0.50</code> triggers POR-DET-001. Score <code>0.75+</code> triggers extreme deviation alert.</p>
+          </div>
+
+          <div x-show="docsTab==='ladder'">
+            <h4 class="font-display font-bold text-[17px] text-black">4-Stage Vulnerability Reachability Funnel</h4>
+            <p>Traditional scanners report thousands of CVEs on disk that are never loaded into memory. Porygon correlates image SBOMs with live eBPF process execution:</p>
+            <ul class="list-disc list-inside space-y-1.5 text-[13px]">
+              <li><strong>Stage 1 (package_present):</strong> Component exists inside image files on disk.</li>
+              <li><strong>Stage 2 (deployed):</strong> Container running image digest is active on host.</li>
+              <li><strong>Stage 3 (runtime_observed):</strong> eBPF observed the vulnerable binary executing in RAM.</li>
+              <li><strong>Stage 4 (port_published):</strong> Container has public listening port exposed to the network.</li>
+            </ul>
+          </div>
+
+          <div x-show="docsTab==='vectors'">
+            <h4 class="font-display font-bold text-[17px] text-black">The 7 Deterministic Detection Rules</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[12px]">
+              <div class="rounded-xl bg-black/5 p-3 ring-1 ring-black/5">
+                <span class="font-mono font-bold text-red-600">POR-DET-001</span>
+                <div class="font-semibold text-black mt-0.5">Statistical D_JS Drift</div>
+                <div class="text-black/60 text-[11px] mt-0.5">Divergence score exceeds 0.50 threshold against learned profile.</div>
+              </div>
+              <div class="rounded-xl bg-black/5 p-3 ring-1 ring-black/5">
+                <span class="font-mono font-bold text-red-600">POR-DET-002</span>
+                <div class="font-semibold text-black mt-0.5">Unseen Interactive Shell</div>
+                <div class="text-black/60 text-[11px] mt-0.5">Spawns /bin/sh, /bin/bash, or dash not in container baseline.</div>
+              </div>
+              <div class="rounded-xl bg-black/5 p-3 ring-1 ring-black/5">
+                <span class="font-mono font-bold text-red-600">POR-DET-003</span>
+                <div class="font-semibold text-black mt-0.5">Novel Root Execution</div>
+                <div class="text-black/60 text-[11px] mt-0.5">UID 0 process executes inside an unprivileged container.</div>
+              </div>
+              <div class="rounded-xl bg-black/5 p-3 ring-1 ring-black/5">
+                <span class="font-mono font-bold text-red-600">POR-DET-004</span>
+                <div class="font-semibold text-black mt-0.5">Network Discovery Probes</div>
+                <div class="text-black/60 text-[11px] mt-0.5">Invocation of network probing utilities (nc, nmap, netcat).</div>
+              </div>
+              <div class="rounded-xl bg-black/5 p-3 ring-1 ring-black/5">
+                <span class="font-mono font-bold text-red-600">POR-DET-005</span>
+                <div class="font-semibold text-black mt-0.5">Shell-to-Tool Sequence</div>
+                <div class="text-black/60 text-[11px] mt-0.5">Shell spawns downloader (wget, curl) within 120s window.</div>
+              </div>
+              <div class="rounded-xl bg-black/5 p-3 ring-1 ring-black/5">
+                <span class="font-mono font-bold text-red-600">POR-DET-006</span>
+                <div class="font-semibold text-black mt-0.5">Log Wiping / Anti-Forensics</div>
+                <div class="text-black/60 text-[11px] mt-0.5">Process clears /var/log or audit trails via redirection.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-8 pt-4 border-t border-black/10 flex items-center justify-between">
+          <span class="text-[11px] font-mono text-black/40">Research Protocol • PORYGON®</span>
+          <button @click="showDocsModal=false" class="rounded-full bg-black px-5 py-2 text-[12px] font-bold text-white hover:scale-105 transition-transform">Close Guide</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
     // Scroll reveal — IntersectionObserver (GPU safe, no scroll listener)

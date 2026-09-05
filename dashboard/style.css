@@ -1,0 +1,88 @@
+/* Vanguard — Ethereal Glass + Asymmetrical Bento — supplement to Tailwind CDN */
+:root{ --ease-vanguard: cubic-bezier(0.32,0.72,0,1); }
+*{ scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) #050505; }
+::-webkit-scrollbar{ width:6px; height:6px; }
+::-webkit-scrollbar-track{ background:#050505; }
+::-webkit-scrollbar-thumb{ background: rgba(255,255,255,0.14); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,0.24); }
+
+/* Haptic: prevent blur on scrolling content — blur only on fixed island */
+.grain{
+  position: fixed; inset:0; pointer-events:none;
+  opacity:0.03; z-index: 50;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Clean crisp rendering without AI-style blur */
+.reveal{
+  opacity: 1; transform: translateY(0);
+  transition: opacity 400ms var(--ease-vanguard), transform 400ms var(--ease-vanguard);
+}
+.reveal.in{ opacity: 1; transform: translateY(0); }
+
+/* Double-bezel helper — outer already via Tailwind p-1.5 rounded-[2rem] */
+.inner-bezel{
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.14), 0 8px 32px rgba(0,0,0,0.45);
+}
+.inner-bezel.bg-white{
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.85), 0 8px 32px rgba(0,0,0,0.25);
+}
+
+/* Fluid button press */
+.btn-island:active{ transform: scale(0.98); }
+
+/* Tab pill active */
+.tab-pill.active{
+  background: white; color: #050505;
+  box-shadow: 0 4px 20px rgba(255,255,255,0.18), inset 0 1px 1px rgba(255,255,255,0.6);
+}
+.tab-pill.active .tab-count{ background: rgba(0,0,0,0.08); color:#050505; }
+
+/* Toasts — floating glass */
+.toast-glass{
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  background: rgba(18,18,22,0.78);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.08);
+}
+
+/* Chart container — no backdrop-blur (blur reserved for fixed island only, per guardrail) */
+.chart-glass{
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Ensure will-change only on animating */
+.will-transform{ will-change: transform; }
+
+/* Process Pathway Network Graph — High-Precision Industrial Telemetry */
+@keyframes flowDash {
+  to { stroke-dashoffset: -24; }
+}
+.flow-line {
+  stroke-dasharray: 6 6;
+  animation: flowDash 1.4s linear infinite;
+}
+.flow-line-active {
+  stroke-dasharray: 4 4;
+  animation: flowDash 0.8s linear infinite;
+}
+.pathway-node {
+  transition: all 300ms cubic-bezier(0.32, 0.72, 0, 1);
+  cursor: pointer;
+}
+.pathway-node:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.7), inset 0 1px 1px rgba(255,255,255,0.22);
+}
+.pathway-node-dimmed {
+  opacity: 0.22;
+  filter: grayscale(85%);
+  pointer-events: auto;
+}
+.pathway-grid {
+  background-size: 24px 24px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
