@@ -218,6 +218,7 @@ def pull_pinned_image(reference: str) -> dict[str, Any]:
             json.dumps(inspection.get("Config") or {}, sort_keys=True).encode("utf-8")
         ),
     }
+    return result
 
 
 def _platform_manifest_digest(reference: str) -> dict[str, str]:
@@ -490,7 +491,7 @@ def run_scenario(
         if plan["delay_seconds"]:
             time.sleep(plan["delay_seconds"])
     finished_utc, finished_ns = now_utc(), time.monotonic_ns()
-    return {
+    result: dict[str, Any] = {
         "schema_version": "porygon.experiment.ground-truth.v1",
         "run_id": run_id,
         "trial_id": trial_id,
@@ -798,7 +799,7 @@ def build_matrix(
                         f"{scenario_id} has no runtime action; it is evaluated at analysis time "
                         "from trials that were already collected"
                     )
-                if scenario_id not in RUNTIME_SCENARIOS:
+                if scenario_id not in RUNTIME_SCENARIOS and scenario_id not in ATTACK_LIKE_SCENARIOS:
                     raise PilotError(f"{scenario_id} is not a frozen scenario")
                 for variant in variants:
                     if variant not in CONTEXT_VARIANTS:
