@@ -28,3 +28,8 @@ artifacts/experiments/local/
 
 .DS_Store
 
+
+# Agent tooling checked out locally, not part of the project source.
+.agents/
+.codex/
+.claude/skills/
