@@ -12,9 +12,19 @@ The repository had no commit when these plans were written. The source snapshot 
 | 002 | Make capture saturation, readiness, and dead letters trustworthy | P1 | M | 001 | DONE |
 | 003 | Freeze the research protocol and profile-identity experiment | P1 | M | 001, 002 | IN PROGRESS — HUMAN REVIEW PENDING |
 | 004 | Replace weighted pseudo-scores with calibrated rarity and explicit evidence semantics | P1 | L | 003 | IN PROGRESS — EXPLORATORY IMPLEMENTATION |
-| 005 | Build the Phase 9 experiment and performance-evidence harness | P1 | L | 002, 003, 004 | TODO |
+| 005 | Build the Phase 9 experiment and performance-evidence harness | P1 | L | 002, 003, 004 | IN PROGRESS — REAL-CONTAINER PILOT RUNNER |
 
 Status values: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED: <reason>`, `REJECTED: <reason>`.
+
+Plan 005 progress (2026-09-05): the runner now pulls the six frozen workload
+coordinates by immutable digest, builds isolated labelled containers, computes
+the runtime-context fingerprint specified in `PROFILE_SCOPE_EXPERIMENT_V1.md`,
+drives deterministic seeded load, executes the safe scenarios as
+sequence-numbered canaries, and reconciles them across every observable
+boundary. Detector arms, ablations, load regimes, resource sampling, and paper
+tables are **not** implemented, and confirmatory collection stays refused while
+Plan 003 awaits its two human reviews. See
+[`docs/execution-status.md`](../docs/execution-status.md) for the module matrix.
 
 ## Why this order
 
