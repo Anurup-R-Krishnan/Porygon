@@ -1,14 +1,17 @@
-# Porygon Final Development Phases
+# Porygon Development Roadmap
 
 This roadmap replaces the conflicting earlier versions. Porygon is a Docker-first runtime-behaviour research system. Kubernetes and vulnerability-to-runtime correlation are extensions, not prerequisites for the core paper.
 
-## Phase 0: Research and Scope Freeze
+## Research Protocol and Scope Freeze — Frozen
 
 **Goal:** define exactly what is being claimed and measured.
 
-The version 1 protocol package is structurally complete and awaiting the two
-required human approvals. Confirmatory collection is prohibited until its
-status changes from `review_pending` to `frozen`:
+The version 1 protocol package is frozen. Both required human approvals are
+recorded (`docs/review/security-review.json`, `docs/review/methodology-review.json`,
+both `decision: approved`), and `scripts/review_gate.py apply` has set
+`RESEARCH_PROTOCOL_V1.md`'s status from `review_pending` to `FROZEN`.
+Confirmatory collection is permitted (`experiments/study.py` reports
+`evidence_class: confirmatory`, `research_eligible: true`).
 
 - [`RESEARCH_PROTOCOL_V1.md`](RESEARCH_PROTOCOL_V1.md)
 - [`THREAT_MODEL_V1.md`](THREAT_MODEL_V1.md)
@@ -24,11 +27,13 @@ Deliverables:
 - Benign and malicious experiment catalogue
 - Metrics: precision, recall, false-positive rate, detection latency, ingestion loss, CPU, memory, and application overhead
 
-Exit condition: every research question maps to a repeatable experiment and a
-measurable output, the structural validator passes, and one human security
-reviewer plus one human methodology reviewer approve the freeze.
+Exit condition (met): every research question maps to a repeatable experiment
+and a measurable output, the structural validator passes, and one human
+security reviewer plus one human methodology reviewer approved the freeze.
+This was a single-reviewer self-review for both roles, not independent peer
+review — stated plainly rather than implied otherwise.
 
-## Phase 1: Reproducible Platform Foundation ✅ Implemented
+## Reproducible Platform Foundation — Implemented
 
 **Goal:** establish a secure, containerized control plane before granting any service Docker-daemon access.
 
@@ -42,7 +47,7 @@ Components:
 
 Exit condition: `./scripts/verify_phase1.sh` passes.
 
-## Phase 2: Docker Identity and Runtime Event Ingestion ✅ Implemented
+## Docker Identity and Runtime Event Ingestion — Implemented
 
 **Goal:** collect trustworthy Docker lifecycle and exec events and bind them to immutable image identity.
 
@@ -55,9 +60,9 @@ Work:
 - Add bounded retries and a local spool for backend outages
 - Treat Docker socket access as privileged and isolate it to the collector
 
-Exit condition: controlled create/start/exec/stop/network actions produce exactly-once stored normalized events with the correct image digest.
+Exit condition: `./scripts/verify_phase2.sh` — controlled create/start/exec/stop/network actions produce exactly-once stored normalized events with the correct image digest.
 
-## Phase 3: eBPF Process-Execution Telemetry ✅ Implemented
+## eBPF Process-Execution Telemetry — Implemented
 
 **Goal:** observe container process executions that Docker lifecycle events cannot reveal.
 
@@ -66,15 +71,15 @@ Implemented:
 - Falco modern-eBPF sensor for container `execve` and `execveat` events
 - Process PID, PPID, virtual PID, executable, command line, working directory, terminal, user, and group context
 - Falco-reported parent context and evidence-backed `parent_event_id` linkage
-- Short-container-ID resolution against Phase 2 identities
+- Short-container-ID resolution against Docker-identity records
 - Full container ID, image ID, image reference, and repository-digest enrichment
 - Persistent Falco JSON event file, durable telemetry cursor, SQLite outbox, retries, dead letters, and idempotent PostgreSQL ingestion
 
-Not included in this phase: file-access telemetry, network-connection telemetry, anomaly scoring, or attack classification.
+Not included here: file-access telemetry, network-connection telemetry, anomaly scoring, or attack classification.
 
 Exit condition: `./scripts/verify_phase3.sh` captures a controlled process tree with correct PID/PPID linkage, full container identity, immutable digest, outage replay, and no duplicates.
 
-## Phase 4: Digest-Bound Behavioural Profiles ✅ Implemented
+## Digest-Bound Behavioural Profiles — Implemented
 
 **Goal:** generate versioned normal-behaviour profiles separately for each immutable repository digest.
 
@@ -90,11 +95,11 @@ Implemented:
 - Quality-gated activation and one active profile per digest
 - Rejection of identical rebuilds and retired-profile reactivation
 
-File, DNS, socket, and privilege-transition features are not claimed because the current Phase 3 sensor path only ingests process execution. The feature schema can be versioned when those evidence sources are implemented.
+File, DNS, socket, and privilege-transition features are not claimed because the current sensor path only ingests process execution. The feature schema can be versioned when those evidence sources are implemented.
 
 Exit condition: `./scripts/verify_phase4.sh` proves deterministic profile generation, quality gating, duplicate rejection, version activation, retirement, and one-active-profile enforcement.
 
-## Phase 5: Behavioural Distance and Anomaly Scoring ✅ Implemented
+## Behavioural Distance and Anomaly Scoring — Implemented
 
 **Goal:** calculate an explainable deviation score instead of presenting a black-box verdict.
 
@@ -112,17 +117,17 @@ Implemented:
 - Deterministic observation keys and idempotent exact rescoring
 - Provisional score bands that are explicitly not validated attack thresholds
 
-Optional algorithms such as Isolation Forest, One-Class SVM, and Local Outlier Factor are reserved for Phase 9 comparison. They are not part of the primary v1 scoring path.
+Optional algorithms such as Isolation Forest, One-Class SVM, and Local Outlier Factor are reserved for detector-comparison evaluation. They are not part of the primary v1 scoring path.
 
 Exit condition: `./scripts/verify_phase5.sh` proves insufficient-data handling, bounded explainable scoring, stronger deviation for a controlled novel workload, exact-retry idempotency, and training/evaluation separation.
 
-## Phase 6: Detection, Correlation, and Explainable Incidents ✅ Implemented
+## Detection, Correlation, and Explainable Incidents — Implemented
 
 **Goal:** turn one scored observation window and deterministic evidence rules into a reproducible detection run and, where justified, one auditable incident.
 
 Implemented:
 
-- Versioned, hashed deterministic rule set
+- Versioned, hashed deterministic rule set (`POR-DET-001`..`007`)
 - High behavioural distance retained as informational context rather than standalone incident proof
 - Unseen shell, novel UID 0 process, unseen dual-use tool, Docker exec, and privileged-container rules
 - Same-container shell-to-tool correlation within a fixed 120-second window
@@ -135,11 +140,11 @@ Implemented:
 - Terminal-state transition protection
 - Idempotent detection reruns
 
-Current sensor evidence is process execution plus Docker lifecycle events. File, DNS, and outbound socket correlation are not claimed.
+Current sensor evidence is process execution plus Docker lifecycle events. File, DNS, and outbound socket correlation are not claimed — this is the concrete blind spot behind, e.g., an attacker using an already-known tool (`curl`) against a new destination.
 
 Exit condition: `./scripts/verify_phase6.sh` proves insufficient-data handling, baseline-like non-incidents, controlled process-based incident creation, exact digest-scoped suppression, idempotency, evidence ordering, and incident lifecycle enforcement.
 
-## Phase 7: Human-Approved Response Recommendations ✅ Implemented
+## Human-Approved Response Recommendations — Implemented
 
 **Goal:** recommend and execute proportionate actions without granting an automated detector unrestricted Docker control.
 
@@ -162,11 +167,11 @@ Implemented:
 - Chronological response audit events
 - No automatic deletion, command execution, or arbitrary Docker operation
 
-Network disconnection is not implemented because the current evidence pipeline does not yet collect enough network telemetry to recommend it defensibly.
+Network disconnection is not implemented because the current evidence pipeline does not yet collect enough network telemetry to recommend it defensibly. Auto-execution without human approval remains deliberately out of scope; see [`CLAIMS_V1.md`](CLAIMS_V1.md) for the reasoning.
 
 Exit condition: `./scripts/verify_phase7.sh` proves credential separation, no action before approval, exact-target pause, idempotent approval, verified rollback, and complete audit evidence.
 
-## Phase 8: Digest-Bound SBOM and Vulnerability Enrichment ✅ Implemented
+## Digest-Bound SBOM and Vulnerability Enrichment — Implemented
 
 **Goal:** add current static-image and prioritization context without claiming that package presence proves exploitation.
 
@@ -184,7 +189,7 @@ Implemented:
 - Latest mutable intelligence lookup per CVE
 - Runtime/deployment context using container snapshots, process evidence, and port publication
 - Four explicit stages: `package_present`, `deployed`, `runtime_observed`, and `runtime_observed_and_port_published`
-- `exploit_status = not_established` for every Phase 8 finding
+- `exploit_status = not_established` for every finding
 - Idempotent scan identity, active queue-lease renewal, and explicit experiment references
 - Finding/SBOM size limits and partial-intelligence handling
 
@@ -198,25 +203,44 @@ Not implemented or claimed:
 
 Exit condition: `./scripts/verify_phase8.sh` proves exact digest/image binding, scan idempotency, CycloneDX persistence, immutable enrichment snapshots, and the exploitation claim boundary on a real Docker host.
 
-## Phase 9: Experimental Evaluation and Paper — In progress
+## Experimental Evaluation and Paper — In progress
 
 **Goal:** produce defensible results.
 
-Two runners exist, and they produce different classes of evidence. The
-dependency-free artifact/replay smoke harness validates provenance and loss
-reconciliation on a synthetic fixture; it is not research data. The
-real-container pilot runner pulls the six frozen workload coordinates by
-immutable digest, computes the runtime-context fingerprint, drives deterministic
-seeded load, executes the safe scenarios as sequence-numbered canaries, and
-reconciles them from the generator through Falco to PostgreSQL. Both are
-recorded as `research_eligible: false`.
+Real progress: `docs/CONFIRMATORY_RESULT_V1.md` records the first genuinely
+confirmatory result (`study-20260905t181654Z`, 144 real trials,
+`evidence_class: confirmatory`): `ARM-CONTEXT` vs `ARM-GLOBAL` shows a 100%
+relative FPR reduction (35/35 → 0/35 false positives), exact McNemar
+p = 5.8×10⁻¹¹ (Holm-adjusted), recall non-inferior at 100% under both arms.
+`experiments/analysis.py` (exact McNemar, Holm correction, Clopper-Pearson
+intervals, stratified bootstrap, `decide_primary_contrast`) and
+`experiments/scope.py` (the GLOBAL/TAG/DIGEST/CONTEXT comparison itself,
+reusing the production Jensen-Shannon scorer) did not exist before this was
+built; neither did a working attack-scenario path (`SCN-LOG4SHELL-SIM`,
+`SCN-RUNC-ESCAPE-SIM` were dead code until fixed).
 
-Confirmatory collection remains gated on the two human protocol approvals, and
-the runner refuses to start it while the protocol is review-pending. Detector
-comparison arms, the six ablations, load regimes, outage/recovery timing,
-resource sampling, and every paper table are still unimplemented. See
-[`EXPERIMENT_ACCEPTANCE.md`](EXPERIMENT_ACCEPTANCE.md) and
-[`EXPERIMENT_REPRODUCIBILITY.md`](EXPERIMENT_REPRODUCIBILITY.md).
+Still open:
+
+- Sample size (n=35 benign / n=62 scenario) is well below the frozen
+  full-matrix target (200 trials). `experiments/sample_size.py` implements
+  `ART-DES-001`'s exact-binomial power lock for the *next* confirmatory round,
+  and found the protocol's own frozen recall-margin target (5 percentage
+  points at 95% reference recall, 80% power, ≤120 runs/cell) is infeasible as
+  written — needs a protocol revision before it can be used.
+- `ARM-TAG` vs `ARM-DIGEST` remain indistinguishable: a real mutable-tag-drift
+  test (`experiments/tag_drift.py`) found nginx 1.26.3→1.28.0 produces
+  identical process-name shape (JS-distance 0.0); a drift scenario that
+  changes deeper behaviour has not yet been tested.
+- Detector comparison arms (`DET-RULES`/`DET-NOVELTY`/`DET-FREQUENCY`/
+  `DET-SEQUENCE`/`DET-CALIBRATED`/`DET-HYBRID`), the six ablations, load
+  regimes, outage/recovery timing, and resource sampling are still
+  unimplemented.
+- Two files this section previously linked
+  (`EXPERIMENT_ACCEPTANCE.md`, `EXPERIMENT_REPRODUCIBILITY.md`) do not exist
+  in this repository; the links have been removed rather than left broken.
+  Reproduction steps live in `docs/CONFIRMATORY_RESULT_V1.md` and
+  `experiments/study.py`'s own docstrings until a dedicated document is
+  written.
 
 Evaluation:
 
@@ -230,7 +254,7 @@ Evaluation:
 
 Exit condition: all paper tables and graphs are generated from versioned experiment artifacts; no fabricated results or claims.
 
-## Phase 10: Dashboard, Packaging, and Optional Extensions
+## Dashboard, Packaging, and Optional Extensions
 
 **Goal:** make the system demonstrable and reproducible.
 
