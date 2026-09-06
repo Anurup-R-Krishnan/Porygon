@@ -119,6 +119,84 @@ at 216 trials), and got statistically stronger, not weaker, the second
 time.
 \end{frame}
 
+% --- NOVELTY / UNIQUENESS ---
+\section{Novelty}
+\begin{frame}{Novelty and Positioning Against Prior Work}
+\framesubtitle{What is actually new here, stated precisely}
+\scriptsize
+
+\textbf{What is not new:} eBPF-based container process monitoring
+and Jensen--Shannon divergence as a distance measure (Lin 1991; Salem \&
+Na\"it-Abdesselam, ICC 2012, network traffic) both predate this project.
+
+\medskip
+\textbf{What is new:} no located tool or published study -- commercial
+(Falco, Sysdig, Aqua) or academic (Forrest 1996 through 2025--2026) --
+measures which of four concrete baseline-scoping granularities (pooled /
+mutable-tag / exact-digest / digest-plus-configuration) actually reduces
+false alarms, using controlled trials and significance testing rather
+than a single accuracy figure. This project runs that comparison and
+reports both a significant result and a null result from one protocol.
+
+\medskip
+\textbf{Closest prior work, checked directly:}
+\begin{itemize}
+    \setlength{\itemsep}{1pt}
+    \item Abed, Clancy \& Levy (GLOBECOM Workshops, 2015) -- closest match:
+    container-level, kernel-observed, no-prior-knowledge detection. Uses
+    bag-of-syscalls, not JS-distance; no scoping comparison.
+    \item Lin et al., ``eBPF-Guard'' (\emph{Empirical Software Engineering},
+    Dec 2025) -- same sensor layer, scores via a fine-tuned LLM; single
+    99.22\% accuracy figure, no scoping comparison.
+    \item Li/Yuan/Wu/Cheng (2025) and Xiong/Wu/Jia, ``DeepContainer''
+    (2025) -- neural container anomaly detectors, single point-estimate
+    accuracy (96.8--99\%), no confidence interval or significance test.
+\end{itemize}
+All independently verified (DOI resolution or direct publisher fetch);
+full list in \texttt{docs/RELATED\_WORK\_RECENT.md}.
+\end{frame}
+
+% --- ARCHITECTURE ---
+\begin{frame}{System Architecture}
+\framesubtitle{Eight containerized services, three network segments}
+\begin{columns}[T,onlytextwidth]
+\column{0.56\textwidth}
+\scriptsize
+\begin{itemize}
+    \setlength{\itemsep}{2pt}
+    \item \textbf{falco} -- eBPF driver; captures \texttt{execve} and
+    lifecycle events at the kernel boundary.
+    \item \textbf{collector} -- reads Docker daemon events; SQLite
+    outbox with retry delivery.
+    \item \textbf{telemetry} -- ingests Falco process-execution events,
+    same outbox pattern.
+    \item \textbf{backend} -- baseline construction, JSD scoring,
+    seven-rule detection engine, response-policy logic.
+    \item \textbf{scanner} -- Trivy CycloneDX SBOM generation, EPSS and
+    CISA KEV enrichment.
+    \item \textbf{responder} -- executes approved containment actions
+    only after explicit human approval.
+    \item \textbf{gateway} -- single ingress point for API and dashboard.
+    \item \textbf{postgres} -- durable store for events, baselines,
+    scores, findings, incidents, scan results.
+\end{itemize}
+\column{0.42\textwidth}
+\scriptsize
+\textbf{Network segregation (\texttt{compose.yaml}):}
+\begin{itemize}
+    \setlength{\itemsep}{2pt}
+    \item \texttt{porygon\_ingress} -- external-facing traffic only
+    (gateway).
+    \item \texttt{porygon\_internal} -- inter-service communication.
+    \item \texttt{porygon\_egress} -- outbound-only, granted exclusively
+    to the scanner.
+\end{itemize}
+\medskip
+A service outside a segment has no network path to it; the scanner is
+the only service with outbound internet reachability.
+\end{columns}
+\end{frame}
+
 % --- SLIDE 1: METHODOLOGY & SOLUTION DESIGN (Rubric: 5 Marks) ---
 \section{Methodology \& Solution Design}
 
@@ -369,6 +447,84 @@ time.
     flagged as previously unseen. Full record: \texttt{docs/LIVE\_DEMO\_RECORD\_V1.md}.
 \end{frame}
 
+% --- LIVE TEST RESULTS AND COMPARISON ---
+\begin{frame}{Live Test Results and Comparison}
+\framesubtitle{Confirmatory statistical run (216 trials) alongside the live malware demonstration}
+\scriptsize
+\begin{table}
+    \centering
+    \scriptsize
+    \renewcommand{\arraystretch}{1.1}
+    \begin{tabular}{|l|c|c|}
+        \hline
+        \textbf{Baseline arm} & \textbf{FPR (benign, n=53)} & \textbf{Recall (attacks, n=96)} \\
+        \hline
+        ARM-GLOBAL (pooled, one baseline for all) & 100\% [93.3--100\%] & 100\% \\
+        \hline
+        ARM-TAG (per mutable image tag) & 0\% [0--6.7\%] & 100\% \\
+        \hline
+        ARM-DIGEST (per exact image digest) & 0\% [0--6.7\%] & 100\% \\
+        \hline
+        ARM-CONTEXT (digest + runtime config) & 0\% [0--6.7\%] & 100\% \\
+        \hline
+    \end{tabular}
+\end{table}
+\vspace{-2mm}
+CONTEXT vs.\ GLOBAL: $p=6.7\times10^{-16}$ (significant). CONTEXT vs.\
+DIGEST, the harder comparison this project's thesis rests on: $p=1.0$
+(null, arms agree on all 53 held-out trials -- reported as-is).
+
+\medskip
+\textbf{Independent live test (not part of the 216-trial protocol):} a
+real XMRig cryptominer binary, from a published malware-testing container
+image, executed against a Porygon baseline built from 243 genuinely
+captured Falco events, scorer given no prior knowledge of the binary.
+\begin{itemize}
+    \setlength{\itemsep}{1pt}
+    \item Anomaly scorer: flagged, score 0.2696 (\texttt{elevated} band,
+    threshold 0.25) -- correct detection with zero prior signature.
+    \item Deterministic rule POR-DET-004: did \emph{not} fire --
+    \texttt{xmrig} is absent from its hardcoded dual-use-tool list, a
+    real, disclosed gap.
+\end{itemize}
+Full record: \texttt{docs/LIVE\_DEMO\_RECORD\_V1.md}.
+\end{frame}
+
+% --- DETECTION RULES DETAIL ---
+\begin{frame}{Deterministic Detection Rules (\texttt{detection.py})}
+\framesubtitle{Seven fixed rules producing explainable findings}
+\centering
+\tiny
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{|l|p{7.8cm}|c|c|c|}
+    \hline
+    \textbf{Rule} & \textbf{Trigger condition} & \textbf{Sev.} & \textbf{Conf.} & \textbf{Inc.} \\
+    \hline
+    POR-DET-001 & Completed window scores $\geq 0.50$ behavioural distance & 0.65 & 0.70 & No \\
+    \hline
+    POR-DET-002 & Shell executable absent from the digest baseline executed & 0.72 & 0.90 & Yes \\
+    \hline
+    POR-DET-003 & UID 0 process executed with UID 0 absent from baseline & 0.78 & 0.90 & Yes \\
+    \hline
+    POR-DET-004 & Downloader/network/interpreter/encoding tool absent from baseline & 0.64 & 0.80 & Yes \\
+    \hline
+    POR-DET-005 & Unseen shell followed by unseen dual-use tool, same window & 0.90 & 0.95 & Yes \\
+    \hline
+    POR-DET-006 & Docker exec activity during the observation window & 0.35 & 0.95 & No \\
+    \hline
+    POR-DET-007 & Container reported privileged mode during the window & 0.92 & 0.95 & Yes \\
+    \hline
+\end{tabular}
+\par
+\vspace{2mm}
+\raggedright
+\scriptsize
+An incident requires at least one \emph{incident-eligible} finding;
+POR-DET-001 and POR-DET-006 alone never open an incident, they only
+contribute evidence. Severity/confidence weights are fixed constants in
+source, not tuned per deployment.
+\end{frame}
+
 
 % --- SLIDE 3: TECHNICAL KNOWLEDGE & DESIGN CHOICES (Rubric: 5 Marks) ---
 \section{Technical Knowledge}
@@ -452,6 +608,109 @@ time.
             \item Follow-on feature scoring the security-configuration document directly separates every tested case cleanly: 0/26 false positives, 27/27 correct detections.
         \end{itemize}
     \end{itemize}
+\end{frame}
+
+% --- ADVERSARIAL SCENARIOS / THREAT MODEL ---
+\begin{frame}{Adversarial Scenario Analysis}
+\framesubtitle{18 scenarios classified against the actual implementation, not asserted}
+\scriptsize
+\begin{itemize}
+    \setlength{\itemsep}{3pt}
+    \item \textbf{Structurally invisible (6 of 18):} attacks reusing an
+    already-baselined process, adding no new \texttt{execve} event -- C2
+    domain repoint, exfiltration over an existing channel, file-only
+    webshell, DNS tunnelling, fileless execution, payload inside an
+    already-baselined HTTPS request. No syscall-argument or network
+    telemetry exists in v1; explicitly out of scope in
+    \texttt{THREAT\_MODEL\_V1.md}, not a hidden gap.
+
+    \item \textbf{Depends on process-identity granularity (4 of 18):}
+    in-place binary replacement keeping the same path/name is likely
+    invisible (identity tracked by name/path, not content hash); SUID
+    privilege escalation to UID 0 \emph{is} caught (POR-DET-003).
+
+    \item \textbf{Untested failure modes (3 of 18):} baseline poisoning
+    during the fit window (defended by design, but the human-review step
+    itself never exercised); low-and-slow attacks beyond the 120s
+    correlation window; process-sequence-bigram mimicry. All three named
+    directly in the project's own threat model.
+
+    \item \textbf{Where the design genuinely helps (5 of 18):} backdoored
+    entrypoint script (POR-DET-002); manual \texttt{docker exec}
+    (POR-DET-006); flip to \texttt{--privileged} (POR-DET-007);
+    mutable-tag digest substitution (digest scoping only); classic
+    \texttt{curl | bash} dropper pattern (POR-DET-005, confidence 0.95).
+\end{itemize}
+Full scenario-by-scenario table: \texttt{docs/ADVERSARIAL\_SCENARIOS\_V1.md}.
+\end{frame}
+
+% --- VERIFICATION AND TESTING RIGOR ---
+\begin{frame}{Verification and Testing Rigor}
+\framesubtitle{How correctness of the claimed results is actually checked}
+\scriptsize
+\begin{itemize}
+    \setlength{\itemsep}{3pt}
+    \item \textbf{Layered verification (\texttt{scripts/verify\_all.sh}):}
+    \texttt{static} (lint/type checks), \texttt{unit} (210 backend and
+    service test functions), \texttt{live-safe} (non-disruptive real
+    Docker container checks), \texttt{scanner-live}/\texttt{experiment-live}
+    (pinned-digest real-container acceptance tests) -- separate
+    \texttt{make} targets, none mocked end-to-end.
+
+    \item \textbf{Frozen protocol before results:} the statistical
+    protocol (\texttt{porygon.research.protocol.v1}) was written and
+    reviewed \emph{before} the confirmatory run, with a pre-registered
+    sample size, primary contrast, and material-effect threshold, marked
+    \texttt{FROZEN} -- cannot be edited post hoc to fit a result.
+
+    \item \textbf{Six real bugs found and fixed} to obtain the first
+    confirmatory result: a wrong API field name silently blocking all
+    detections, dead code blocking attack scenarios, a fit-reference
+    contamination bug, and an infinite-recursion bug in the
+    Clopper--Pearson confidence-interval code itself. Commit range in
+    \texttt{CONFIRMATORY\_RESULT\_V1.md}.
+
+    \item \textbf{Reproducibility:} every reported number has a named
+    artifact path and a documented reproduce command.
+
+    \item \textbf{Disclosed limitation:} single-reviewer self-review, not
+    independent third-party peer review -- stated plainly.
+\end{itemize}
+\end{frame}
+
+% --- TEAM CONTRIBUTION AND PROJECT STATUS ---
+\begin{frame}{Team Contribution and Project Status}
+\framesubtitle{Phase 2 deliverables against the original scope}
+\scriptsize
+\begin{table}
+    \centering
+    \scriptsize
+    \renewcommand{\arraystretch}{1.05}
+    \begin{tabular}{|p{4.7cm}|p{6.3cm}|}
+        \hline
+        \textbf{Deliverable} & \textbf{State at this review} \\
+        \hline
+        eBPF/Falco telemetry pipeline & Functional, integrated, durable outbox delivery \\
+        \hline
+        Baseline + JSD scoring engine & Functional, versioned configuration \\
+        \hline
+        7-rule deterministic detection & Functional, POR-DET-001--007 \\
+        \hline
+        Vulnerability/SBOM enrichment & Functional, Trivy + EPSS + CISA KEV \\
+        \hline
+        Response policy engine & Functional, human-approval gated \\
+        \hline
+        4-arm scoping confirmatory study & Complete, 216 trials, two reproduced results \\
+        \hline
+        Live real-malware demonstration & Complete, XMRig, documented including the miss \\
+        \hline
+        Independent literature verification & Complete, 10 papers checked by DOI/API/direct fetch \\
+        \hline
+    \end{tabular}
+\end{table}
+All eight modules are integrated into one running Docker Compose stack
+(\texttt{make up}) and independently exercised through
+\texttt{scripts/verify\_all.sh}, not demonstrated in isolation.
 \end{frame}
 
 % --- SLIDE 4: TECHNICAL ENRICHMENT ACTIVITY CHOICES ---
