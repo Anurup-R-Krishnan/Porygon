@@ -99,11 +99,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 "success": proc.returncode == 0,
                 "command": "sh -c 'id; echo porygon_canary_shell'",
                 "detected_process": "/bin/sh",
-                "simulated_score": 0.82,
                 "output": proc.stdout.strip(),
-                "contributors": [{"token": "/bin/sh", "weight": 0.74}],
-                "unseen_tokens": ["/bin/sh", "id"],
-                "rules": ["POR-DET-001", "POR-DET-002"],
             }
         elif scenario_id == "shell_to_tool":
             cmd = ["docker", "run", "--rm", "alpine:3.20", "sh", "-c", "sh -c 'wget -q -O- https://example.com || true'"]
@@ -112,11 +108,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 "success": True,
                 "command": "sh -> /usr/bin/wget https://example.com",
                 "detected_process": "/usr/bin/wget",
-                "simulated_score": 0.91,
                 "output": "Shell spawned wget downloader in correlation window (POR-DET-005)",
-                "contributors": [{"token": "/usr/bin/wget", "weight": 0.88}],
-                "unseen_tokens": ["/bin/sh", "/usr/bin/wget"],
-                "rules": ["POR-DET-002", "POR-DET-004", "POR-DET-005"],
             }
         elif scenario_id == "cryptominer":
             cmd = [
@@ -128,11 +120,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 "success": proc.returncode == 0,
                 "command": "xmrig --version && cat eicar.com.txt",
                 "detected_process": "/usr/share/nginx/html/xmrig/xmrig",
-                "simulated_score": 0.96,
                 "output": proc.stdout.strip(),
-                "contributors": [{"token": "xmrig", "weight": 0.94}],
-                "unseen_tokens": ["xmrig", "cat", "eicar"],
-                "rules": ["POR-DET-001", "POR-DET-004"],
             }
         elif scenario_id == "network_scan":
             cmd = ["docker", "run", "--rm", "alpine:3.20", "sh", "-c", "nc -z -w1 127.0.0.1 80 8080 3000 || true; echo 'network_discovery_probes_dispatched'"]
@@ -141,11 +129,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 "success": True,
                 "command": "nc -z -w1 127.0.0.1 80 8080 3000 (Network Port Discovery)",
                 "detected_process": "nc (netcat)",
-                "simulated_score": 0.86,
                 "output": proc.stdout.strip(),
-                "contributors": [{"token": "nc", "weight": 0.82}],
-                "unseen_tokens": ["nc"],
-                "rules": ["POR-DET-001", "POR-DET-004"],
             }
         elif scenario_id == "file_evasion":
             cmd = ["docker", "run", "--rm", "alpine:3.20", "sh", "-c", "touch /tmp/malicious.sh && chmod +x /tmp/malicious.sh && echo 'file_integrity_test_complete'"]
@@ -154,11 +138,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 "success": proc.returncode == 0,
                 "command": "touch /tmp/malicious.sh && chmod +x /tmp/malicious.sh",
                 "detected_process": "chmod (+x executable creation)",
-                "simulated_score": 0.79,
                 "output": proc.stdout.strip(),
-                "contributors": [{"token": "chmod", "weight": 0.71}],
-                "unseen_tokens": ["touch", "chmod", "/tmp/malicious.sh"],
-                "rules": ["POR-DET-001", "POR-DET-002"],
             }
         elif scenario_id == "defense_evasion":
             cmd = ["docker", "run", "--rm", "alpine:3.20", "sh", "-c", "mkdir -p /var/log && touch /var/log/bootstrap.log && echo '' > /var/log/bootstrap.log && echo 'log_cleared'"]
@@ -167,11 +147,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 "success": proc.returncode == 0,
                 "command": "echo '' > /var/log/bootstrap.log (Log Wiping Evasion)",
                 "detected_process": "sh (anti-forensics redirection)",
-                "simulated_score": 0.76,
                 "output": proc.stdout.strip(),
-                "contributors": [{"token": "/bin/sh", "weight": 0.69}],
-                "unseen_tokens": ["/var/log/bootstrap.log"],
-                "rules": ["POR-DET-001", "POR-DET-002"],
             }
         elif scenario_id == "priv_esc":
             cmd = ["docker", "run", "--rm", "alpine:3.20", "sh", "-c", "id; cat /proc/self/status | head -n 4"]
@@ -180,11 +156,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 "success": proc.returncode == 0,
                 "command": "cat /proc/self/status",
                 "detected_process": "cat",
-                "simulated_score": 0.78,
                 "output": proc.stdout.strip(),
-                "contributors": [{"token": "cat", "weight": 0.65}],
-                "unseen_tokens": ["/proc/self/status"],
-                "rules": ["POR-DET-001", "POR-DET-003"],
             }
         elif scenario_id == "juice_shop_toggle":
             # Check if juice shop container exists
@@ -196,11 +168,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                     "success": True,
                     "command": "docker rm -f porygon-juice-shop",
                     "detected_process": "container:die",
-                    "simulated_score": 0.10,
                     "output": "OWASP Juice Shop container stopped and removed cleanly",
-                    "contributors": [],
-                    "unseen_tokens": [],
-                    "rules": [],
                 }
             else:
                 # Run on 127.0.0.1:3001 to avoid port 3000 collision
@@ -210,11 +178,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                     "success": proc.returncode == 0,
                     "command": "docker run -d --name porygon-juice-shop -p 127.0.0.1:3001:3000 bkimminich/juice-shop",
                     "detected_process": "node (server.js)",
-                    "simulated_score": 0.35,
                     "output": f"OWASP Juice Shop deployed at http://127.0.0.1:3001 (Container ID: {proc.stdout.strip()[:12]})",
-                    "contributors": [{"token": "node", "weight": 0.35}],
-                    "unseen_tokens": ["node"],
-                    "rules": ["POR-DET-001"],
                 }
         return {"success": False, "error": f"Unknown scenario {scenario_id}"}
 

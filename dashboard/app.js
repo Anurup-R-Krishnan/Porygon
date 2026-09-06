@@ -37,8 +37,8 @@ document.addEventListener('alpine:init', () => {
     scores: [],
     anomalyConfig: null,
     activeProfile: null,
-    currentAnomalyScore: 0.12,
-    currentScoreBand: 'baseline_like',
+    currentAnomalyScore: 0,
+    currentScoreBand: 'no_data',
     scoreContributors: [],
     unseenTokens: [],
 
@@ -329,11 +329,7 @@ document.addEventListener('alpine:init', () => {
     },
 
     // Simulator & Terminal Console
-    terminalLogs: [
-      { time: new Date().toLocaleTimeString(), tag: 'KERNEL', msg: 'eBPF probe attached to sys_enter_execve', type: 'info' },
-      { time: new Date().toLocaleTimeString(), tag: 'COLLECTOR', msg: 'Docker daemon outbox spool initialized', type: 'info' },
-      { time: new Date().toLocaleTimeString(), tag: 'SYSTEM', msg: 'Porygon behavioral intelligence platform ready — gateway 127.0.0.1:8000', type: 'success' }
-    ],
+    terminalLogs: [],
     isExecutingAttack: false,
     toasts: [],
     showDocsModal: false,
@@ -468,12 +464,9 @@ document.addEventListener('alpine:init', () => {
           this.services = await res.json();
         } else throw new Error('non-200');
       } catch (err) {
-        this.services = [
-          { service_name: 'collector', status: 'healthy', service_metadata: {} },
-          { service_name: 'telemetry', status: 'healthy', service_metadata: {} },
-          { service_name: 'scanner', status: 'healthy', service_metadata: {} },
-          { service_name: 'responder', status: 'healthy', service_metadata: {} },
-        ];
+        // An unavailable health endpoint must not look like a healthy fleet.
+        this.services = [];
+        this.showToast('Service health is unavailable', 'warn');
       }
     },
 
@@ -578,17 +571,11 @@ document.addEventListener('alpine:init', () => {
         const res = await fetch('/api/v1/incidents?limit=50');
         if (res.ok) {
           const fetched = await res.json();
-          // Preserve synthetic demo incidents that are not yet in DB (identified by inc- prefix not uuid)
-          const synthetic = this.incidents.filter(i => i.incident_id && i.incident_id.startsWith('inc-'));
-          // merge: real incidents first, then synthetic on top already inserted via trigger
-          // dedupe by incident_id
-          const byId = new Map();
-          [...fetched, ...synthetic].forEach(i=> byId.set(i.incident_id, i));
           const getTime = (x) => {
             const d = new Date(x.created_at || x.first_seen_at || x.occurred_at || 0);
             return isNaN(d.getTime()) ? 0 : d.getTime();
           };
-          this.incidents = Array.from(byId.values()).sort((a,b)=> getTime(b) - getTime(a));
+          this.incidents = fetched.sort((a,b)=> getTime(b) - getTime(a));
           if (this.incidents.length > 0 && !this.selectedIncident) {
             this.selectedIncident = this.incidents[0];
           }
@@ -715,9 +702,9 @@ document.addEventListener('alpine:init', () => {
       // 1. Behavioural Distance Timeline Chart
       const timelineCtx = document.getElementById('anomalyTimelineChart');
       if (timelineCtx) {
-        // build labels from scores if available else static
-        const labels = this.scores && this.scores.length ? this.scores.slice(0,7).reverse().map(s => new Date(s.window_start).toLocaleTimeString().slice(0,5)) : ['-30m', '-25m', '-20m', '-15m', '-10m', '-5m', 'Now'];
-        const dataPoints = this.scores && this.scores.length ? this.scores.slice(0,7).reverse().map(s => s.total_score || 0) : [0.03, 0.04, 0.02, 0.05, 0.03, 0.08, this.currentAnomalyScore];
+        const hasScores = this.scores && this.scores.length > 0;
+        const labels = hasScores ? this.scores.slice(0,7).reverse().map(s => new Date(s.window_start).toLocaleTimeString().slice(0,5)) : [];
+        const dataPoints = hasScores ? this.scores.slice(0,7).reverse().map(s => s.total_score ?? 0) : [];
         // ensure last point reflects current
         if (dataPoints.length) dataPoints[dataPoints.length-1] = this.currentAnomalyScore;
         chartRegistry.timeline = new Chart(timelineCtx, {
@@ -996,53 +983,19 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
-    // Interactive Attack Scenario Execution — wired to dashboard server + fallback simulation
+    // Interactive Attack Scenario Execution — backend-only; never fabricate telemetry.
     async triggerAttackScenario(scenario) {
       this.isExecutingAttack = true;
       this.logTerminal('SIMULATOR', `Triggering scenario: ${scenario.name} (${scenario.id})...`, 'info');
       this.showToast(`Launching ${scenario.name}...`, 'info');
 
-      // helper to finalize client-side animation
-      const finalizeClient = (data) => {
+      const applyBackendResult = (data) => {
         this.logTerminal('EXEC', data.command || scenario.id, 'success');
         if (data.output) this.logTerminal('OUTPUT', String(data.output).slice(0, 400), 'info');
-        if (data.detected_process) this.logTerminal('EBPF', `Kernel detected sys_enter_execve: ${data.detected_process}`, 'error');
-        this.currentAnomalyScore = data.simulated_score || 0.84;
-        this.currentScoreBand = this._bandForScore(this.currentAnomalyScore);
-        this.scoreContributors = data.contributors || [{ token: data.detected_process || 'unknown', weight: 0.82 }];
-        this.unseenTokens = data.unseen_tokens || [data.detected_process || 'unknown'];
-        this.updateTimelineChart();
-        this.updateRadarChart(data.detected_process);
-        this.showToast(`Deviation Detected! Score spiked to ${this.currentAnomalyScore.toFixed(2)} [${this.currentScoreBand.toUpperCase()}]`, 'danger');
-        // synthetic incident (will be merged with real ones on next poll)
-        this.incidents.unshift({
-          incident_id: 'inc-' + Math.random().toString(36).substring(2, 9),
-          detection_run_id: 'demo-run-' + Date.now(),
-          score_id: 'demo-score-' + Date.now(),
-          image_digest: this.containers[0]?.image_digest || 'demo@sha256:'+'0'.repeat(64),
-          title: `Automated detection: ${scenario.name}`,
-          status: 'open',
-          severity_score: scenario.id === 'cryptominer' ? 0.96 : 0.90,
-          severity_level: 'critical',
-          confidence_score: 0.95,
-          confidence_level: 'high',
-          anomaly_score: this.currentAnomalyScore,
-          summary: `Automated detection: ${scenario.name} — rules ${ (scenario.rules||[]).join(', ')}`,
-          findings: (scenario.rules||[]).map(r=> ({rule_id:r})),
-          container_ids: [this.containers[0]?.container_id || 'demo'],
-          first_seen_at: new Date().toISOString(),
-          last_seen_at: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          target_container_name: this.containers[0]?.container_name || 'porygon-demo-test',
-          recommended_action: 'pause_container',
-          rules_triggered: scenario.rules || ['POR-DET-001', 'POR-DET-002']
-        });
+        this.showToast('Scenario executed. Waiting for telemetry and scoring results.', 'success');
       };
 
       try {
-        // Primary: dashboard server (port 3000) serves /api/demo/run-scenario and proxies backend
-        // When served via gateway (port 8000), this path will 404 — fallback to client sim
         const res = await fetch('/api/demo/run-scenario', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1051,58 +1004,30 @@ document.addEventListener('alpine:init', () => {
         if (res.ok) {
           const data = await res.json();
           if (data.success) {
-            finalizeClient(data);
+            applyBackendResult(data);
           } else {
             this.logTerminal('ERROR', data.error || 'Execution failed', 'error');
-            this.showToast('Attack execution failed — falling back to trace replay', 'danger');
-            // fallback sim
-            finalizeClient({ command: scenario.id, detected_process: (scenario.rules||[]).join(','), simulated_score: 0.84, output: 'fallback trace', contributors: [], unseen_tokens: scenario.rules||[] });
+            this.showToast(data.error || 'Attack execution failed', 'danger');
           }
         } else if (res.status === 404) {
-          // gateway deployment: simulate client-side
-          this.logTerminal('SIMULATOR', 'Demo runner not reachable via gateway — replaying local trace', 'info');
-          const simMap = {
-            unseen_shell: { detected_process: '/bin/sh', simulated_score: 0.82, output: 'id\nuid=0(root) gid=0(root)' },
-            shell_to_tool: { detected_process: '/usr/bin/wget', simulated_score: 0.91, output: 'Connecting to example.com' },
-            cryptominer: { detected_process: 'xmrig', simulated_score: 0.96, output: 'cryptominer trace' },
-            priv_esc: { detected_process: 'cat', simulated_score: 0.78, output: 'Uid: 0' },
-            network_scan: { detected_process: 'nc', simulated_score: 0.86, output: 'network_discovery_probes_dispatched' },
-            file_evasion: { detected_process: 'chmod', simulated_score: 0.79, output: 'file_integrity_test_complete' },
-            defense_evasion: { detected_process: 'sh', simulated_score: 0.76, output: 'log_cleared' },
-            juice_shop_toggle: { detected_process: 'node', simulated_score: 0.35, output: 'juice shop toggle (requires docker)' },
-          };
-          const sim = simMap[scenario.id] || { detected_process: scenario.id, simulated_score: 0.82, output: 'simulated' };
-          finalizeClient({ command: sim.detected_process, detected_process: sim.detected_process, simulated_score: sim.simulated_score, output: sim.output, contributors: [{token: sim.detected_process, weight:0.82}], unseen_tokens: [sim.detected_process] });
+          throw new Error('Attack simulator endpoint is unavailable in this deployment');
         } else {
           const txt = await res.text();
           throw new Error(`HTTP ${res.status}: ${txt.slice(0,200)}`);
         }
       } catch (err) {
         this.logTerminal('ERROR', err.message, 'error');
-        this.showToast('Demo runner unreachable — replayed synthetic trace', 'danger');
-        // still show synthetic spike so UI not dead
-        finalizeClient({ command: scenario.id, detected_process: scenario.id, simulated_score: 0.84, output: String(err).slice(0,200), contributors: [], unseen_tokens: [scenario.id] });
+        this.showToast(`Attack simulator unavailable: ${err.message}`, 'danger');
       } finally {
         this.isExecutingAttack = false;
         await this.pollLiveTelemetry();
       }
     },
 
-    // Containment Action Approval — handles synthetic vs real incidents
+    // Containment Action Approval — operates only on persisted backend incidents.
     async approveContainment(incident, action) {
-      const isSynthetic = incident.incident_id.startsWith('inc-');
       this.logTerminal('RESPONDER', `Operator approving ${action} for ${incident.target_container_name || incident.container_ids?.[0] || incident.incident_id}`, 'info');
-      this.showToast(`Containment '${action}' requested`, isSynthetic ? 'warn' : 'info');
-
-      if (isSynthetic) {
-        // local-only: no backend call, just mutate UI
-        incident.status = 'acknowledged';
-        incident.approved_action = action;
-        incident.updated_at = new Date().toISOString();
-        this.logTerminal('RESPONDER', `Synthetic incident ${incident.incident_id} marked acknowledged locally (no backend)`, 'success');
-        this.showToast(`Demo containment ${action} applied locally`, 'warn');
-        return;
-      }
+      this.showToast(`Containment '${action}' requested`, 'info');
 
       // Real incident: need to generate recommendation then approve via operator token
       try {
@@ -1200,9 +1125,7 @@ document.addEventListener('alpine:init', () => {
     async fetchPipelineScoreDetail(scoreId) {
       this.pipelineScoreDetail = null;
       this.pipelineScoreError = '';
-      if (!scoreId || String(scoreId).startsWith('demo-score-')) {
-        return; // synthetic/demo incidents have no real backend score to fetch
-      }
+      if (!scoreId) return;
       this.pipelineScoreLoading = true;
       try {
         const res = await fetch(`/api/v1/anomaly-scores/${scoreId}`);
@@ -1224,13 +1147,6 @@ document.addEventListener('alpine:init', () => {
 
     async fetchPipelineTimeline(incidentId) {
       if (!incidentId) { this.pipelineTimeline = []; return; }
-      if (incidentId.startsWith('inc-')) {
-        // synthetic demo incident has no backend row; show a clearly-labelled
-        // synthetic trace instead of silently fetching nothing.
-        this.pipelineTimeline = this._syntheticPipelineTrace(incidentId);
-        this.pipelineError = '';
-        return;
-      }
       this.pipelineLoading = true;
       this.pipelineError = '';
       try {
@@ -1245,26 +1161,6 @@ document.addEventListener('alpine:init', () => {
       } finally {
         this.pipelineLoading = false;
       }
-    },
-
-    // Only used when a demo/simulator incident (client-side only, never
-    // written to Postgres) is opened in the pipeline view, so the graph
-    // still renders something coherent and is clearly marked as synthetic.
-    _syntheticPipelineTrace(incidentId) {
-      const inc = this.incidents.find(i => i.incident_id === incidentId) || {};
-      const rules = inc.rules_triggered || ['POR-DET-002'];
-      const now = new Date();
-      return rules.map((ruleId, i) => ({
-        evidence_id: `synthetic-${i}`,
-        incident_id: incidentId,
-        sequence_no: i,
-        source_type: 'process_event',
-        source_id: `synthetic-event-${i}`,
-        rule_id: ruleId,
-        occurred_at: new Date(now.getTime() - (rules.length - i) * 1000).toISOString(),
-        summary: (this.rulesMeta[ruleId] || {}).description || 'Simulated evidence (not persisted)',
-        _synthetic: true,
-      }));
     },
 
     pipelineStageLabel(row) {

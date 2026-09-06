@@ -991,7 +991,6 @@
 
                 <div class="flex items-center justify-between gap-3">
                   <h4 class="font-display text-[16px] font-bold tracking-tight">Evidence Chain <span class="font-mono text-white/50 text-[13px]" x-text="'(' + pipelineTimeline.length + ' events)'"></span></h4>
-                  <span x-show="pipelineTimeline.length && pipelineTimeline[0]._synthetic" class="rounded-full bg-amber-400/20 text-amber-200 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.1em]">Synthetic demo trace — not persisted</span>
                 </div>
 
                 <div x-show="pipelineTimeline.length===0" class="mt-6 rounded-2xl bg-white/5 p-8 text-center ring-1 ring-white/10">

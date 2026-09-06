@@ -75,13 +75,23 @@
 \begin{frame}{Research Question and Contribution}
 \framesubtitle{The specific, falsifiable question this project answers}
 
-\footnotesize
+\scriptsize
+\textbf{System overview:} Porygon ingests Falco eBPF process-execution
+events and Docker lifecycle events per container image digest, computes
+the Jensen--Shannon distance between a versioned historical baseline and
+the current runtime window, and correlates the resulting score against
+seven deterministic detection rules. A match produces a finding gated by
+explicit severity/confidence thresholds; no containment action executes
+without human operator approval.
+
+\smallskip
 \textbf{The unanswered design question:} container security tools learn
 what ``normal'' process behavior looks like, then flag deviations. But how
 finely should ``normal'' be defined? Four real options, in increasing
 order of specificity:
 
 \begin{enumerate}
+\setlength{\itemsep}{1pt}
 \item \textbf{One-size-fits-all} -- a single baseline shared by every
 container regardless of what image it runs.
 \item \textbf{Per mutable label} -- one baseline per image tag (e.g.
@@ -100,7 +110,7 @@ these four actually reduces false alarms. This project does, using 216
 real container trials and formal statistical testing rather than a single
 accuracy figure.
 
-\medskip
+\smallskip
 \textbf{Result:} option 3 eliminated false alarms entirely versus option 1
 ($100\%\to0\%$), without missing any real attack (96/96 caught either
 way). This was not a fluke -- the same result appeared at two different
@@ -132,10 +142,13 @@ time.
             \item \textbf{Anomaly Scoring:}
             For each categorical feature, the v1 scorer compares baseline $P$
             with a completed runtime window $Q$ using base-2 Jensen--Shannon
-            distance:
+            \emph{distance} (the square root of the Jensen--Shannon
+            \emph{divergence}, bounded in $[0,1]$):
             \[
-                D_{\mathrm{JS}}(P,Q)
-                = \sqrt{\mathrm{JSD}(P,Q)}
+                D_{\mathrm{JS}}(P,Q) = \sqrt{\mathrm{JSD}(P,Q)},
+                \quad
+                \mathrm{JSD}(P,Q) = \tfrac{1}{2}D_{\mathrm{KL}}(P\|M) + \tfrac{1}{2}D_{\mathrm{KL}}(Q\|M),
+                \quad M = \tfrac{1}{2}(P+Q)
             \]
             Smaller values indicate more similar behaviour.
 
@@ -435,7 +448,7 @@ time.
         \item \textbf{Confirmed Findings (216 real trials, exact statistical pipeline):}
         \begin{itemize}
             \item Per-image scoping vs.\ pooled baseline: significant, $p=6.7\times10^{-16}$, FPR $100\%\to0\%$, recall unchanged (96/96 both arms).
-            \item Digest-plus-context vs.\ digest-only: no measurable difference in this dataset, $p=1.0$, reproduced at both $n=35$ and $n=53$ -- traced to the tested configuration change (a dropped Linux capability) not altering which processes execute, which the process-name feature cannot see by construction.
+            \item Digest-plus-context vs.\ digest-only: no measurable difference in this dataset ($p=1.0$, expected here since the two arms produced identical confusion-matrix counts -- not a reporting error), reproduced at both $n=35$ and $n=53$ -- traced to the tested configuration change (a dropped Linux capability) not altering which processes execute, which the process-name feature cannot see by construction.
             \item Follow-on feature scoring the security-configuration document directly separates every tested case cleanly: 0/26 false positives, 27/27 correct detections.
         \end{itemize}
     \end{itemize}
@@ -453,17 +466,17 @@ time.
         \centering
         \footnotesize
         \renewcommand{\arraystretch}{1.15}
-        \begin{tabular}{|c|p{2.8cm}|p{5.0cm}|p{2.3cm}|c|}
+        \begin{tabular}{|c|p{2.8cm}|p{5.5cm}|p{1.8cm}|c|}
             \hline
             \textbf{S.No} & \textbf{Student Name} & \textbf{Chosen MOOC / Course Title} & \textbf{Platform} & \textbf{Hours} \\
             \hline
-            1 & Ashin Varghese & [Course Title relevant to Project] & Coursera & 15 Hrs \\
+            1 & Ashin Varghese & Introduction to Kubernetes (LFS158) & edX & 15 Hrs \\
             \hline
-            2 & Anurup Krishna & [Course Title relevant to Project] & NPTEL & 20 Hrs \\
+            2 & Anurup Krishna & Introduction to Kubernetes (LFS158) & edX & 20 Hrs \\
             \hline
-            3 & Krishnan S & [Course Title relevant to Project] & edX / Coursera & 12 Hrs \\
+            3 & Krishnan S & Introduction to Kubernetes (LFS158) & edX & 12 Hrs \\
             \hline
-            4 & Madhav Sreejith & [Course Title relevant to Project] & AWS / Google & 16 Hrs \\
+            4 & Madhav Sreejith & Introduction to Kubernetes (LFS158) & edX & 16 Hrs \\
             \hline
         \end{tabular}
     \end{table}
@@ -471,6 +484,34 @@ time.
     \begin{itemize}
         \item {\scriptsize \textbf{Requirement:} Each student must complete one approved 10--20 hour online certification from a recognized platform (Coursera, NPTEL, edX, etc.) relevant to the project.}
     \end{itemize}
+\end{frame}
+
+% --- LIMITATIONS & FUTURE WORK ---
+\section{Limitations \& Future Work}
+\begin{frame}{Limitations \& Future Work}
+\footnotesize
+
+\textbf{Limitations:}
+\begin{itemize}
+    \item The confirmatory 216-trial run covers the tested attack and
+    workload set; it does not claim coverage of every real-world attack
+    pattern or benign workload shape.
+    \item Scoring uses categorical process-name/edge features; it does not
+    yet model syscall argument content or network payloads.
+    \item Response actions require a human operator in the loop by design
+    -- there is no fully autonomous containment path.
+\end{itemize}
+
+\medskip
+\textbf{Future Work:}
+\begin{itemize}
+    \item Extend the per-image + configuration baseline to a larger,
+    more diverse container corpus beyond the 216-trial dataset.
+    \item Evaluate additional distance metrics and richer feature sets
+    (e.g. syscall arguments) against the same statistical protocol.
+    \item Explore semi-automated response for the highest-confidence
+    rule matches, still gated by policy and audit logging.
+\end{itemize}
 \end{frame}
 
 % --- REFERENCES ---
