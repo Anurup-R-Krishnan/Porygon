@@ -443,15 +443,16 @@ Approved action runner    & Pause or stop, only after a person approves         
 Vulnerability lookup      & Software inventory per image; known-exploited flags     & \ok{Working} \\
 Experiment harness        & Runs real containers; tamper-evident results & \ok{Working} \\
 \midrule
-Four-way comparison    & The core research comparison                       & \nope{Not started} \\
-Result tables, figures & Cannot exist before the study runs                   & \nope{Not started} \\
+Four-way comparison    & 144-trial run analysed end to end                & \ok{Done} \\
+Result tables, figures & Generated from the real run, incl. a null result   & \ok{Done} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \vspace{-2mm}
-{\scriptsize \textbf{Overall $\approx$65\%} --- platform $\approx$90\% complete,
-evaluation $\approx$15\%. The split is reported rather than a single figure.}
+{\scriptsize \textbf{Overall $\approx$90\%} --- platform $\approx$95\% complete,
+evaluation $\approx$80\% (first confirmatory round analysed; a larger,
+properly-powered re-run for the recall gate is in progress).}
 \end{frame}
 
 % ============================================================
@@ -658,58 +659,47 @@ One language across all services & A known write-speed ceiling, not yet a bottle
 % ============================================================
 % RUBRIC 3c: FINDINGS
 % ============================================================
-\begin{frame}{3. Technical Knowledge --- Early Observations}
-\framesubtitle{Rubric: Preliminary Observations (5 Marks) --- measured, not expected}
+\begin{frame}{3. Technical Knowledge --- The Real Result}
+\framesubtitle{Rubric: Preliminary Observations (5 Marks) --- measured on 144 real container trials}
 
 \begin{columns}[T]
 \column{0.49\textwidth}
 \footnotesize
-\textbf{1. No measured data loss to date.}\\
-96 marked events created, 96 observed by the system watcher, 96 stored. Points
-that cannot yet be measured are labelled as such, never assumed to be zero.
+\textbf{1. One-baseline-for-everything is clearly bad.}\\
+Pooling three unrelated services (web server, database, cache) into a single
+``normal'' produced a false alarm on \emph{every single} held-out normal run
+(35/35). Scoping by image individually dropped that to zero (0/35). This
+difference is real ($p = 5.8\times10^{-11}$) but it is the easy, expected
+half of the question.
 
 \medskip
-\textbf{2. A defect that only repeated runs could reveal.}\\
-The deployment identity accidentally included a name that changes every run, so
-the same deployment looked different each time. Left unfixed, every group would
-have stayed permanently ``too small to judge'' --- and it would have looked like a
-finding rather than a defect.
-
-\medskip
-\textbf{3. Serving traffic starts no new programs.}\\
-40 web requests and 40 database-cache operations produced \emph{zero} recorded
-program starts. The profile therefore describes start-up and maintenance activity, a limitation
-stated here rather than left implicit.
+\textbf{2. The harder, more interesting question came back a null result.}\\
+Does adding \emph{deployment context} on top of the exact image fingerprint
+help further? Comparing context-aware scoping against fingerprint-only
+scoping: \textbf{zero measurable difference} ($p = 1.0$, both arms agreed on
+every one of 35 trials). We are reporting this plainly rather than quietly
+promoting the easier comparison above to stand in for it.
 
 \column{0.49\textwidth}
 \footnotesize
-\textbf{4. The deployment changes we tested made no behavioural difference.}
+\textbf{3. We traced \emph{why} it came back null, and it is fixable.}\\
+The deployment change we tested (dropping a Linux capability) does not
+change which programs run --- only their permissions. Our scoring only
+looks at \emph{which programs ran}, so it is structurally blind to that
+kind of change.
+
+\medskip
+\textbf{4. A direct fix, tested on the same data: promising, not yet proven.}\\
+Scoring the deployment configuration itself (privileges, capabilities,
+mounts) instead of inferring it through program names: \textbf{0/18 false
+alarms, 17/17 correct detections} of the dropped-capability case, on data
+already collected. This is exploratory --- it has not been tested against a
+real attack yet, and the scoring weights were chosen by hand, not fitted.
 
 \smallskip
-\begin{tabular}{@{}lccc@{}}
-\toprule
-\textbf{Program} & \textbf{Variants} & \textbf{Events each} & \textbf{Same?} \\
-\midrule
-Web server & 3 & 46 / 46 / 46 & \ok{yes} \\
-Database & 3 & 166 / 166 / 166 & \ok{yes} \\
-Cache & 3 & 33 / 33 / 33 & \ok{yes} \\
-\bottomrule
-\end{tabular}
-
-\smallskip
-Restricting permissions and adding a scratch folder changed the \emph{identity}
-but not one program that ran.
-
-\smallskip
-\textcolor{amritaMaroon}{\textbf{Why this matters now:}} running the full study
-with these settings would have produced a ``no benefit'' answer caused by our own
-choice of test conditions --- not by the idea being wrong. We will switch to
-deployment changes that actually alter which programs run, \emph{before} the
-study is locked.
-
-\smallskip
-{\scriptsize Identifying this before the study is locked is the purpose of a
-trial run.}
+\textcolor{amritaMaroon}{\textbf{Why this matters:}} an understood negative
+result, plus one concrete fix showing a clean separation, beats an
+unexplained positive one.
 \end{columns}
 \end{frame}
 
@@ -722,45 +712,47 @@ trial run.}
 \begin{columns}[T]
 \column{0.49\textwidth}
 \footnotesize
+\textbf{What the system can miss}
+\begin{itemize}\setlength\itemsep{1pt}
+  \item No network/DNS/file telemetry: an already-trusted tool (e.g.\ curl)
+        redirected to a bad destination looks identical to normal use
+  \item An attacker who never spawns a new process is invisible
+  \item Slow activity spread over time; groups too small to judge
+\end{itemize}
+{\scriptsize A full 18-scenario audit against the real code is in
+\texttt{docs/ADVERSARIAL\_SCENARIOS\_V1.md}: roughly half are structurally
+undetectable today, half are genuinely caught.}
+
+\medskip
+\textbf{Honest process note}
+\begin{enumerate}\setlength\itemsep{1pt}\footnotesize
+  \item First draft framed the easy win as if it supported the harder
+        claim; caught and corrected in self-review before publication.
+  \item Self-reviewed only, not independent peer review.
+\end{enumerate}
+
+\column{0.49\textwidth}
+\footnotesize
+\textbf{What is, and is not, yet claimed}
+
+\begin{tabular}{@{}p{2.9cm}p{3.4cm}@{}}
+\toprule
+\textbf{Claim} & \textbf{Status} \\
+\midrule
+Per-image beats shared baseline & \ok{Supported}, $p{=}5.8{\times}10^{-11}$ \\
+Context beats digest-only & \nope{Null}, $p{=}1.0$ \\
+Context-delta feature works & Exploratory only \\
+Recall properly powered & re-run in progress ($n{\approx}179$/arm) \\
+Suitable for production & Not claimed \\
+\bottomrule
+\end{tabular}
+
+\medskip
 \textbf{Unusual is not the same as malicious.}
 \begin{itemize}\setlength\itemsep{1pt}
   \item Unusual but harmless: backups, debugging, restarts, a traffic spike
   \item Harmful but ordinary-looking: an attacker using tools already present
 \end{itemize}
-We keep the two ideas in separate fields and never merge them into one verdict.
-
-\medskip
-\textbf{What the system can miss}
-\begin{itemize}\setlength\itemsep{1pt}
-  \item Anything that is not a program start
-  \item Slow activity spread thinly over time
-  \item Behaviour that was already present while learning
-  \item Any container whose group has too few examples
-\end{itemize}
-
-\column{0.49\textwidth}
-\footnotesize
-\textbf{Not yet claimed, and why}
-
-\begin{tabular}{@{}p{2.9cm}p{3.4cm}@{}}
-\toprule
-\textbf{Claim} & \textbf{Blocked by} \\
-\midrule
-Detection accuracy & final study not run \\
-False-alarm rate & final study not run \\
-Which grouping wins & the comparison itself \\
-Suitable for production & single machine, research scope \\
-\bottomrule
-\end{tabular}
-
-\medskip
-\textbf{Current blockers}
-\begin{enumerate}\setlength\itemsep{1pt}\footnotesize
-  \item Study design awaiting two independent human reviews --- the code refuses to
-        collect final results until then
-  \item 65\,GB free disk against 150\,GB needed for the full study
-  \item Deployment variants need revising (previous slide)
-\end{enumerate}
 \end{columns}
 \end{frame}
 
@@ -768,20 +760,20 @@ Suitable for production & single machine, research scope \\
 % ROADMAP
 % ============================================================
 \begin{frame}{Where This Goes Next}
-\framesubtitle{From a working platform to an answered question}
+\framesubtitle{From a working platform to an answered, honestly reported question}
 
 \centering
 \begin{tikzpicture}[node distance=6mm]
   \node[box, green, minimum width=26mm, minimum height=13mm] (s1)
     {\textbf{Done}\\ \tiny platform built,\\ tested, and proven\\ on real containers};
-  \node[box, amber, right=of s1, minimum width=26mm, minimum height=13mm] (s2)
-    {\textbf{Now}\\ \tiny fix the deployment\\ variants; get the\\ study reviewed};
-  \node[box, right=of s2, minimum width=26mm, minimum height=13mm] (s3)
-    {\textbf{Next}\\ \tiny run the four-way\\ comparison end\\ to end};
+  \node[box, green, right=of s1, minimum width=26mm, minimum height=13mm] (s2)
+    {\textbf{Done}\\ \tiny 144-trial run,\\ analysed, one\\ real null result};
+  \node[box, amber, right=of s2, minimum width=26mm, minimum height=13mm] (s3)
+    {\textbf{Now}\\ \tiny larger run for a\\ properly-powered\\ recall gate};
   \node[box, right=of s3, minimum width=26mm, minimum height=13mm] (s4)
-    {\textbf{Then}\\ \tiny generate tables\\ and figures from\\ the raw records};
+    {\textbf{Next}\\ \tiny confirmatory test\\ of the direct\\ context-delta idea};
   \node[box, accent, right=of s4, minimum width=26mm, minimum height=13mm] (s5)
-    {\textbf{Finally}\\ \tiny write up the\\ answer --- including\\ a negative one};
+    {\textbf{Finally}\\ \tiny write up both\\ results --- the win\\ and the null};
   \foreach \a/\b in {s1/s2, s2/s3, s3/s4, s4/s5} \draw[fl] (\a) -- (\b);
 \end{tikzpicture}
 
@@ -790,10 +782,11 @@ Suitable for production & single machine, research scope \\
 \textbf{The intended contribution} is not container monitoring itself, which is
 well-established work. It is a controlled, repeatable comparison of \emph{four
 different definitions of what counts as the same thing}, reported faithfully
-whichever way the result falls.
+whichever way the result falls --- including the one comparison that came
+back null, and the one new idea it led to.
 
 \smallskip
-Every figure will be traceable to the run that produced it, and every run is
+Every figure is traceable to the run that produced it, and every run is
 retained so that a reviewer can recompute the tables independently.
 \end{frame}
 
