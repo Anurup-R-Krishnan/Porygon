@@ -70,7 +70,7 @@
 
     {\large \textbf{\textcolor{amritaMaroon}{Porygon: Learning Normal Behaviour\\ Inside Running Containers}}} \\
     \vspace{0.08cm}
-    {\scriptsize\itshape Does accounting for how a container is deployed yield a more reliable notion of normal behaviour?} \\
+    {\scriptsize\itshape Does conditioning a process-execution behavioural baseline on deployment context, in addition to image digest, reduce the false-positive rate without degrading recall?} \\
     \vspace{0.12cm}
     {\footnotesize \textbf{23CSE498 -- Project Phase 2 (Panel Review 1)} \quad | \quad \textbf{Team Number: [XX]}} \\
     \vspace{0.15cm}
@@ -104,97 +104,142 @@
 % THE PROBLEM
 % ============================================================
 \section{The Problem}
-\begin{frame}{The Problem, in Plain Words}
-\framesubtitle{Why watching a container is harder than it sounds}
+\begin{frame}{The Problem}
+\framesubtitle{Behavioural profile scoping is an unresolved design parameter, not a solved problem}
 
 \begin{columns}[T]
 \column{0.52\textwidth}
 \small
-A \textbf{container} is a packaged application that runs isolated on a server.
-Companies run thousands of them.
+Container process-execution anomaly detection observes the syscalls a
+containerized process issues (via eBPF/Falco), builds a baseline of
+``normal'' process-name activity, and flags deviating execution events.
+Falco, Sysdig Secure, Aqua, and academic work since Forrest et al.\ (1996)
+already do this; the sensor and scoring primitive are established, not novel.
 
 \medskip
-If an attacker gets inside one, they run \textbf{programs} that the application
-would never normally run --- a command shell, a download tool, a scanner.
+What every implementation must still decide, without a published answer, is:
+\emph{at what identity granularity is the baseline scoped?} Per fleet
+(global), per mutable tag, per exact image digest, or per digest plus
+runtime security configuration? Vendors pick one by engineering judgement.
 
 \medskip
-So the natural idea is: \emph{learn what programs a container normally runs, then
-flag the unusual ones.}
-
-\medskip
-\textbf{The difficulty.} Before comparing against ``normal'', one must decide
-\emph{which} normal. Grouping unlike containers together makes the comparison
-meaningless.
+\textbf{The unresolved question.} No published, reproducible, statistically
+powered comparison of these four scoping strategies exists.
 
 \column{0.46\textwidth}
 \centering
 \begin{tikzpicture}[node distance=4mm]
-  \node[box, accent, minimum width=30mm] (app) {Application container\\ \tiny(web server, database, cache)};
-  \node[box, below=6mm of app, minimum width=30mm] (norm) {What it normally runs\\ \tiny 5--20 known programs};
-  \node[box, below=6mm of norm, minimum width=30mm, amber] (odd) {Something new appears\\ \tiny a shell, an unknown tool};
-  \node[box, below=6mm of odd, minimum width=34mm, blue] (q) {An intrusion,\\ or scheduled maintenance?};
+  \node[box, accent, minimum width=34mm] (app) {Container process\\ \tiny execve/execveat stream (Falco)};
+  \node[box, below=6mm of app, minimum width=34mm] (norm) {Baseline distribution\\ \tiny process-name counts, fit split};
+  \node[box, below=6mm of norm, minimum width=34mm, amber] (odd) {Jensen-Shannon distance $\geq$ threshold};
+  \node[box, below=6mm of odd, minimum width=38mm, blue] (q) {Which baseline scope minimizes\\ false positives without losing recall?};
   \draw[fl] (app) -- (norm);
   \draw[fl] (norm) -- (odd);
   \draw[fl] (odd) -- (q);
 \end{tikzpicture}
 
 \smallskip
-{\scriptsize Frequently the correct answer is that the evidence is insufficient. The design
-reports that state explicitly rather than concealing it.}
+{\scriptsize A stratum with too few independent fit-split runs returns
+\texttt{insufficient\_profile} explicitly, never a guessed score.}
 \end{columns}
 \end{frame}
 
 % ============================================================
 % RESEARCH QUESTION
 % ============================================================
-\begin{frame}{What We Are Actually Asking}
-\framesubtitle{The research question, and why it is not obvious}
+\begin{frame}{The Research Question}
+\framesubtitle{Four scoping arms, one frozen protocol, pre-registered statistics}
 
 \begin{columns}[T]
 \column{0.45\textwidth}
 \footnotesize
-Every container image has a \textbf{content fingerprint} --- a code computed from
-the exact bytes of the image. Same code, same program; it cannot be faked or
-quietly changed.
+An OCI image digest (\texttt{repository@sha256:<64 hex>}) is an immutable,
+content-addressed identity: the exact same bytes always resolve to the same
+digest, unlike a mutable tag such as \texttt{nginx:latest}, which can be
+silently repointed to a different image.
 
 \medskip
-One could group containers by fingerprint and learn a single normal for each.
-Is that sufficient?
+\textbf{H1 (primary):} does scoping the baseline by digest + runtime security
+context (\texttt{ARM-CONTEXT}) reduce the benign false-positive rate versus
+digest-only scoping (\texttt{ARM-DIGEST}), without a material loss of
+detection recall on planted attack scenarios?
 
 \medskip
-\textbf{Not entirely.} The same image can be \emph{deployed} differently:
-another start-up command, user account, permission set or attached folder.
-Those differences may change behaviour.
-
-\medskip
-\textcolor{amritaMaroon}{\textbf{Our question:}} does adding \emph{how it was
-deployed} produce a cleaner normal, or merely divide the data into groups too
-small to learn from?
+\textbf{Runtime context} is a canonical SHA-256 hash over: entrypoint/command
+shape, effective user, \texttt{privileged}, \texttt{read\_only\_rootfs},
+network mode, Linux capabilities added/dropped, devices, published ports, and
+mounts -- security-relevant configuration \texttt{docker inspect} exposes,
+excluding secrets and literal argument values.
 
 \column{0.53\textwidth}
 \centering
 \resizebox{\linewidth}{!}{%
 \begin{tikzpicture}[node distance=3mm]
-  \node[box, accent, minimum width=42mm] (img) {One image, one content fingerprint};
+  \node[box, accent, minimum width=48mm] (img) {\texttt{repository@sha256:<digest>}};
 
-  \node[box, below left=9mm and 6mm of img, minimum width=22mm] (d1) {Deployment A\\ \tiny locked down};
-  \node[box, below=9mm of img, minimum width=22mm] (d2) {Deployment B\\ \tiny extra folder};
-  \node[box, below right=9mm and 6mm of img, minimum width=22mm] (d3) {Deployment C\\ \tiny different user};
+  \node[box, below left=9mm and 6mm of img, minimum width=26mm] (d1) {\texttt{ARM-GLOBAL}\\ \tiny pooled across all images};
+  \node[box, below=9mm of img, minimum width=26mm] (d2) {\texttt{ARM-TAG} / \texttt{ARM-DIGEST}\\ \tiny mutable alias / exact digest};
+  \node[box, below right=9mm and 6mm of img, minimum width=26mm] (d3) {\texttt{ARM-CONTEXT}\\ \tiny digest + config hash};
 
   \draw[fl] (img) -- (d1);
   \draw[fl] (img) -- (d2);
   \draw[fl] (img) -- (d3);
 
-  \node[box, blue, below=9mm of d2, minimum width=56mm] (q)
-    {Do these behave the same?\\ \tiny If yes: one ``normal'' is enough. If no: grouping must include deployment.};
+  \node[box, blue, below=9mm of d2, minimum width=60mm] (q)
+    {Exact McNemar test on paired trial outcomes,\\ \tiny Holm-corrected, Clopper-Pearson CIs, frozen $\alpha=0.05$};
   \draw[fl] (d1) -- (q);
   \draw[fl] (d2) -- (q);
   \draw[fl] (d3) -- (q);
 \end{tikzpicture}}
 
 \smallskip
-{\scriptsize Four grouping strategies are compared and the measurements decide the outcome.
-A result of ``no difference'' is a valid finding, not a failure.}
+{\scriptsize No fallback between arms during primary analysis. A null result
+for H1 is reported as a null result, not concealed by a weaker contrast.}
+\end{columns}
+\end{frame}
+
+% ============================================================
+% NOVELTY / DIFFERENTIATION
+% ============================================================
+\begin{frame}{What This Is Not, and What It Actually Is}
+\framesubtitle{Answering directly: how is this different from Falco, Sysdig, Aqua?}
+
+\begin{columns}[T]
+\column{0.5\textwidth}
+\footnotesize
+\textbf{Not novel (used as-is, not claimed as a contribution):}
+\begin{itemize}\setlength\itemsep{2pt}
+  \item eBPF/Falco process-execution telemetry
+  \item Behavioural baselining of container process activity
+  \item Jensen-Shannon distance as a categorical divergence measure
+  \item Digest-based image identity
+  \item SBOM + CVE + EPSS + KEV correlation (standard in every CNAPP product)
+\end{itemize}
+
+\medskip
+\textbf{If asked ``why not just deploy Falco/Sysdig'':} correct answer is
+that this project does not claim to detect anything Falco cannot already
+flag with a hand-written rule. It does not compete with those products
+on detection engineering.
+
+\column{0.5\textwidth}
+\footnotesize
+\textbf{The actual contribution:}
+\begin{enumerate}\setlength\itemsep{2pt}
+  \item A frozen, pre-registered, falsifiable protocol comparing four
+        baseline-scoping strategies on identical telemetry and rules --
+        vendors pick a scope by judgement; this measures it.
+  \item Exact statistical inference (McNemar, Holm, Clopper-Pearson,
+        bootstrap non-inferiority), full negative result reported.
+  \item One exploratory idea the comparison surfaced: score the runtime
+        security-configuration document directly instead of inferring a
+        configuration change through process-name distance, which the
+        confirmatory data shows cannot see it.
+\end{enumerate}
+
+\smallskip
+\textcolor{amritaMaroon}{\textbf{One sentence:}} a methodology contribution
+about \emph{how to scope} an existing technique, not a new technique.
 \end{columns}
 \end{frame}
 
@@ -202,49 +247,51 @@ A result of ``no difference'' is a valid finding, not a failure.}
 % RUBRIC 1a: WORKFLOW
 % ============================================================
 \section{Methodology \& Solution Design}
-\begin{frame}{1. Methodology --- How the System Works, End to End}
+\begin{frame}{1. Methodology --- Pipeline}
 \framesubtitle{Rubric: Workflow \& Algorithmic Pipeline (5 Marks)}
 
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[node distance=3.5mm]
-  \node[box, accent, minimum width=20mm] (w) {Running\\container};
-  \node[box, right=of w, minimum width=21mm] (k) {Watch the\\operating system};
-  \node[box, right=of k, minimum width=21mm] (n) {Standardise and\\remove duplicates};
-  \node[box, blue, right=of n, minimum width=22mm] (i) {Work out\\\emph{which} normal};
-  \node[box, right=of i, minimum width=20mm] (p) {Compare with\\that normal};
-  \node[box, right=of p, minimum width=20mm] (r) {Check fixed\\safety rules};
-  \node[box, green, right=of r, minimum width=20mm] (h) {Show a person\\the evidence};
+  \node[box, accent, minimum width=20mm] (w) {Container\\syscalls};
+  \node[box, right=of w, minimum width=21mm] (k) {Falco eBPF\\sensor};
+  \node[box, right=of k, minimum width=21mm] (n) {Normalize,\\dedupe (SQLite outbox)};
+  \node[box, blue, right=of n, minimum width=22mm] (i) {Select baseline\\scope};
+  \node[box, right=of i, minimum width=20mm] (p) {JS-distance\\score};
+  \node[box, right=of p, minimum width=20mm] (r) {POR-DET-001..007\\rule match};
+  \node[box, green, right=of r, minimum width=20mm] (h) {Incident record,\\human review};
 
   \foreach \a/\b in {w/k, k/n, n/i, i/p, p/r, r/h} \draw[fl] (\a) -- (\b);
 
-  \node[lbl, below=1.5mm of w, text width=20mm, align=center] {every program\\it starts};
-  \node[lbl, below=1.5mm of k, text width=21mm, align=center] {no change to\\the application};
-  \node[lbl, below=1.5mm of n, text width=21mm, align=center] {same event\\never counted twice};
-  \node[lbl, below=1.5mm of i, text width=22mm, align=center] {fingerprint\\+ deployment};
-  \node[lbl, below=1.5mm of p, text width=20mm, align=center] {how unusual,\\on a 0--1 scale};
-  \node[lbl, below=1.5mm of r, text width=20mm, align=center] {plain yes/no\\checks};
-  \node[lbl, below=1.5mm of h, text width=20mm, align=center] {no automatic\\action};
+  \node[lbl, below=1.5mm of w, text width=20mm, align=center] {execve/\\execveat only};
+  \node[lbl, below=1.5mm of k, text width=21mm, align=center] {no host\\kernel module};
+  \node[lbl, below=1.5mm of n, text width=21mm, align=center] {deterministic\\event IDs};
+  \node[lbl, below=1.5mm of i, text width=22mm, align=center] {digest / tag /\\context hash};
+  \node[lbl, below=1.5mm of p, text width=20mm, align=center] {$D_{JS}\in[0,1]$};
+  \node[lbl, below=1.5mm of r, text width=20mm, align=center] {deterministic\\boolean checks};
+  \node[lbl, below=1.5mm of h, text width=20mm, align=center] {no automated\\response};
 \end{tikzpicture}}
 
 \vspace{4mm}
 \begin{columns}[T]
 \column{0.48\textwidth}
 \footnotesize
-\textbf{Two kinds of evidence, deliberately kept separate}
+\textbf{Two evidence classes, never merged into one verdict}
 \begin{itemize}\setlength\itemsep{1pt}
-  \item \textbf{Statistical:} ``this is rare compared with known-normal runs''
-  \item \textbf{Rule-based:} ``a command shell started in a web server''
+  \item \textbf{Statistical:} Jensen-Shannon distance against baseline, a
+        rarity measure, not an attack probability
+  \item \textbf{Deterministic:} fixed boolean rules (POR-DET-001..007) on
+        shell/tool novelty, root execution, privileged flag, exec activity
 \end{itemize}
-Combining them into a single figure would conceal which of the two applied.
+A single merged score would conceal which evidence class fired.
 
 \column{0.48\textwidth}
 \footnotesize
-\textbf{Deliberately excluded from the design}
+\textbf{Explicitly out of scope in v1}
 \begin{itemize}\setlength\itemsep{1pt}
-  \item No automatic shutdown of containers
-  \item No opaque machine-learning model
-  \item No claim that unusual behaviour indicates an attack
+  \item No automated containment action without operator approval
+  \item No black-box/opaque model; every score is decomposable per feature
+  \item No network, DNS, socket, or file-access telemetry
 \end{itemize}
 \end{columns}
 \end{frame}
@@ -260,30 +307,30 @@ Combining them into a single figure would conceal which of the two applied.
 \begin{tikzpicture}[node distance=4mm]
 
   % --- server zone (top)
-  \node[box, minimum width=30mm] (kern) {Operating system\\ \tiny records every program start};
-  \node[box, right=14mm of kern, minimum width=30mm] (dock) {Container manager\\ \tiny records start / stop};
+  \node[box, minimum width=32mm] (kern) {Linux kernel + Falco 0.44.1\\ \tiny modern-eBPF, execve/execveat};
+  \node[box, right=14mm of kern, minimum width=32mm] (dock) {Docker Engine\\ \tiny /var/run/docker.sock event stream};
   \begin{scope}[on background layer]
     \node[zone, fill=softGrey, fit=(kern)(dock),
-          label={[font=\tiny, text=inkGrey]above:THE SERVER}] {};
+          label={[font=\tiny, text=inkGrey]above:HOST}] {};
   \end{scope}
 
   % --- private zone (middle)
-  \node[box, below=10mm of kern, minimum width=30mm] (sensor) {Sensor reader\\ \tiny local queue if storage is down};
-  \node[box, below=10mm of dock, minimum width=30mm] (coll) {Event collector\\ \tiny local queue if storage is down};
-  \node[box, accent, below=9mm of $(sensor)!0.5!(coll)$, minimum width=46mm]
-       (api) {Core service\\ \tiny profiles, scoring, rules, incidents};
-  \node[box, below=7mm of api, minimum width=46mm]
-       (db) {Database\\ \tiny complete history, nothing overwritten};
+  \node[box, below=10mm of kern, minimum width=32mm] (sensor) {telemetry adapter\\ \tiny SQLite outbox spool};
+  \node[box, below=10mm of dock, minimum width=32mm] (coll) {collector\\ \tiny SQLite outbox spool};
+  \node[box, accent, below=9mm of $(sensor)!0.5!(coll)$, minimum width=48mm]
+       (api) {backend (FastAPI + SQLAlchemy)\\ \tiny baseline, scoring, POR-DET-*, incidents};
+  \node[box, below=7mm of api, minimum width=48mm]
+       (db) {PostgreSQL 17\\ \tiny append-only event/incident store};
   \begin{scope}[on background layer]
     \node[zone, fill=coolBlue!4, fit=(sensor)(coll)(api)(db),
-          label={[font=\tiny, text=coolBlue]below:PRIVATE NETWORK --- no internet access}] {};
+          label={[font=\tiny, text=coolBlue]below:porygon\_internal --- no egress}] {};
   \end{scope}
 
   % --- right column, aligned row-for-row with the left
   \node[box, right=22mm of dock, minimum width=28mm] (op) {Operator\\ \tiny a person};
-  \node[box, green, below=10mm of op, minimum width=28mm] (gate) {Gateway\\ \tiny the only door in, local only};
-  \node[box, amber, below=9mm of gate, minimum width=28mm] (act) {Action runner\\ \tiny moves only after approval};
-  \node[box, below=7mm of act, minimum width=28mm] (scan) {Vulnerability lookup\\ \tiny the only part allowed online};
+  \node[box, green, below=10mm of op, minimum width=28mm] (gate) {NGINX gateway\\ \tiny 127.0.0.1:8000 only};
+  \node[box, amber, below=9mm of gate, minimum width=28mm] (act) {responder\\ \tiny pause/stop, operator-token gated};
+  \node[box, below=7mm of act, minimum width=28mm] (scan) {scanner (Trivy 0.72.0)\\ \tiny porygon\_egress, only outbound service};
 
   \draw[fl] (kern) -- (sensor);
   \draw[fl] (dock) -- (coll);
@@ -298,121 +345,119 @@ Combining them into a single figure would conceal which of the two applied.
 \end{tikzpicture}}
 
 \vspace{1mm}
-{\scriptsize Each part gets the \textbf{least} access it needs. The core service
-never reaches the internet; the vulnerability lookup never touches the database;
-the action runner only moves when a person has approved.}
+{\scriptsize Least-privilege per service. Only the collector, scanner, and
+responder hold Docker-socket-equivalent privilege, for distinct reasons; the
+backend and telemetry adapter hold neither. Compromise of a Docker-socket
+service may become host compromise -- stated explicitly in
+\texttt{docs/THREAT\_MODEL\_V1.md}, not implied away.}
 \end{frame}
 
 % ============================================================
 % RUBRIC 1c: MATHEMATICS
 % ============================================================
-\begin{frame}{1. Methodology --- The Mathematics}
+\begin{frame}{1. Methodology --- The Scoring Mathematics}
 \framesubtitle{Rubric: Mathematical Model / Formulation (5 Marks)}
 
 \begin{columns}[T]
 \column{0.53\textwidth}
 \footnotesize
-\textbf{Step 1 --- How far has the mix of programs shifted?}\\
-Compare the proportions seen now ($q$) with normal ($p$):
+\textbf{Production path (generates every reported number).}\\
+Base-2 Jensen-Shannon distance between baseline $p$ and observed-window $q$:
 \vspace{-1mm}
-\[ H(p,q)=\sqrt{\tfrac{1}{2}\textstyle\sum_i\left(\sqrt{p_i}-\sqrt{q_i}\right)^2} \]
-\vspace{-3mm}
+\[ D_{JS}(p\Vert q)=\sqrt{\tfrac12 D_{KL}(p\Vert m)+\tfrac12 D_{KL}(q\Vert m)},\quad m=\tfrac{p+q}{2} \]
+\vspace{-2mm}
 
-Always between 0 and 1. Zero means identical.
+Bounded $[0,1]$ (base-2 log); 0 = identical. Empty observed window returns
+\texttt{None} (excluded, not zero); empty baseline vs.\ non-empty observation
+returns 1.0.
 
 \medskip
-\textbf{Step 2 --- How surprising is the order?}\\
-Programs start in habitual sequences. Score each step by how unexpected it is:
-\vspace{-1mm}
-\[ S=-\tfrac{1}{n}\textstyle\sum \log \hat{P}\!\left(\text{next}\mid\text{current}\right) \]
-\vspace{-3mm}
+\textbf{Aggregation} (\texttt{scoring.py}, algorithm \texttt{porygon.distance.v1},
+fixed weights, versioned):
+\[ \text{score}=0.50\cdot\overline{D_{JS}}_{6\text{ families}}
+  +0.30\cdot\text{novelty}+0.20\cdot\overline{z}_{5\text{ numeric}} \]
 
-Unobserved pairs retain a small non-zero probability, so no term divides by zero.
+Categorical weights: process name 0.15, executable 0.25, parent-child 0.20,
+UID 0.10, runtime action 0.10, sequence bigram 0.20. Missing family excluded,
+remaining weights renormalized, never imputed as zero.
 
 \medskip
-\textbf{Step 3 --- How much is new?}\\
-The proportion of activity whose program never appeared during learning.
+\textbf{Study threshold:} $D_{JS}\geq 0.25$ = positive call
+(\texttt{DEFAULT\_THRESHOLD}).
 
 \column{0.45\textwidth}
 \footnotesize
-\textbf{Step 4 --- Combine without arbitrary weights}\\
-Each measure is ranked against known-normal runs and the ranks are \textbf{averaged
-equally}. A measure that cannot be computed is recorded as unavailable, never
-estimated.
+\textbf{Exploratory alternative, not used for any reported number:}
+\texttt{calibrated\_rarity.py} implements unweighted-mean fusion over 4
+components and a conformal-style exceedance p-value:
+\[ p=\frac{1+\#\{\text{calib.\ values}\geq\text{test}\}}{n+1} \]
+Feature-flagged (\texttt{calibrated\_enabled}, default \texttt{False}); the
+study used the production JS-distance path, not this module.
 
 \medskip
-\textbf{Step 5 --- Express the result on an interpretable scale}\\
-Using $n$ complete known-normal runs withheld from learning:
-\vspace{-1mm}
-\[ p=\frac{1+\#\{\text{normal runs at least this odd}\}}{n+1} \]
-\vspace{-3mm}
+\textbf{Not a probability.} A JS-distance or fused rarity value is a
+distributional-deviation measure. Neither module documents or claims a
+$P(\text{attack})$ field.
 
 \smallskip
-\textcolor{amritaMaroon}{\textbf{Interpretation:}} approximately one in twenty
-normal runs appears this unusual. This is \emph{not} a probability of attack.
-
-\medskip
-{\scriptsize\textcolor{warnAmber}{\textbf{Why no tuned weights?}} Earlier fixed
-constants ($0.50/0.30/0.20$) had no justification, so the implementation now
-accepts none.}
+{\scriptsize\textcolor{warnAmber}{\textbf{Honest limitation:}} the
+0.50/0.30/0.20 weights are a fixed implementation decision, not fit to
+data -- disclosed, which is why the unweighted alternative exists.}
 \end{columns}
 \end{frame}
 
 % ============================================================
 % RUBRIC 1d: METRICS & DATA
 % ============================================================
-\begin{frame}{1. Methodology --- Data, Splits and Evaluation Metrics}
+\begin{frame}{1. Methodology --- Dataset, Splits, and Evaluation Metrics}
 \framesubtitle{Rubric: Datasets, Preprocessing \& Evaluation Metrics (5 Marks)}
 
 \begin{columns}[T]
 \column{0.47\textwidth}
 \footnotesize
-\textbf{The data is generated, not downloaded.}\\
-No public dataset matches this question, so we produce our own under controlled
-conditions: three real, widely used server programs, each locked to an exact
-image fingerprint.
+\textbf{No public dataset answers this question}; data is generated from
+three real, pinned OCI images (frozen index digest, not a resolvable tag).
 
 \smallskip
 \begin{tabular}{@{}ll@{}}
 \toprule
-\textbf{Program} & \textbf{Locked version} \\
+\textbf{Workload} & \textbf{Pinned tag} \\
 \midrule
-Web server & nginx 1.26.3 \\
-In-memory store & Redis 7.2.7 \\
-Database & PostgreSQL 16.6 \\
+nginx & \texttt{1.26.3-alpine} \\
+redis & \texttt{7.2.7-alpine} \\
+postgres & \texttt{16.6-alpine} \\
 \bottomrule
 \end{tabular}
 
 \smallskip
-Each is run idle, under steady load, under bursts, and with deployment changes.
-Harmless but unusual activity (backups, restarts, maintenance) is recorded too:
-these are the cases that generate false alarms.
+Two simulated attack scenarios with planted ground truth
+(\texttt{SCN-LOG4SHELL-SIM}, harmless CVE-2021-44228-shaped spawn;
+\texttt{SCN-RUNC-ESCAPE-SIM}, harmless CVE-2019-5736-shaped write) plus a
+capture-integrity canary (\texttt{SCN-EXEC}, not ground truth).
 
 \smallskip
-\textbf{Splitting rule:} a \emph{whole run} goes to learning, calibration or
-testing, never divided. Observations seconds apart are near-duplicates; treating
-them as independent would overstate confidence.
+\textbf{Independent unit: the workload run.} Splits assigned per-run by a
+deterministic trial-ID hash before outcomes are observed.
 
 \column{0.51\textwidth}
 \footnotesize
-\textbf{What we will measure}
+\textbf{Primary metrics}
 
-\begin{tabular}{@{}p{2.6cm}p{4.6cm}@{}}
+\begin{tabular}{@{}p{2.5cm}p{4.4cm}@{}}
 \toprule
-\textbf{Group} & \textbf{Measures} \\
+\textbf{Metric ID} & \textbf{Definition} \\
 \midrule
-Getting it right & false-alarm rate on harmless runs; how many planted events are caught \\
-Trustworthy data & events created vs.\ events stored, at every hand-off point \\
-Speed & delay from event to stored record (typical, slow, worst) \\
-Cost & processor time, memory, disk growth, slowdown of the watched app \\
-Honesty of scale & do 95\% of normal runs really score inside the 95\% band? \\
+\texttt{MET-FPR-001} & benign runs with $\geq1$ positive call, Clopper-Pearson CI \\
+\texttt{MET-REC-001} & ground-truthed runs detected within horizon \\
+\texttt{MET-OTP-001} & occurrence-to-persistence latency (unmeasured) \\
+\texttt{MET-CPU-001} & CPU-seconds, RSS, disk writes per workload-minute \\
+\texttt{MET-CAL-001} & held-out coverage vs.\ calibrated threshold \\
 \bottomrule
 \end{tabular}
 
 \smallskip
-\textcolor{amritaMaroon}{\textbf{Reporting standard:}} every percentage is
-published with the counts that produced it. No figure appears without the runs
-behind it.
+\textcolor{amritaMaroon}{\textbf{Reporting standard:}} every percentage
+ships with numerator/denominator and 95\% CI.
 \end{columns}
 \end{frame}
 
@@ -425,34 +470,34 @@ behind it.
 
 \centering
 \begin{table}
-\scriptsize
-\renewcommand{\arraystretch}{1.02}
-\begin{tabular}{p{3.3cm} p{6.1cm} c}
+\tiny
+\renewcommand{\arraystretch}{0.92}
+\begin{tabular}{p{3.1cm} p{6.3cm} c}
 \toprule
-\textbf{Module} & \textbf{What it does today} & \textbf{Status} \\
+\textbf{Module} & \textbf{Implementation} & \textbf{Status} \\
 \midrule
-System-level watcher        & Every program start, in every container   & \ok{Working} \\
-Container event collector & Start/stop events; resolves the exact image identity & \ok{Working} \\
-Safe delivery             & Local queue; never skips an event it failed to store & \ok{Working} \\
-Storage \& history        & 9 schema upgrades; nothing overwritten             & \ok{Working} \\
-Deployment fingerprint    & Turns a deployment into one repeatable identity      & \ok{Working} \\
-Behaviour profiles        & Builds and versions ``normal''; refuses weak ones     & \ok{Working} \\
-Unusualness scoring       & Explainable score with its reasons attached          & \ok{Working} \\
-Rule-based evidence       & Fixed checks, incident timeline, human sign-off      & \ok{Working} \\
-Approved action runner    & Pause or stop, only after a person approves             & \ok{Working} \\
-Vulnerability lookup      & Software inventory per image; known-exploited flags     & \ok{Working} \\
-Experiment harness        & Runs real containers; tamper-evident results & \ok{Working} \\
+Falco eBPF sensor & \texttt{execve}/\texttt{execveat} capture via \texttt{porygon\_rules.yaml} & \ok{Working} \\
+Docker collector & lifecycle events, digest resolution, SQLite outbox spool & \ok{Working} \\
+Telemetry adapter & Falco JSONL parse, durable cursor, SQLite outbox, retries & \ok{Working} \\
+Storage \& migrations & 9 Alembic revisions, append-only tables & \ok{Working} \\
+Runtime-context hashing & SHA-256 canonical config document (v1 schema) & \ok{Working} \\
+Baseline builder & per-scope process-name/numeric distributions & \ok{Working} \\
+JS-distance scorer & \texttt{scoring.py}, versioned config, per-feature breakdown & \ok{Working} \\
+Deterministic rules & POR-DET-001..007, correlation, allowlists, incidents & \ok{Working} \\
+Responder & pause/stop, operator-token gated, protected-label guard & \ok{Working} \\
+Scanner & Trivy 0.72.0 pinned, CycloneDX SBOM, EPSS/KEV correlation & \ok{Working} \\
+Experiment harness & real-container trials, deterministic split assignment & \ok{Working} \\
 \midrule
-Four-way comparison    & 144-trial run analysed end to end                & \ok{Done} \\
-Result tables, figures & Generated from the real run, incl. a null result   & \ok{Done} \\
+4-arm scope comparison & 144-trial confirmatory run, analysed & \ok{Done} \\
+Result artifacts & \texttt{profile-scope-primary.json}, incl.\ null result & \ok{Done} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\vspace{-2mm}
-{\scriptsize \textbf{Overall $\approx$90\%} --- platform $\approx$95\% complete,
-evaluation $\approx$80\% (first confirmatory round analysed; a larger,
-properly-powered re-run for the recall gate is in progress).}
+{\scriptsize \textbf{Platform: all 8 services healthy end to end.
+Evaluation: n=144 confirmatory round analysed; a 216-trial re-run sized to
+the recall power requirement ($n_{\text{per-arm}}\approx179$) is in
+progress.}}
 \end{frame}
 
 % ============================================================
@@ -464,65 +509,64 @@ properly-powered re-run for the recall gate is in progress).}
 \begin{columns}[T]
 \column{0.44\textwidth}
 \footnotesize
-\textbf{Size and coverage}
+\textbf{Codebase}
 
 \begin{tabular}{@{}lr@{}}
 \toprule
-Lines of program code & 17{,}802 \\
-Automated tests passing & \ok{156} \\
-Service interfaces & 64 \\
-Database upgrade steps & 9 \\
-Services running together & 8 \\
+Services (docker compose) & 8 \\
+Backend API endpoints & 64 \\
+Alembic migrations & 9 \\
+Test functions in repo & 210 \\
 \bottomrule
 \end{tabular}
 
 \medskip
-\textbf{Automatic checks, all passing}
+\textbf{Verification gates, all passing}
 
 \begin{tabular}{@{}p{3.6cm}c@{}}
 \toprule
-Code \& configuration & \ok{pass} \\
-All unit tests & \ok{pass} \\
-Live end-to-end run & \ok{pass} \\
-Real-container run & \ok{pass} \\
+\texttt{make verify-static} & \ok{pass} \\
+\texttt{make verify-unit} & \ok{pass} \\
+\texttt{make verify-live-safe} & \ok{pass} \\
+Real-container acceptance (\texttt{scripts/verify\_phase*.sh}) & \ok{pass} \\
 \bottomrule
 \end{tabular}
 
 \column{0.53\textwidth}
 \footnotesize
-\textbf{Measured on real containers (16 runs)}
+\textbf{Capture-integrity canary, measured (16 runs)}
 
 \begin{tabular}{@{}p{4.3cm}r@{}}
 \toprule
-Marked test events created & 96 \\
-Seen by the system watcher & \ok{96} \\
-Stored in the database & \ok{96} \\
-Lost & \ok{0} \\
-Counted twice & \ok{0} \\
+Canary echo events generated & 96 \\
+Observed at Falco JSONL & \ok{96} \\
+Rows in PostgreSQL & \ok{96} \\
+Measured loss & \ok{0} \\
+Duplicate rows & \ok{0} \\
 Application requests served & 360/360 \\
-Leftover containers after cleanup & \ok{0} \\
+Orphaned containers after teardown & \ok{0} \\
 \bottomrule
 \end{tabular}
 
 \medskip
-\textbf{Complete chain proven on real data}
+\textbf{End-to-end chain, exercised on real data}
 \smallskip
 
 \resizebox{\linewidth}{!}{%
 \begin{tikzpicture}[node distance=2.2mm]
-  \node[box, minimum width=13mm] (a) {container};
-  \node[box, right=of a, minimum width=12mm] (b) {system};
-  \node[box, right=of b, minimum width=13mm] (c) {database};
-  \node[box, right=of c, minimum width=12mm] (d) {profile};
-  \node[box, right=of d, minimum width=11mm] (e) {score};
-  \node[box, green, right=of e, minimum width=14mm] (f) {evidence};
+  \node[box, minimum width=15mm] (a) {container};
+  \node[box, right=of a, minimum width=13mm] (b) {Falco};
+  \node[box, right=of b, minimum width=16mm] (c) {PostgreSQL};
+  \node[box, right=of c, minimum width=15mm] (d) {baseline};
+  \node[box, right=of d, minimum width=15mm] (e) {$D_{JS}$ score};
+  \node[box, green, right=of e, minimum width=17mm] (f) {POR-DET match};
   \foreach \x/\y in {a/b,b/c,c/d,d/e,e/f} \draw[fl] (\x) -- (\y);
 \end{tikzpicture}}
 
 \smallskip
-{\scriptsize From a real database container: 479 recorded program starts became a
-profile, a later window scored \emph{normal-looking}, and 72 rule checks matched
-without raising a false incident.}
+{\scriptsize From a real PostgreSQL container: 479 recorded \texttt{execve}
+events became a baseline, a later window scored \texttt{baseline\_like}, and
+72 POR-DET rule evaluations produced zero false incidents.}
 \end{columns}
 \end{frame}
 
@@ -530,45 +574,53 @@ without raising a false incident.}
 % RUBRIC 2c: SAFETY BEHAVIOUR
 % ============================================================
 \begin{frame}{2. Implementation Progress --- The Safety Rails Work}
-\framesubtitle{Live demonstration: the conditions under which the system declines}
+\framesubtitle{Refusal paths that prevent an unsupported result from being reported}
 
 \begin{columns}[T]
 \column{0.5\textwidth}
 \footnotesize
-A system of this kind is only trustworthy if it declines at the correct moments.
-Three such refusals can be demonstrated live:
+Three refusal paths that prevent an unsupported or contaminated result from
+silently becoming a reported number:
 
 \medskip
-\textbf{1. It refuses a weak profile.}\\
-Asked to learn ``normal'' from too little data, it stops:\\
-{\tiny\ttfamily needed 3 time windows, found 2}
+\textbf{1. \texttt{insufficient\_profile}, not a guessed score.}\\
+When a scope key (e.g.\ a digest with zero fit-split coverage) has no
+reference distribution, \texttt{score\_trial\_under\_scope} returns
+\texttt{reference\_key\_present=False} and the trial is excluded from
+FPR/recall counts, never scored as either a pass or a detection
+(\texttt{experiments/scope.py}).
 
 \medskip
-\textbf{2. It refuses to evaluate itself on its own training data.}\\
-Asked to score a period it already learned from:\\
-{\tiny\ttfamily scoring windows must not overlap the training interval}
+\textbf{2. Fit/test overlap rejection.}\\
+Scoring a window that overlaps the interval used to build that same baseline
+is rejected at the API layer, preventing a model from being evaluated on its
+own training data.
 
 \medskip
-\textbf{3. It refuses an unstable reference.}\\
-Asked to use a version label instead of an exact fingerprint:\\
-{\tiny\ttfamily refusing a mutable image reference}
+\textbf{3. Mutable-reference rejection in the experiment harness.}\\
+Pulling a workload image by tag instead of a resolved
+\texttt{repository@sha256:<digest>} coordinate is rejected before the pull
+(\texttt{experiments/real.py:pull\_pinned\_image}), so no trial can silently
+run against an unpinned image.
 
 \column{0.48\textwidth}
 \centering
 \resizebox{!}{0.58\textheight}{%
 \begin{tikzpicture}[node distance=4mm]
-  \node[box, minimum width=44mm] (r1) {``Learn normal from this''};
-  \node[box, amber, below=4mm of r1, minimum width=44mm] (x1) {\textbf{Refused} --- not enough evidence};
-  \node[box, below=7mm of x1, minimum width=44mm] (r2) {``Score this period''};
-  \node[box, amber, below=4mm of r2, minimum width=44mm] (x2) {\textbf{Refused} --- that is training data};
-  \node[box, below=7mm of x2, minimum width=44mm] (r3) {``Collect final research results''};
-  \node[box, amber, below=4mm of r3, minimum width=44mm] (x3) {\textbf{Refused} --- study not approved yet};
+  \node[box, minimum width=44mm] (r1) {Score against a scope key with no fit coverage};
+  \node[box, amber, below=4mm of r1, minimum width=44mm] (x1) {\textbf{Excluded} --- \texttt{insufficient\_profile}};
+  \node[box, below=7mm of x1, minimum width=44mm] (r2) {Score window overlapping fit interval};
+  \node[box, amber, below=4mm of r2, minimum width=44mm] (x2) {\textbf{Refused} --- fit/test overlap};
+  \node[box, below=7mm of x2, minimum width=44mm] (r3) {Pull workload image by mutable tag};
+  \node[box, amber, below=4mm of r3, minimum width=44mm] (x3) {\textbf{Refused} --- digest coordinate required};
   \draw[fl] (r1) -- (x1); \draw[fl] (r2) -- (x2); \draw[fl] (r3) -- (x3);
 \end{tikzpicture}}
 
 \smallskip
-{\scriptsize Each refusal is enforced in code and covered by an automated test,
-so it cannot be bypassed inadvertently.}
+{\scriptsize Refusals 1 and 3 have named regression tests in
+\texttt{experiments/tests/} (\texttt{test\_scope.py},
+\texttt{test\_real.py}); refusal 2's exact 409 path is implemented but not
+yet independently unit-tested -- verified here by reading the source.}
 \end{columns}
 \end{frame}
 
@@ -576,44 +628,44 @@ so it cannot be bypassed inadvertently.}
 % RUBRIC 3a: DESIGN DECISIONS
 % ============================================================
 \section{Technical Knowledge}
-\begin{frame}{3. Technical Knowledge --- Key Decisions and Why}
+\begin{frame}{3. Technical Knowledge --- Design Decisions and Rationale}
 \framesubtitle{Rubric: Understanding of Methodology, Implementation \& Design Choices (5 Marks)}
 
 \centering
 \begin{table}
-\scriptsize
-\renewcommand{\arraystretch}{1.18}
-\begin{tabular}{p{3.3cm} p{4.4cm} p{4.4cm}}
+\tiny
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{p{3.1cm} p{4.6cm} p{4.0cm}}
 \toprule
-\textbf{Decision} & \textbf{Why} & \textbf{What we rejected} \\
+\textbf{Decision} & \textbf{Rationale} & \textbf{Rejected alternative} \\
 \midrule
-Identify images by content fingerprint
-& A version label can be pointed at different software tomorrow; a fingerprint cannot
-& Grouping by container name or version label \\
+Content-addressed digest identity
+& A mutable tag (\texttt{nginx:latest}) can resolve to a different image tomorrow; a digest cannot without changing identity
+& Grouping baselines by container name or tag \\
 
-Watch at the operating-system level
-& Sees every program start without changing the application
-& Modifying applications, or trusting logs the attacker can edit \\
+Kernel-level (eBPF) observation
+& Captures every \texttt{execve} without application instrumentation or trusting attacker-controlled application logs
+& In-application logging or agent instrumentation \\
 
-Use a maintained sensor
-& Equivalent evidence at far lower risk than writing new system-level code
-& Building a custom system-level sensor: high effort, wide exposure \\
+Reuse Falco as the sensor
+& Equivalent syscall evidence to a custom probe, far lower implementation/maintenance risk
+& Writing and maintaining a custom eBPF collector \\
 
-Combine measures by equal average
-& No number we cannot justify to an examiner
-& Weights tuned until the results look good \\
+Fixed, versioned scoring weights
+& Every historical score stays reproducible under \texttt{algorithm\_version}; changes require a new version, not a silent edit
+& Weights tuned post hoc until results matched expectation \\
 
-Judge against held-back normal runs
-& Turns a raw distance into ``how often does normal look this odd?''
-& Declaring a threshold and calling it accuracy \\
+Exact McNemar/Holm/Clopper-Pearson
+& A defensible, interval-bounded claim rather than an arbitrary cutoff presented as a rate
+& Picking a threshold and reporting the resulting accuracy directly \\
 
-Split by whole runs
-& Snapshots seconds apart are near-copies; reusing them fakes confidence
-& Random splitting of time windows \\
+Whole-run split assignment
+& Adjacent windows in one run are near-duplicates; window-level splitting would overstate confidence
+& Random assignment of individual time windows \\
 
-A person approves every action
-& A false alarm must never take down a healthy service
-& Automatic shutdown on a score \\
+Operator-token-gated containment
+& A false positive must never autonomously disrupt a healthy service
+& Automated pause/stop triggered directly by score \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -622,7 +674,7 @@ A person approves every action
 % ============================================================
 % RUBRIC 3b: TRADE-OFFS
 % ============================================================
-\begin{frame}{3. Technical Knowledge --- Trade-offs We Accepted}
+\begin{frame}{3. Technical Knowledge --- Trade-offs}
 \framesubtitle{Rubric: Design Choices \& Trade-offs (5 Marks)}
 
 \begin{columns}[T]
@@ -632,26 +684,27 @@ A person approves every action
 \toprule
 \textbf{Benefit} & \textbf{Cost} \\
 \midrule
-Strong, cheap signal from program starts & Blind to file access and network destinations \\
-Cleaner ``normal'' per deployment & Fewer runs per group; some groups too small to judge \\
-No unjustifiable tuned numbers & Almost certainly not the most accurate possible \\
-Honest confidence intervals & Need far more runs for the same certainty \\
-A fair, interpretable scale & Only valid while the workload does not drift \\
-No self-inflicted outages & Slower response to a real attack \\
-One language across all services & A known write-speed ceiling, not yet a bottleneck \\
+Low-overhead process-execution signal (no app instrumentation) & Zero network, DNS, socket, or file-access telemetry \\
+Finer-grained baselines per digest/context & Fewer independent runs per stratum; some return \texttt{insufficient\_profile} \\
+Fixed, disclosed scoring weights & Not claimed to be the most accurate achievable weighting \\
+Exact statistical intervals (Clopper-Pearson, McNemar) & Requires more runs per arm than a point estimate for the same confidence \\
+A fixed, versioned distance-to-score mapping & Only valid while the digest's expected behaviour does not itself drift \\
+No automated disruptive response & Slower operator response time to a confirmed incident \\
+Single language (Python) across all services & A known single-process write-throughput ceiling, not yet exercised as a bottleneck \\
 \bottomrule
 \end{tabular}
 
 \column{0.36\textwidth}
 \footnotesize
-\textbf{Edge cases already handled}
+\textbf{Edge cases handled in code, with tests}
 \begin{itemize}\setlength\itemsep{1pt}
-  \item Storage full $\rightarrow$ queue locally, never skip an event
-  \item Sensor restarts $\rightarrow$ counters do not go backwards
-  \item Same event twice $\rightarrow$ stored once
+  \item Backend outage $\rightarrow$ SQLite outbox spool, exponential backoff retry
+  \item Sensor restart $\rightarrow$ durable telemetry cursor, no rewind
+  \item Duplicate delivery $\rightarrow$ deterministic event ID, upsert
   \item Malformed input $\rightarrow$ kept as a short, scrubbed sample
   \item Too little data $\rightarrow$ answer ``insufficient'', never guess
-  \item Secret on a command line $\rightarrow$ replaced before storage
+  \item Runtime-context fingerprint redacts secret-shaped flags/values;
+        raw process \texttt{command\_line} is stored as-is, not redacted
 \end{itemize}
 \end{columns}
 \end{frame}
@@ -659,69 +712,72 @@ One language across all services & A known write-speed ceiling, not yet a bottle
 % ============================================================
 % RUBRIC 3c: FINDINGS
 % ============================================================
-\begin{frame}{3. Technical Knowledge --- The Real Result}
+\begin{frame}{3. Technical Knowledge --- Confirmatory Result (n=144)}
 \framesubtitle{Rubric: Preliminary Observations (5 Marks) --- measured on 144 real container trials}
 
 \begin{columns}[T]
 \column{0.49\textwidth}
 \footnotesize
-\textbf{1. One-baseline-for-everything is clearly bad.}\\
-Pooling three unrelated services (web server, database, cache) into a single
-``normal'' produced a false alarm on \emph{every single} held-out normal run
-(35/35). Scoping by image individually dropped that to zero (0/35). This
-difference is real ($p = 5.8\times10^{-11}$) but it is the easy, expected
-half of the question.
+\textbf{1. \texttt{ARM-CONTEXT} vs \texttt{ARM-GLOBAL}: significant.}\\
+\texttt{ARM-GLOBAL} (nginx/redis/postgres pooled into one reference)
+produced a positive call on 35/35 held-out benign runs (FPR 100\%, 95\% CI
+90.0--100\%). Per-image scoping (\texttt{ARM-CONTEXT}) reduced this to 0/35
+(FPR 0\%, CI 0--10.0\%). Exact McNemar $p=5.8\times10^{-11}$, Holm-adjusted,
+recall non-inferior (62/62 both arms). This is the frozen protocol's H1
+contrast; it tests pooling vs.\ per-image scoping, not context specifically.
 
 \medskip
-\textbf{2. The harder, more interesting question came back a null result.}\\
-Does adding \emph{deployment context} on top of the exact image fingerprint
-help further? Comparing context-aware scoping against fingerprint-only
-scoping: \textbf{zero measurable difference} ($p = 1.0$, both arms agreed on
-every one of 35 trials). We are reporting this plainly rather than quietly
-promoting the easier comparison above to stand in for it.
+\textbf{2. \texttt{ARM-CONTEXT} vs \texttt{ARM-DIGEST}: null.}\\
+The paper's actual thesis -- does runtime-context conditioning add anything
+beyond exact digest identity -- returns $p=1.0$: zero discordant pairs, both
+arms agree on all 35 held-out trials. \texttt{ARM-CONTEXT} beating
+\texttt{ARM-GLOBAL} above must not be cited as support for this claim; the
+contrast that actually tests it is a null result.
 
 \column{0.49\textwidth}
 \footnotesize
-\textbf{3. We traced \emph{why} it came back null, and it is fixable.}\\
-The deployment change we tested (dropping a Linux capability) does not
-change which programs run --- only their permissions. Our scoring only
-looks at \emph{which programs ran}, so it is structurally blind to that
-kind of change.
+\textbf{3. Root cause of the null result.}\\
+The tested context variant (dropping Linux capability \texttt{NET\_RAW})
+changes container privilege, not which processes execute. The categorical
+\texttt{process\_name} feature cannot reflect a capability-only change by
+construction, independent of scope.
 
 \medskip
-\textbf{4. A direct fix, tested on the same data: promising, not yet proven.}\\
-Scoring the deployment configuration itself (privileges, capabilities,
-mounts) instead of inferring it through program names: \textbf{0/18 false
-alarms, 17/17 correct detections} of the dropped-capability case, on data
-already collected. This is exploratory --- it has not been tested against a
-real attack yet, and the scoring weights were chosen by hand, not fitted.
+\textbf{4. Exploratory follow-on, same dataset, no new trials.}\\
+\texttt{context\_delta.py} scores the runtime-context document directly
+(\texttt{privileged}, \texttt{capabilities}, \texttt{read\_only\_rootfs},
+\texttt{network\_mode}, mounts, devices) instead of inferring it through
+process names: \textbf{0/18 FPR [CI 0--18.5\%], 17/17 detection of
+\texttt{dropped\_capabilities} [CI 80.5--100\%]}. Hand-fixed weights, not
+fit; not evaluated against attack scenarios; not confirmatory.
 
 \smallskip
-\textcolor{amritaMaroon}{\textbf{Why this matters:}} an understood negative
-result, plus one concrete fix showing a clean separation, beats an
-unexplained positive one.
+\textcolor{amritaMaroon}{\textbf{Why this matters:}} a mechanistically
+understood null beats an unexplained positive.
 \end{columns}
 \end{frame}
 
 % ============================================================
 % RUBRIC 3d: LIMITS
 % ============================================================
-\begin{frame}{3. Technical Knowledge --- What We Do Not Claim}
-\framesubtitle{Knowing the limits is part of understanding the method}
+\begin{frame}{3. Technical Knowledge --- Claim Boundaries}
+\framesubtitle{docs/CLAIMS\_V1.md governs exactly what may and may not be stated}
 
 \begin{columns}[T]
 \column{0.49\textwidth}
 \footnotesize
-\textbf{What the system can miss}
+\textbf{Structurally undetectable in v1}
 \begin{itemize}\setlength\itemsep{1pt}
-  \item No network/DNS/file telemetry: an already-trusted tool (e.g.\ curl)
-        redirected to a bad destination looks identical to normal use
-  \item An attacker who never spawns a new process is invisible
-  \item Slow activity spread over time; groups too small to judge
+  \item No network, DNS, socket, or file-access telemetry: a trusted binary
+        (e.g.\ \texttt{curl}) redirected to a malicious destination via
+        config/DNS change produces zero observable deviation
+  \item No new-process signal $\Rightarrow$ invisible (in-memory execution,
+        \texttt{bash}'s \texttt{/dev/tcp})
 \end{itemize}
-{\scriptsize A full 18-scenario audit against the real code is in
-\texttt{docs/ADVERSARIAL\_SCENARIOS\_V1.md}: roughly half are structurally
-undetectable today, half are genuinely caught.}
+{\scriptsize Full 18-scenario classification in
+\texttt{docs/ADVERSARIAL\_SCENARIOS\_V1.md}: 6/18 structurally invisible
+(network/data-plane), 4/18 depend on exact process-identity granularity,
+3/18 acknowledged but untested, 5/18 genuinely caught by an existing rule.}
 
 \medskip
 \textbf{Honest process note}
