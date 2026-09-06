@@ -454,7 +454,7 @@
                     <i class="ph ph-cpu text-cyan-400 text-lg"></i>
                   </div>
                   <div class="mt-3 font-display text-[15px] font-bold text-white tracking-tight">eBPF Probes</div>
-                  <div class="text-[11px] text-white/40 font-mono mt-0.5">sys_enter_execve / connect</div>
+                  <div class="text-[11px] text-white/40 font-mono mt-0.5">sys_enter_execve only (no network/file/socket)</div>
                   <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
                     <span class="text-white/40">Events:</span>
                     <span class="text-cyan-300 font-bold" x-text="systemInfo.process_exec_events != null ? (events?.length || 0) + ' buffered (' + systemInfo.process_exec_events.toLocaleString() + ' lifetime)' : 'loading…'"></span>
