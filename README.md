@@ -1,13 +1,63 @@
 # Porygon
 
-> **Docker-First Runtime Security, Behavioural Anomaly Detection & Vulnerability Intelligence Platform**
+> **A single-host Docker runtime-behaviour research prototype, not a production security platform.**
 >
-> Porygon is an extensible runtime-security research platform for containerized Linux environments. It couples kernel-level process telemetry (via modern eBPF) with Docker daemon lifecycle events to construct immutable digest-bound behavioural baselines, compute explainable Jensen-Shannon behavioural distance anomalies, correlate deterministic security findings into actionable incidents, enforce human-approved container containment policies, and cross-reference container image digests with cryptographically verified SBOMs and multi-dimensional vulnerability intelligence (EPSS & CISA KEV).
+> Porygon is a research prototype, not a production-ready security platform. It
+> couples Falco-based process-execution telemetry (modern eBPF, `execve`/
+> `execveat` only — no network, file, or socket telemetry) with Docker daemon
+> lifecycle events to build digest-bound process-name behavioural baselines,
+> compute a Jensen-Shannon behavioural-distance score, apply seven
+> deterministic detection rules, correlate findings into a reviewable incident
+> record, support human-approved pause/stop containment, and cross-reference
+> container image digests against Trivy-scanned SBOMs with EPSS/CISA KEV
+> context. See [`docs/CLAIMS_V1.md`](docs/CLAIMS_V1.md) for exactly what is and
+> is not validated, and
+> [`docs/ADVERSARIAL_SCENARIOS_V1.md`](docs/ADVERSARIAL_SCENARIOS_V1.md) for an
+> honest scenario-by-scenario account of what this design can and cannot
+> detect — most network-based and in-memory compromise techniques are
+> currently invisible to it by design, and that is a stated non-goal, not a
+> hidden limitation.
+
+---
+
+## Scope, Validated Claims, and Known Blind Spots
+
+Read this before anything else below.
+
+- **What is validated**: the pipeline runs end-to-end on real Docker
+  containers (`docs/CONFIRMATORY_RESULT_V1.md`), and a 144-trial confirmatory
+  run found real, statistically significant evidence that per-image
+  behavioural scoping beats one pooled global baseline. **The paper's more
+  specific thesis — that digest-plus-context scoping beats digest-only
+  scoping — is currently a null result** (p=1.0) at process-name-distance
+  granularity; a follow-on exploratory feature that scores runtime
+  configuration (privileged/capabilities/mounts) directly, rather than
+  inferring it through process names, shows promise (0/18 FPR, 17/17
+  detection of a capability-drop scenario) but has not been confirmatory-
+  tested. See `docs/CONFIRMATORY_RESULT_V1.md` for the full, unfiltered
+  result including what did not work.
+- **What is not validated or claimed**: production readiness, detection
+  superiority over any other tool, calibrated attack probabilities, or zero
+  event loss. See `docs/CLAIMS_V1.md` for the complete, binding list of
+  claims this project is and is not allowed to make.
+- **What this cannot see, by design**: no network flow, DNS, socket, or file-
+  access telemetry exists in v1. An attacker using an already-baselined tool
+  redirected to a malicious destination, a fileless payload, or an in-place
+  binary replacement that keeps the same executable path is currently
+  invisible to this system. See `docs/ADVERSARIAL_SCENARIOS_V1.md` for 18
+  worked scenarios, of which roughly half are structurally undetectable by
+  the current design and half are genuinely caught.
+- **Realistic use case**: a narrow, digest-identity-aware signal for
+  detecting *new* process behaviour inside an already-running
+  container — unexpected shells, unexpected dual-use tools, unexpected root
+  processes, unexpected privileged-mode reconfiguration, and mutable-tag/
+  digest substitution. Not a general intrusion-detection or EDR replacement.
 
 ---
 
 ## Table of Contents
 
+- [Scope, Validated Claims, and Known Blind Spots](#scope-validated-claims-and-known-blind-spots)
 - [System Architecture & Network Boundaries](#system-architecture--network-boundaries)
 - [Core Subsystems & Capabilities](#core-subsystems--capabilities)
 - [Telemetry & Kernel Event Ingestion](#telemetry--kernel-event-ingestion)
@@ -601,6 +651,9 @@ Additionally validated during CI/CD checks:
 
 For in-depth architectural specifications, threat models, and research protocols:
 
+- **Claim Boundaries (binding, read first)**: [`docs/CLAIMS_V1.md`](docs/CLAIMS_V1.md)
+- **Confirmatory Result (honest, unfiltered)**: [`docs/CONFIRMATORY_RESULT_V1.md`](docs/CONFIRMATORY_RESULT_V1.md)
+- **Adversarial Scenario Stress Test**: [`docs/ADVERSARIAL_SCENARIOS_V1.md`](docs/ADVERSARIAL_SCENARIOS_V1.md)
 - **Pilot Results UI**: `artifacts/results.html` — regenerate with `python3 scripts/render_results.py`
 - **Implementation Status Matrix (evidence-based)**: [`docs/execution-status.md`](docs/execution-status.md)
 - **Design Decisions & Trade-offs**: [`docs/design-decisions.md`](docs/design-decisions.md)
