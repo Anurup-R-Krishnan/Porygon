@@ -1,0 +1,511 @@
+\documentclass[aspectratio=169, 11pt]{beamer}
+
+% --- Packages & Setup ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+
+\graphicspath{{../}{./}}
+
+% Try loading Open Sans; fallback if missing
+\IfFileExists{opensans.sty}{\usepackage[default,scale=0.95]{opensans}}{}
+
+% --- Branding Colors ---
+\definecolor{amritaMaroon}{HTML}{A4123F}
+
+% --- Theme Setup ---
+\usetheme{Madrid}
+\usecolortheme[named=amritaMaroon]{structure}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+\begin{document}
+
+% --- CUSTOM TITLE SLIDE (Research) ---
+\begin{frame}
+    % Corner Box Indicator
+    \begin{tikzpicture}[remember picture,overlay]
+        \node[fill=amritaMaroon, text=white, font=\bfseries\footnotesize, anchor=north east, rounded corners=2pt, inner sep=5pt]
+        at ($(current page.north east) + (-0.2cm,-0.2cm)$)
+        {Type 1: Research Project};
+    \end{tikzpicture}
+
+    \centering
+    \IfFileExists{logo.png}{\includegraphics[width=2.8cm]{logo.png}\vspace{0.1cm}}{\vspace{0.4cm}}
+
+    {\large \textbf{\textcolor{amritaMaroon}{PORYGON: A Statistical and Rule-Based Runtime Security Framework for Containerized Workloads}}} \\
+    \vspace{0.05cm}
+    {\footnotesize \textbf{23CSE498 -- Project Phase 2 (Panel Review 1)} \quad | \quad \textbf{Team Number: 75}} \\
+    \vspace{0.15cm}
+
+    % Student Table
+    \begin{table}
+        \centering
+        \footnotesize
+        \renewcommand{\arraystretch}{1.05}
+        \begin{tabular}{|c|c|l|}
+            \hline
+            \textbf{S.No} & \textbf{Register Number} & \textbf{Student Name} \\
+            \hline
+            1 & CB.EN.U4CSE23504 & Ashin Varghese \\
+            \hline
+            2 & CB.EN.U4CSE23559 & Anurup Krishna \\
+            \hline
+            3 & CB.EN.U4CSE23628 & Krishnan S \\
+            \hline
+            4 & CB.EN.U4CSE23661 & Madhav Sreejith \\
+            \hline
+        \end{tabular}
+    \end{table}
+    \vspace{0.1cm}
+
+    {\footnotesize Guide: \textbf{Dr Abirami K}, Assistant Professor, Department of CSE} \\
+    \vspace{0.1cm}
+    {\scriptsize \today}
+\end{frame}
+
+% ============================================================
+% RESEARCH QUESTION AND CONTRIBUTION
+% ============================================================
+\section{Research Question}
+\begin{frame}{Research Question and Contribution}
+\framesubtitle{The specific, falsifiable question this project answers}
+
+\footnotesize
+Container runtime anomaly detection (Falco, Sysdig, Aqua, and the academic
+line from Forrest et al. 1996 through Abed/Clancy 2015) all build a
+behavioural baseline of ``normal'' process activity and flag deviation.
+None of them publish a controlled measurement of \textbf{at what identity
+granularity that baseline should be scoped}: one profile per fleet
+(\texttt{ARM-GLOBAL}), per mutable tag (\texttt{ARM-TAG}), per exact
+immutable image digest (\texttt{ARM-DIGEST}), or per digest plus the
+container's runtime security configuration (\texttt{ARM-CONTEXT}).
+Vendors and prior work pick one by engineering judgement.
+
+\medskip
+\textbf{This project's contribution:} a frozen, pre-registered protocol
+that runs identical Falco/eBPF telemetry and identical deterministic
+detection rules through all four scoping strategies on the same real
+Docker-container trials, and reports the false-positive-rate and recall
+outcome of each with exact statistical inference (McNemar's test,
+Holm-Bonferroni correction, Clopper-Pearson intervals) -- not a single
+reported accuracy figure.
+
+\medskip
+\textbf{Confirmed result (216 real Docker-container trials, 53 held-out
+benign runs, 96 planted-attack runs):} scoping per image
+(\texttt{ARM-CONTEXT}) eliminates the false-positive rate entirely against
+a pooled baseline, $100\%\to0\%$ ($p=6.7\times10^{-16}$), with zero loss
+of detection recall (96/96 both arms). This is a statistically decisive,
+reproduced result (first measured at $p=5.8\times10^{-11}$ on 144 trials,
+confirmed at $p=6.7\times10^{-16}$ on the full 216-trial run).
+\end{frame}
+
+% --- SLIDE 1: METHODOLOGY & SOLUTION DESIGN (Rubric: 5 Marks) ---
+\section{Methodology \& Solution Design}
+
+\begin{frame}{1. Methodology \& Solution Design}
+    \framesubtitle{Rubric: Methodology, Implementation Approach \& Design Choices (5 Marks)}
+
+    \begin{columns}[T,onlytextwidth]
+        \column{0.48\textwidth}
+        \footnotesize
+        \textbf{Methodological Framework:}
+        \setlength{\abovedisplayskip}{4pt}
+        \setlength{\belowdisplayskip}{4pt}
+
+        \begin{itemize}
+            \setlength{\itemsep}{5pt}
+
+            \item \textbf{Behaviour Baseline:}
+            Historical Docker lifecycle and Falco process events form a
+            versioned baseline for one immutable image digest.
+
+            \item \textbf{Anomaly Scoring:}
+            For each categorical feature, the v1 scorer compares baseline $P$
+            with a completed runtime window $Q$ using base-2 Jensen--Shannon
+            distance:
+            \[
+                D_{\mathrm{JS}}(P,Q)
+                = \sqrt{\mathrm{JSD}(P,Q)}
+            \]
+            Smaller values indicate more similar behaviour.
+
+            \item \textbf{Rule-Based Detection:}
+            Seven deterministic rules produce explainable findings. An incident
+            requires an unsuppressed, incident-eligible finding.
+        \end{itemize}
+
+        \column{0.48\textwidth}
+        \centering
+        {\small\textbf{Porygon Workflow}}\par
+        \vspace{2mm}
+
+        \begingroup
+
+        \sbox{0}{%
+        \begin{tikzpicture}[
+            runtimebox/.style={
+                draw=amritaMaroon,
+                fill=amritaMaroon!6,
+                rounded corners=2pt,
+                text width=2.55cm,
+                minimum height=0.65cm,
+                inner sep=3pt,
+                align=center,
+                font=\scriptsize
+            },
+            evidencebox/.style={
+                runtimebox,
+                draw=blue!55!black,
+                fill=blue!5
+            },
+            responsebox/.style={
+                runtimebox,
+                draw=green!40!black,
+                fill=green!6
+            },
+            runtimearrow/.style={
+                ->,
+                >=stealth,
+                thick,
+                draw=amritaMaroon
+            },
+            evidencearrow/.style={
+                runtimearrow,
+                draw=blue!55!black
+            }
+        ]
+
+        % --- Runtime analysis ---
+        \node[runtimebox] (monitor) at (0,0)
+            {\textbf{Observation}\\Falco/eBPF events};
+
+        \node[
+            font=\scriptsize\bfseries,
+            text=amritaMaroon,
+            anchor=south
+        ] at ([yshift=2mm]monitor.north)
+            {Runtime Analysis};
+
+        \node[runtimebox, anchor=north]
+            (baseline) at ([yshift=-2mm]monitor.south)
+            {\textbf{Baseline $P$}\\Historical windows};
+
+        \node[runtimebox, anchor=north]
+            (score) at ([yshift=-2mm]baseline.south)
+            {\textbf{Score Current $Q$}\\JSD component};
+
+        \node[runtimebox, anchor=north]
+            (detect) at ([yshift=-2mm]score.south)
+            {\textbf{Detection}\\Seven fixed rules};
+
+        \node[responsebox, anchor=north]
+            (respond) at ([yshift=-2mm]detect.south)
+            {\textbf{Response}\\Explicit approval};
+
+        \draw[runtimearrow] (monitor.south) -- (baseline.north);
+        \draw[runtimearrow] (baseline.south) -- (score.north);
+        \draw[runtimearrow] (score.south) -- (detect.north);
+        \draw[runtimearrow] (detect.south) -- (respond.north);
+
+        % --- Vulnerability evidence ---
+        \node[evidencebox] (digest) at (3.15,0)
+            {\textbf{Image Identity}\\Exact image digest};
+
+        \node[
+            font=\scriptsize\bfseries,
+            text=blue!55!black,
+            anchor=south
+        ] at ([yshift=2mm]digest.north)
+            {Vulnerability Evidence};
+
+        \node[evidencebox, anchor=north]
+            (scan) at ([yshift=-2mm]digest.south)
+            {\textbf{SBOM Scan}\\Trivy};
+
+        \node[evidencebox, anchor=north]
+            (enrich) at ([yshift=-2mm]scan.south)
+            {\textbf{Enrichment}\\EPSS and CISA KEV};
+
+        \node[evidencebox, anchor=north]
+            (stage) at ([yshift=-2mm]enrich.south)
+            {\textbf{Evidence Stage}\\No exploit verdict};
+
+        \draw[evidencearrow] (digest.south) -- (scan.north);
+        \draw[evidencearrow] (scan.south) -- (enrich.north);
+        \draw[evidencearrow] (enrich.south) -- (stage.north);
+
+        \end{tikzpicture}%
+        }
+
+        \ifdim\wd0>\linewidth
+            \sbox{0}{\resizebox{\linewidth}{!}{\usebox{0}}}%
+        \fi
+
+        \ifdim\dimexpr\ht0+\dp0\relax>0.50\paperheight
+            \resizebox*{!}{0.50\paperheight}{\usebox{0}}%
+        \else
+            \usebox{0}%
+        \fi
+
+        \par
+        \endgroup
+    \end{columns}
+\end{frame}
+
+\begin{frame}{1. Methodology \& Solution Design (contd.)}
+    \framesubtitle{Rubric: Methodology, Implementation Approach \& Design Choices (5 Marks)}
+
+    \footnotesize
+    \textbf{Implementation Approach and Design Choices:}
+
+    \begin{itemize}
+        \setlength{\itemsep}{7pt}
+
+        \item \textbf{Kernel-Level Monitoring:}
+        Falco's modern eBPF driver captures container process execution without
+        modifying the applications. The Telemetry Adapter ingests those events,
+        while the Docker Collector records lifecycle and image-identity events.
+        Both use bounded SQLite outboxes with retry delivery.
+
+        \item \textbf{Service Integration:}
+        Docker Compose coordinates eight long-running containers. Segregated
+        networks restrict connectivity, and outbound access is limited to the
+        vulnerability scanner.
+
+        \item \textbf{Explainable Analysis:}
+        Base-2 Jensen--Shannon distance provides a bounded, symmetric measure of
+        categorical change. Fixed rules expose the matched evidence, so the
+        implemented path does not depend on a black-box ML classifier.
+
+        \item \textbf{Controlled Response:}
+        Policy thresholds use severity and confidence to determine allowed
+        containment actions. Disruptive execution is disabled by default. When
+        enabled, it still requires explicit human approval.
+
+        \item \textbf{Implementation Verification:}
+        The repository contains 79 backend test functions across baseline,
+        scoring, detection, calibration, response, and vulnerability modules,
+        plus 131 further test functions across the collector, telemetry,
+        responder, and scanner services (210 total).
+    \end{itemize}
+\end{frame}
+
+
+% --- SLIDE 2: IMPLEMENTATION PROGRESS (Rubric: 8 Marks) ---
+\section{Implementation Progress}
+\begin{frame}{2. Implementation Progress \& Module Functionality}
+    \framesubtitle{Rubric: Core Modules Implemented, Functional \& Integrated (8 Marks)}
+    \begin{itemize}
+        \item \textbf{Implementation Status Overview:}
+    \end{itemize}
+    \begin{table}
+        \centering
+        \small
+        \renewcommand{\arraystretch}{1.15}
+        \begin{tabular}{|p{4.2cm}|p{5.8cm}|c|}
+            \hline
+            \textbf{Module / Component} & \textbf{Current Implementation State} & \textbf{Status} \\
+            \hline
+            Kernel Telemetry \& Ingestion (Falco eBPF, Docker Collector, Telemetry Adapter) & Captures container process execution via eBPF; durable SQLite outbox with retry & Functional \\
+            \hline
+            Behavioural Baseline \& JSD Scoring (\texttt{baseline.py}, \texttt{scoring.py}) & Digest-bound behavioural baselines; JSD-based anomaly distance scoring & Functional \\
+            \hline
+            Deterministic Detection Engine (\texttt{detection.py}) & 7 correlation rules (POR-DET-001--007) generating findings/incidents & Functional \\
+            \hline
+            4-Arm Scope Comparison (\texttt{experiments/}) & 216-trial confirmatory run analysed end to end, exact statistical pipeline & Complete \\
+            \hline
+        \end{tabular}
+    \end{table}
+\end{frame}
+
+\begin{frame}{2. Implementation Progress (contd.)}
+    \framesubtitle{Rubric: Core Modules Implemented, Functional \& Integrated (8 Marks)}
+    \begin{table}
+        \centering
+        \small
+        \renewcommand{\arraystretch}{1.15}
+        \begin{tabular}{|p{4.2cm}|p{5.8cm}|c|}
+            \hline
+            \textbf{Module / Component} & \textbf{Current Implementation State} & \textbf{Status} \\
+            \hline
+            Vulnerability \& SBOM Pipeline (Scanner, Trivy 0.72.0) & CycloneDX SBOM generation; EPSS \& CISA KEV enrichment & Functional \\
+            \hline
+            Response Policy Engine (\texttt{response.py}) & Severity/confidence-gated containment recommendations; human-approval required & Functional \\
+            \hline
+            Module Integration & 8 containerized services integrated via Docker Compose with network segregation & Integrated \\
+            \hline
+        \end{tabular}
+    \end{table}
+    \vspace{0.3cm}
+    \footnotesize \textbf{Core Functionality Demonstration:} A real, functional
+    XMRig cryptominer binary from a published malware-sample container image
+    was executed against a live Porygon baseline built from 243 real
+    Falco-captured events, with zero prior knowledge of the binary given to
+    the system. Resulting anomaly score: 0.2696 (\texttt{elevated} band,
+    threshold 0.25), with the executable and its parent-child call edge both
+    flagged as previously unseen. Full record: \texttt{docs/LIVE\_DEMO\_RECORD\_V1.md}.
+\end{frame}
+
+
+% --- SLIDE 3: TECHNICAL KNOWLEDGE & DESIGN CHOICES (Rubric: 5 Marks) ---
+\section{Technical Knowledge}
+\begin{frame}{3. Technical Knowledge \& Design Decisions}
+    \framesubtitle{Rubric: Understanding of Methodology, Implementation \& Design Choices (5 Marks)}
+    \footnotesize
+    \begin{itemize}
+        \item \textbf{Algorithmic Justification:} JSD is used over raw KL divergence because it is symmetric ($JSD(P,Q)=JSD(Q,P)$) and bounded, giving comparable scores across containers. Deterministic rules are used instead of a trained ML classifier because the system is explicitly designed around mathematical distance measures, not black-box classifiers, for explainability.
+        \item \textbf{Mathematical Formulation:} The Response Policy Engine computes:
+        \[
+        \text{Action} =
+        \begin{cases}
+        \text{stop} & \text{if } Sev \geq 0.90 \wedge Conf \geq 0.75 \wedge (\text{POR-DET-005} \vee \text{POR-DET-007}) \\
+        \text{pause} & \text{if } Sev \geq 0.70 \wedge Conf \geq 0.55 \\
+        \text{observe only} & \text{otherwise}
+        \end{cases}
+        \]
+        \item \textbf{Confirmed Statistical Result:} the frozen protocol's
+        primary hypothesis test (per-image scoping vs.\ pooled baseline) is
+        significant at $n=216$: exact McNemar $p=6.7\times10^{-16}$
+        (Holm-adjusted), false-positive rate $100\%\to0\%$, recall
+        non-inferior (96/96 both arms).
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{3. Technical Knowledge \& Design Decisions (contd.)}
+    \framesubtitle{Rubric: Understanding of Methodology, Implementation \& Design Choices (5 Marks)}
+    \footnotesize
+    \begin{itemize}
+        \item \textbf{Design Choices \& Trade-offs:}
+        \begin{itemize}
+            \item \textbf{Multicall binary handling:} BusyBox/Toybox-style binaries are matched applet-aware, avoiding false positives from one executable exposing many command names.
+            \item \textbf{Canonical scan identity:} Vulnerability scans are keyed by a SHA-256 hash of 6 parameters (image digest, local image ID, scanner name, scanner version, vulnerability schema version, researcher scan reference), making scans idempotent and immutable.
+            \item \textbf{Network segregation:} Services run across three isolated Docker networks (ingress / internal / egress) with least-privilege socket access.
+            \item \textbf{Fixed, versioned scoring weights:} every historical score stays reproducible under a named algorithm version; a weight change requires a new version, never a silent edit.
+        \end{itemize}
+        \item \textbf{Confirmed Findings (216 real trials, exact statistical pipeline):}
+        \begin{itemize}
+            \item Per-image scoping vs.\ pooled baseline: significant, $p=6.7\times10^{-16}$, FPR $100\%\to0\%$, recall unchanged.
+            \item Digest-plus-context vs.\ digest-only: no measurable difference in this dataset, $p=1.0$, reproduced at both $n=35$ and $n=53$ -- traced to the tested configuration change (a dropped Linux capability) not altering which processes execute, which the process-name feature cannot see by construction.
+            \item Follow-on feature scoring the security-configuration document directly separates every tested case cleanly: 0/26 false positives, 27/27 correct detections.
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+% --- SLIDE 4: TECHNICAL ENRICHMENT ACTIVITY CHOICES ---
+\section{Technical Enrichment}
+\begin{frame}{4. Technical Enrichment Activity Choices}
+    \framesubtitle{Professional Online Certification Details (Individual Mandatory: 10--20 Hours)}
+    \begin{itemize}
+        \item \textbf{Individual MOOC / Online Certification Selection:}
+    \end{itemize}
+    \vspace{-0.1cm}
+    \begin{table}
+        \centering
+        \footnotesize
+        \renewcommand{\arraystretch}{1.15}
+        \begin{tabular}{|c|p{2.8cm}|p{5.0cm}|p{2.3cm}|c|}
+            \hline
+            \textbf{S.No} & \textbf{Student Name} & \textbf{Chosen MOOC / Course Title} & \textbf{Platform} & \textbf{Hours} \\
+            \hline
+            1 & Ashin Varghese & [Course Title relevant to Project] & Coursera & 15 Hrs \\
+            \hline
+            2 & Anurup Krishna & [Course Title relevant to Project] & NPTEL & 20 Hrs \\
+            \hline
+            3 & Krishnan S & [Course Title relevant to Project] & edX / Coursera & 12 Hrs \\
+            \hline
+            4 & Madhav Sreejith & [Course Title relevant to Project] & AWS / Google & 16 Hrs \\
+            \hline
+        \end{tabular}
+    \end{table}
+    \vspace{0.15cm}
+    \begin{itemize}
+        \item {\scriptsize \textbf{Requirement:} Each student must complete one approved 10--20 hour online certification from a recognized platform (Coursera, NPTEL, edX, etc.) relevant to the project.}
+    \end{itemize}
+\end{frame}
+
+% --- REFERENCES ---
+\section{References}
+\begin{frame}[allowframebreaks]{References}
+\scriptsize
+\begin{thebibliography}{9}
+
+\bibitem{forrest1996}
+S.~Forrest, S.~A. Hofmeyr, A.~Somayaji, and T.~A. Longstaff,
+``A sense of self for Unix processes,''
+in \emph{Proc. IEEE Symp. Security and Privacy}, 1996, pp.~120--128.
+
+\bibitem{hofmeyr1998}
+S.~A. Hofmeyr, S.~Forrest, and A.~Somayaji,
+``Intrusion detection using sequences of system calls,''
+\emph{Journal of Computer Security}, vol.~6, no.~3, pp.~151--180, 1998.
+
+\bibitem{abed2015}
+A.~S. Abed, T.~C. Clancy, and D.~S. Levy,
+``Applying bag of system calls for anomalous behavior detection of applications
+in Linux containers,''
+in \emph{Proc. IEEE Globecom Workshops}, 2015, pp.~1--5.
+
+\bibitem{lin1991}
+J.~Lin,
+``Divergence measures based on the Shannon entropy,''
+\emph{IEEE Trans. Information Theory}, vol.~37, no.~1, pp.~145--151, 1991.
+
+\bibitem{salem2012}
+A.~Salem and F.~Naït-Abdesselam,
+``Anomaly detection in network traffic using Jensen-Shannon divergence,''
+in \emph{Proc. IEEE International Conference on Communications (ICC)}, 2012.
+
+\bibitem{lin2026}
+X.~Lin, Z.~Chen, W.~Yang, X.~Yang, J.~Luo, and X.~Yang,
+``eBPF-Guard: a detection method for container escape via multi-level
+monitoring and enhanced analysis model,''
+\emph{Empirical Software Engineering}, vol.~31, article~51, 2026.
+
+\bibitem{li2025}
+Li Wei, Yuan Zekun, Wu Kehe, and Cheng Rui,
+``Container anomaly detection based on attention mechanism and multiscale
+convolutional neural network,''
+\emph{Journal of Information Security Research}, vol.~11, no.~1, pp.~35--, 2025.
+
+\bibitem{xiong2025}
+K.~Xiong, Z.~Wu, and X.~Jia,
+``DeepContainer: a deep learning-based framework for real-time anomaly
+detection in cloud-native container environments,''
+\emph{Journal of Advanced Computing Systems}, 2025.
+
+\bibitem{ring2021}
+J.~H. Ring, C.~M. Van Oort, S.~Durst, V.~White, J.~P. Near, and C.~Skalka,
+``Methods for host-based intrusion detection with deep learning,''
+\emph{Digital Threats: Research and Practice}, vol.~2, no.~4, 2021.
+
+\bibitem{gregg2019}
+B.~Gregg,
+\emph{BPF Performance Tools: Linux System and Application Observability}.
+Boston, MA, USA: Addison-Wesley, 2019.
+
+\bibitem{falco}
+The Falco Authors,
+``Falco: cloud-native runtime security,''
+Cloud Native Computing Foundation. [Online]. Available: https://falco.org
+
+\bibitem{ociimage}
+Open Container Initiative,
+``OCI image format specification.'' [Online].
+Available: https://github.com/opencontainers/image-spec
+
+\end{thebibliography}
+\end{frame}
+
+% --- THANK YOU ---
+\begin{frame}
+    \centering
+    {\Huge \textbf{\textcolor{amritaMaroon}{Thank You}}}
+\end{frame}
+
+\end{document}

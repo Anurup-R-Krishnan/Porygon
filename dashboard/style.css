@@ -90,4 +90,31 @@ section{ isolation:isolate; }
 /* Ensure tables don't cause horizontal page overflow */
 .table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
 
+/* Phosphor icons — force perfect geometric centering inside circular buttons */
+.ph{
+  line-height: 1;
+  display: inline-block;
+  vertical-align: middle;
+  font-variant-ligatures: none;
+}
+i.ph{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* Island nav icon buttons — flex centering beats grid for icon fonts */
+.nav-icon-btn{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.nav-icon-btn i.ph{
+  line-height: 1;
+  margin: 0;
+  transform: translateY(0.5px);
+}
+
 /* Fixed nav assurance — content offset via main pt */

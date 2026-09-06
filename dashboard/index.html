@@ -67,8 +67,8 @@
   <nav class="fixed top-3 sm:top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-16px)] sm:w-[calc(100%-24px)] max-w-[1360px] flex items-center gap-2 sm:gap-3 rounded-full border border-white/10 bg-white/[0.07] px-2 sm:px-2.5 py-2 shadow-[0_12px_40px_rgba(0,0,0,0.45),inset_0_1px_1px_rgba(255,255,255,0.14)] backdrop-blur-2xl will-transform transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]">
     <!-- Left: brand — fixed width, never overlapped -->
     <div class="flex items-center gap-2.5 sm:gap-3 flex-shrink-0 min-w-0">
-      <div class="h-9 w-9 rounded-full bg-white text-black grid place-items-center flex-shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)]">
-        <i class="ph ph-shield-check text-[18px]"></i>
+      <div class="h-9 w-9 rounded-full bg-white text-black nav-icon-btn flex-shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)]">
+        <i class="ph ph-shield-check text-[18px] leading-none block"></i>
       </div>
       <div class="hidden sm:block min-w-0 flex-shrink-0">
         <div class="font-display font-bold tracking-[-0.02em] leading-none text-[14px] sm:text-[15px] flex items-center gap-2 whitespace-nowrap">PORYGON <span class="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-sans font-semibold tracking-[0.14em] uppercase text-white/70 ring-1 ring-white/10">eBPF</span></div>
@@ -90,7 +90,7 @@
       </div>
     </div>
 
-    <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+    <div class="flex items-center gap-1 sm:gap-1.5 flex-shrink-0 min-w-0">
       <div class="hidden 2xl:flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-3 py-1.5 ring-1 ring-emerald-400/20">
         <span class="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)] animate-pulse"></span>
         <span class="text-[11px] font-semibold tracking-[0.14em] uppercase text-emerald-200">eBPF Active</span>
@@ -98,20 +98,20 @@
       <div class="hidden xl:flex 2xl:hidden items-center gap-1 rounded-full bg-emerald-400/10 px-2 py-1.5 ring-1 ring-emerald-400/20" title="eBPF Active">
         <span class="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)] animate-pulse"></span>
       </div>
-      <button @click="refreshAllData()" class="hidden sm:inline-flex group h-9 w-9 grid place-items-center rounded-full bg-white text-black transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]" title="Sync live telemetry">
-        <i class="ph ph-arrows-clockwise text-[16px] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:rotate-180"></i>
+      <button @click="refreshAllData()" class="hidden sm:inline-flex group h-9 w-9 nav-icon-btn rounded-full bg-white text-black transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]" title="Sync live telemetry">
+        <i class="ph ph-arrows-clockwise text-[16px] leading-none block transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:rotate-180"></i>
       </button>
-      <button @click="manageOperatorToken()" class="hidden sm:inline-flex group h-9 w-9 grid place-items-center rounded-full ring-1 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]" :class="operatorToken ? 'bg-emerald-400 text-black ring-emerald-400' : 'bg-white/10 text-white/70 ring-white/10 hover:bg-white hover:text-black'" :title="operatorToken ? 'Operator token set — click to clear' : 'Set operator token for containment approval'">
-        <i class="ph text-[14px]" :class="operatorToken ? 'ph-key' : 'ph-lock-key'"></i>
+      <button @click="manageOperatorToken()" class="hidden sm:inline-flex group h-9 w-9 nav-icon-btn rounded-full ring-1 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]" :class="operatorToken ? 'bg-emerald-400 text-black ring-emerald-400' : 'bg-white/10 text-white/70 ring-white/10 hover:bg-white hover:text-black'" :title="operatorToken ? 'Operator token set — click to clear' : 'Set operator token for containment approval'">
+        <i class="ph text-[14px] leading-none block" :class="operatorToken ? 'ph-key' : 'ph-lock-key'"></i>
       </button>
-      <button @click="showDocsModal = true" class="hidden sm:inline-flex group h-9 w-9 grid place-items-center rounded-full bg-white/10 text-white/80 ring-1 ring-white/10 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] hover:bg-white hover:text-black active:scale-[0.98]" title="Porygon Architecture Blueprint & Guide">
-        <i class="ph ph-book-open text-[15px]"></i>
+      <button @click="showDocsModal = true" class="hidden sm:inline-flex group h-9 w-9 nav-icon-btn rounded-full bg-white/10 text-white/80 ring-1 ring-white/10 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] hover:bg-white hover:text-black active:scale-[0.98]" title="Porygon Architecture Blueprint & Guide">
+        <i class="ph ph-book-open text-[15px] leading-none block"></i>
       </button>
-      <!-- CTA island — button-in-button -->
-      <button @click="activeTab='simulator'" class="btn-island group hidden sm:inline-flex items-center gap-3 rounded-full bg-white px-1.5 py-1.5 pr-2 text-black font-semibold text-[13px] tracking-tight shadow-[0_8px_24px_rgba(255,255,255,0.18),inset_0_1px_1px_rgba(255,255,255,0.6)] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.01] active:scale-[0.98]">
-        <span class="pl-3">Attack Simulator</span>
-        <span class="grid h-8 w-8 place-items-center rounded-full bg-black text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:scale-[1.02]">
-          <i class="ph ph-arrow-up-right text-[14px]"></i>
+      <!-- CTA island — button-in-button — responsive to prevent viewport clipping -->
+      <button @click="activeTab='simulator'" class="btn-island group hidden sm:inline-flex items-center gap-2 sm:gap-3 rounded-full bg-white pl-1 pr-1 sm:pl-1.5 sm:pr-1.5 py-1 sm:py-1.5 text-black font-semibold tracking-tight shadow-[0_8px_24px_rgba(255,255,255,0.18),inset_0_1px_1px_rgba(255,255,255,0.6)] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.01] active:scale-[0.98] flex-shrink-0 max-w-[160px] sm:max-w-none">
+        <span class="pl-2 sm:pl-3 text-[12px] sm:text-[13px] whitespace-nowrap truncate">Attack Simulator</span>
+        <span class="nav-icon-btn h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-black text-white flex-shrink-0 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:scale-[1.02]">
+          <i class="ph ph-arrow-up-right text-[12px] sm:text-[14px] leading-none block"></i>
         </span>
       </button>
       <!-- Hamburger morph -->
