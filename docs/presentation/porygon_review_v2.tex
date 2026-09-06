@@ -76,33 +76,37 @@
 \framesubtitle{The specific, falsifiable question this project answers}
 
 \footnotesize
-Container runtime anomaly detection (Falco, Sysdig, Aqua, and the academic
-line from Forrest et al. 1996 through Abed/Clancy 2015) all build a
-behavioural baseline of ``normal'' process activity and flag deviation.
-None of them publish a controlled measurement of \textbf{at what identity
-granularity that baseline should be scoped}: one profile per fleet
-(\texttt{ARM-GLOBAL}), per mutable tag (\texttt{ARM-TAG}), per exact
-immutable image digest (\texttt{ARM-DIGEST}), or per digest plus the
-container's runtime security configuration (\texttt{ARM-CONTEXT}).
-Vendors and prior work pick one by engineering judgement.
+\textbf{The unanswered design question:} container security tools learn
+what ``normal'' process behavior looks like, then flag deviations. But how
+finely should ``normal'' be defined? Four real options, in increasing
+order of specificity:
+
+\begin{enumerate}
+\item \textbf{One-size-fits-all} -- a single baseline shared by every
+container regardless of what image it runs.
+\item \textbf{Per mutable label} -- one baseline per image tag (e.g.
+\texttt{myapp:latest}); the risk is that a tag can be silently repointed to
+different image content later.
+\item \textbf{Per exact image} -- one baseline per cryptographic image
+identity, which cannot silently change.
+\item \textbf{Per exact image + configuration} -- the same, but also
+split by the container's specific security settings (permissions,
+capabilities).
+\end{enumerate}
+
+No existing tool or published study (Falco, Sysdig, Aqua, or the academic
+line from Forrest et al. 1996 through Abed/Clancy 2015) measures which of
+these four actually reduces false alarms. This project does, using 216
+real container trials and formal statistical testing rather than a single
+accuracy figure.
 
 \medskip
-\textbf{This project's contribution:} a frozen, pre-registered protocol
-that runs identical Falco/eBPF telemetry and identical deterministic
-detection rules through all four scoping strategies on the same real
-Docker-container trials, and reports the false-positive-rate and recall
-outcome of each with exact statistical inference (McNemar's test,
-Holm-Bonferroni correction, Clopper-Pearson intervals) -- not a single
-reported accuracy figure.
-
-\medskip
-\textbf{Confirmed result (216 real Docker-container trials, 53 held-out
-benign runs, 96 planted-attack runs):} scoping per image
-(\texttt{ARM-CONTEXT}) eliminates the false-positive rate entirely against
-a pooled baseline, $100\%\to0\%$ ($p=6.7\times10^{-16}$), with zero loss
-of detection recall (96/96 both arms). This is a statistically decisive,
-reproduced result (first measured at $p=5.8\times10^{-11}$ on 144 trials,
-confirmed at $p=6.7\times10^{-16}$ on the full 216-trial run).
+\textbf{Result:} option 3 eliminated false alarms entirely versus option 1
+($100\%\to0\%$), without missing any real attack (96/96 caught either
+way). This was not a fluke -- the same result appeared at two different
+sample sizes ($p=5.8\times10^{-11}$ at 144 trials, $p=6.7\times10^{-16}$
+at 216 trials), and got statistically stronger, not weaker, the second
+time.
 \end{frame}
 
 % --- SLIDE 1: METHODOLOGY & SOLUTION DESIGN (Rubric: 5 Marks) ---
@@ -358,37 +362,70 @@ confirmed at $p=6.7\times10^{-16}$ on the full 216-trial run).
 \begin{frame}{3. Technical Knowledge \& Design Decisions}
     \framesubtitle{Rubric: Understanding of Methodology, Implementation \& Design Choices (5 Marks)}
     \footnotesize
-    \begin{itemize}
-        \item \textbf{Algorithmic Justification:} JSD is used over raw KL divergence because it is symmetric ($JSD(P,Q)=JSD(Q,P)$) and bounded, giving comparable scores across containers. Deterministic rules are used instead of a trained ML classifier because the system is explicitly designed around mathematical distance measures, not black-box classifiers, for explainability.
-        \item \textbf{Mathematical Formulation:} The Response Policy Engine computes:
-        \[
-        \text{Action} =
-        \begin{cases}
-        \text{stop} & \text{if } Sev \geq 0.90 \wedge Conf \geq 0.75 \wedge (\text{POR-DET-005} \vee \text{POR-DET-007}) \\
-        \text{pause} & \text{if } Sev \geq 0.70 \wedge Conf \geq 0.55 \\
-        \text{observe only} & \text{otherwise}
-        \end{cases}
-        \]
-        \item \textbf{Confirmed Statistical Result:} the frozen protocol's
-        primary hypothesis test (per-image scoping vs.\ pooled baseline) is
-        significant at $n=216$: exact McNemar $p=6.7\times10^{-16}$
-        (Holm-adjusted), false-positive rate $100\%\to0\%$, recall
-        non-inferior (96/96 both arms).
-    \end{itemize}
+
+    \textbf{Distance metric selection: Jensen-Shannon divergence (JSD) over
+    Kullback-Leibler (KL) divergence.} KL divergence is asymmetric
+    ($D_{KL}(P,Q)\neq D_{KL}(Q,P)$) and unbounded above, so a KL score
+    computed for one container cannot be compared against a KL score from a
+    different container on a common scale. JSD is the symmetric, bounded
+    variant ($JSD(P,Q)=JSD(Q,P)$, range $[0,1]$), which permits one fixed
+    threshold to apply uniformly across all containers.
+
+    \medskip
+    \textbf{Containment decision logic.} A finding does not trigger any
+    action unless the rule engine's severity ($Sev$) and confidence
+    ($Conf$) scores clear a defined threshold. Pause requires
+    $Sev\geq0.70$ and $Conf\geq0.55$. Stop requires $Sev\geq0.90$,
+    $Conf\geq0.75$, and a match on one of two specific high-confidence
+    rules (unseen-shell-to-tool sequence, or a container transitioning to
+    privileged mode). Every action, at either threshold, requires explicit
+    human operator approval before execution; no threshold triggers
+    automatic execution.
+
+    \medskip
+    \textbf{Statistical significance of the primary result.} On 216 real
+    container trials, per-image baseline scoping reduced the false-alarm
+    rate from 100\% to 0\% relative to a single pooled baseline, with zero
+    reduction in attack detection. The exact statistical test applied to
+    this result returns $p=6.7\times10^{-16}$, several orders of magnitude
+    below the conventional $p<0.05$ significance threshold.
 \end{frame}
 
 \begin{frame}{3. Technical Knowledge \& Design Decisions (contd.)}
     \framesubtitle{Rubric: Understanding of Methodology, Implementation \& Design Choices (5 Marks)}
     \footnotesize
-    \begin{itemize}
-        \item \textbf{Design Choices \& Trade-offs:}
-        \begin{itemize}
-            \item \textbf{Multicall binary handling:} BusyBox/Toybox-style binaries are matched applet-aware, avoiding false positives from one executable exposing many command names.
-            \item \textbf{Canonical scan identity:} Vulnerability scans are keyed by a SHA-256 hash of 6 parameters (image digest, local image ID, scanner name, scanner version, vulnerability schema version, researcher scan reference), making scans idempotent and immutable.
-            \item \textbf{Network segregation:} Services run across three isolated Docker networks (ingress / internal / egress) with least-privilege socket access.
-            \item \textbf{Fixed, versioned scoring weights:} every historical score stays reproducible under a named algorithm version; a weight change requires a new version, never a silent edit.
-        \end{itemize}
-    \end{itemize}
+
+    \textbf{Multicall binary handling.} Utilities such as BusyBox and
+    Toybox implement dozens of commands inside a single executable file;
+    the command executed depends on the invocation name, not the file
+    path. Tracking file identity alone would classify every invoked
+    command as the same previously-seen program. The detection engine
+    instead tracks the invocation (command) name, so a new command
+    invoked through an already-known multicall binary is still flagged
+    as novel.
+
+    \medskip
+    \textbf{Canonical scan identity.} Each vulnerability scan result is
+    keyed by a SHA-256 hash of six inputs: image digest, local image ID,
+    scanner name, scanner version, vulnerability database schema version,
+    and a researcher-supplied scan reference. Re-executing a scan with an
+    identical set of these six inputs returns the existing stored result
+    (idempotent). A change to any one input produces a distinct,
+    separately-tracked scan record (immutable).
+
+    \medskip
+    \textbf{Network segregation.} The eight services are partitioned
+    across three isolated Docker networks: ingress (external traffic),
+    internal (inter-service communication), and egress (outbound-only,
+    used exclusively by the vulnerability scanner). A service is not
+    granted network reachability to segments outside its assigned role.
+
+    \medskip
+    \textbf{Versioned scoring configuration.} The scoring algorithm and
+    its numeric weights are bound to a named algorithm version. A weight
+    modification requires incrementing the version identifier; no weight
+    change is applied in place. Every historical score therefore remains
+    reproducible against the exact configuration that produced it.
 \end{frame}
 
 \begin{frame}{3. Technical Knowledge \& Design Decisions (contd.)}
