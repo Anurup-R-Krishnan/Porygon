@@ -7,6 +7,12 @@
 ::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,0.24); }
 html{ scroll-behavior:smooth; scroll-padding-top: calc(var(--nav-h) + 28px); }
 body{ min-width:320px; }
+button, a{ -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible{
+  outline: 2px solid #a7f3d0;
+  outline-offset: 3px;
+}
+canvas{ max-width:100%; }
 
 /* Grain — behind content, never over UI. Fixed, low z. */
 .grain{
@@ -115,6 +121,22 @@ i.ph{
   line-height: 1;
   margin: 0;
   transform: translateY(0.5px);
+}
+
+@media (max-width: 639px){
+  /* Keep the fixed island usable on phones when labels become long. */
+  nav.fixed{ gap: .375rem; }
+  nav.fixed .nav-icon-btn{ flex: 0 0 auto; }
+  .toast-glass{ max-width: calc(100vw - 2rem); }
+}
+
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
 }
 
 /* Fixed nav assurance — content offset via main pt */

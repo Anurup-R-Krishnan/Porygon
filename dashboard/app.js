@@ -380,7 +380,7 @@ document.addEventListener('alpine:init', () => {
             this.openPipelineForIncident(this.incidents[0]);
           }
           const triggerResize = () => {
-            Object.values(this.charts).forEach(c => {
+            Object.values(chartRegistry).forEach(c => {
               if (c && typeof c.resize === 'function') c.resize();
             });
             if (typeof window.initReveal === 'function') window.initReveal();
@@ -1329,4 +1329,3 @@ document.addEventListener('alpine:init', () => {
     }
   }));
 });
-
