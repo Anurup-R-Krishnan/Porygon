@@ -107,10 +107,10 @@ document.addEventListener('alpine:init', () => {
         icon: 'ph-cube',
         tag: 'RUNTIME SPOOL',
         badgeColor: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
-        summary: 'Monitors Docker Engine events via dedicated FIFO outbox spool, extracting immutable SHA-256 image digests and container namespace PID maps.',
-        technicalHook: 'GET /events?filters={"type":["container"]}\nFIFO outbox spool: /var/run/porygon/docker_events.fifo',
+        summary: 'Monitors Docker Engine events via durable SQLite outbox spool (outbox.db), extracting immutable SHA-256 image digests and container namespace PID maps.',
+        technicalHook: 'GET /events?filters={"type":["container"]}\nSQLite outbox spool: /var/lib/porygon/outbox.db (spool.py:35)',
         inputSource: 'Docker daemon container start, exec_create, and die life-cycle broadcasts.',
-        outputArtifact: 'Cryptographic image_digest (SHA-256) binding + Host-to-Container PID translation map.',
+        outputArtifact: 'Shared-secret image_digest (SHA-256) binding + Host-to-Container PID translation map.',
         liveMetricKey: 'Active Containers',
         metricType: 'containers',
         status: 'SYNCHRONIZED',
@@ -149,7 +149,7 @@ document.addEventListener('alpine:init', () => {
         icon: 'ph-brackets-curly',
         tag: 'PIPELINE GATEWAY',
         badgeColor: 'text-violet-400 bg-violet-400/10 border-violet-400/20',
-        summary: 'Event ingestion gateway. Canonicalizes binary paths, resolves parent-child execution trees, and persists to PostgreSQL via an outbox spool. Raw command-line strings are stored as-received; no argument sanitization is currently implemented.',
+        summary: 'Event ingestion gateway. Lowercases busybox/toybox basenames (detection.py:166, baseline.py:56), resolves parent-child execution trees (best-effort 600s lookback), and persists to PostgreSQL via an outbox spool. Raw command-line strings are stored as-received; no argument sanitization is currently implemented.',
         technicalHook: 'POST /api/v1/events\nOutbox-pattern batcher (MET-OTP-001 occurrence-to-persistence latency has not yet been measured/reported)',
         inputSource: 'Uncorrelated eBPF syscall records + Docker runtime container lifecycle metadata.',
         outputArtifact: 'Enriched ProcessExecEventOut records with resolved container_name, image_digest, and ppid lineage.',
@@ -171,7 +171,7 @@ document.addEventListener('alpine:init', () => {
         tag: 'D_JS DIVERGENCE',
         badgeColor: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
         summary: 'Calculates symmetric information-theoretic distance between baseline empirical probability P(x) and live sliding window Q(x) across categorical, novelty, and numeric distributions.',
-        technicalHook: 'D_JS(P || Q) = 1/2 * D_KL(P || M) + 1/2 * D_KL(Q || M)\nWeights: Categorical 50% • Novelty 30% • Numeric 20%',
+        technicalHook: 'D_JS(P || Q) = sqrt(1/2 * D_KL(P || M) + 1/2 * D_KL(Q || M))  base-2, range [0,1]\nWeights: Categorical 50% • Novelty 30% • Numeric 20% (numeric_deviation is Robust Z, scoring.py:14)',
         inputSource: 'Configurable sliding window (default 60s, operator-adjustable 5-3600s) of normalized execution tokens compared against digest-bound training profile.',
         outputArtifact: 'Continuous anomaly distance score [0.00, 1.00] with token-level attribution vectors.',
         liveMetricKey: 'Current Distance',
@@ -254,7 +254,7 @@ document.addEventListener('alpine:init', () => {
         icon: 'ph-lock-key',
         tag: 'FAIL-SAFE ACTUATOR',
         badgeColor: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
-        summary: 'Issues time-bounded containment leases (pause, stop, isolate) gated behind a shared-secret operator token, with fail-safe auto-reversion. The token is a constant-time-compared shared secret, not a signed/asymmetric credential.',
+        summary: 'Issues time-bounded containment leases (pause, stop, isolate) gated behind a shared-secret operator token (secrets.compare_digest, PORYGON_OPERATOR_API_TOKEN, security.py:18), with fail-safe auto-reversion. Not PKI/JWT.',
         technicalHook: 'POST /api/v1/operator/containment-actions/approve\nHeader: X-Porygon-Operator-Token (shared secret, secrets.compare_digest)',
         inputSource: 'Approved incident containment recommendations from authorized human operators.',
         outputArtifact: 'Enforced container freeze/stop lease with automatic lease expiration timer.',
@@ -320,7 +320,7 @@ document.addEventListener('alpine:init', () => {
         case 'incidents':
           return info.incidents != null ? `${info.incidents} total (${info.open_incidents ?? 0} open)` : `${this.incidents?.length || 0} total`;
         case 'reachability':
-          return (this.evidenceCounts?.runtime_observed ?? 0) + ' CVEs observed in memory';
+          return (this.evidenceCounts?.runtime_observed ?? 0) + ' CVEs heuristic runtime-observed (package ∩ process)';
         case 'containment':
           return this.operatorToken ? 'AUTHORIZED (Token Set)' : 'LOCKED (Token Required)';
         default:

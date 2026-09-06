@@ -1,88 +1,93 @@
-/* Vanguard — Ethereal Glass + Asymmetrical Bento — supplement to Tailwind CDN */
-:root{ --ease-vanguard: cubic-bezier(0.32,0.72,0,1); }
+/* Porygon — Ethereal Glass • Fixed Layout System • No overlaps */
+:root{ --ease-vanguard: cubic-bezier(0.32,0.72,0,1); --nav-h: 56px; --nav-gap: 16px; }
 *{ scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) #050505; }
 ::-webkit-scrollbar{ width:6px; height:6px; }
 ::-webkit-scrollbar-track{ background:#050505; }
 ::-webkit-scrollbar-thumb{ background: rgba(255,255,255,0.14); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,0.24); }
+html{ scroll-behavior:smooth; scroll-padding-top: calc(var(--nav-h) + 28px); }
+body{ min-width:320px; }
 
-/* Haptic: prevent blur on scrolling content — blur only on fixed island */
+/* Grain — behind content, never over UI. Fixed, low z. */
 .grain{
   position: fixed; inset:0; pointer-events:none;
-  opacity:0.03; z-index: 50;
+  opacity:0.035; z-index: 0;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* Clean crisp rendering without AI-style blur */
+/* Reveal — no layout shift */
 .reveal{
   opacity: 1; transform: translateY(0);
   transition: opacity 400ms var(--ease-vanguard), transform 400ms var(--ease-vanguard);
 }
 .reveal.in{ opacity: 1; transform: translateY(0); }
 
-/* Double-bezel helper — outer already via Tailwind p-1.5 rounded-[2rem] */
+/* Double-bezel — consistent */
 .inner-bezel{
-  box-shadow: inset 0 1px 1px rgba(255,255,255,0.14), 0 8px 32px rgba(0,0,0,0.45);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.10), 0 8px 32px rgba(0,0,0,0.35);
 }
 .inner-bezel.bg-white{
-  box-shadow: inset 0 1px 1px rgba(255,255,255,0.85), 0 8px 32px rgba(0,0,0,0.25);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.85), 0 8px 32px rgba(0,0,0,0.18);
 }
 
-/* Fluid button press */
+/* Buttons — unified press */
+.btn-island{ transition: transform 180ms var(--ease-vanguard), opacity 180ms var(--ease-vanguard), background 180ms var(--ease-vanguard); }
 .btn-island:active{ transform: scale(0.98); }
+.btn-island:disabled{ opacity:0.45; pointer-events:none; }
 
-/* Tab pill active */
+/* Tabs */
 .tab-pill.active{
   background: white; color: #050505;
   box-shadow: 0 4px 20px rgba(255,255,255,0.18), inset 0 1px 1px rgba(255,255,255,0.6);
 }
 .tab-pill.active .tab-count{ background: rgba(0,0,0,0.08); color:#050505; }
 
-/* Toasts — floating glass */
+/* Toasts — floating glass above nav */
 .toast-glass{
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  background: rgba(18,18,22,0.78);
+  background: rgba(18,18,22,0.86);
   border: 1px solid rgba(255,255,255,0.10);
   box-shadow: 0 12px 40px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.08);
 }
 
-/* Chart container — no backdrop-blur (blur reserved for fixed island only, per guardrail) */
+/* Charts — no blur, just border */
 .chart-glass{
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
 }
 
-/* Ensure will-change only on animating */
-.will-transform{ will-change: transform; }
+/* Hide scrollbar but keep scroll */
+.scrollbar-none{ scrollbar-width: none; -ms-overflow-style:none; }
+.scrollbar-none::-webkit-scrollbar{ display:none; }
 
-/* Process Pathway Network Graph — High-Precision Industrial Telemetry */
-@keyframes flowDash {
-  to { stroke-dashoffset: -24; }
-}
-.flow-line {
-  stroke-dasharray: 6 6;
-  animation: flowDash 1.4s linear infinite;
-}
-.flow-line-active {
-  stroke-dasharray: 4 4;
-  animation: flowDash 0.8s linear infinite;
-}
+/* Process Pathway */
+@keyframes flowDash { to { stroke-dashoffset: -24; } }
+.flow-line { stroke-dasharray: 6 6; animation: flowDash 1.4s linear infinite; }
+.flow-line-active { stroke-dasharray: 4 4; animation: flowDash 0.8s linear infinite; }
 .pathway-node {
-  transition: all 300ms cubic-bezier(0.32, 0.72, 0, 1);
+  transition: all 220ms var(--ease-vanguard);
   cursor: pointer;
 }
 .pathway-node:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(0,0,0,0.7), inset 0 1px 1px rgba(255,255,255,0.22);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.55), inset 0 1px 1px rgba(255,255,255,0.18);
 }
 .pathway-node-dimmed {
-  opacity: 0.22;
-  filter: grayscale(85%);
+  opacity: 0.30;
+  filter: grayscale(70%);
   pointer-events: auto;
 }
 .pathway-grid {
   background-size: 24px 24px;
-  background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
 }
+
+/* Fix gaps: prevent collapsing margins causing overlap */
+section{ isolation:isolate; }
+
+/* Ensure tables don't cause horizontal page overflow */
+.table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+/* Fixed nav assurance — content offset via main pt */

@@ -1,88 +1,51 @@
-# Confirmatory Result Summary — First Real Answer
+# Confirmatory Result Summary
 
-**Run:** `study-20260905t181654Z` (144 real Docker-container trials, `evidence_class: confirmatory`, `research_eligible: true`)
-**Analysis artifact:** `artifacts/experiments/protocol-v1/tables/profile-scope-primary.json`
+**Latest run:** `study-confirmatory-200-20260906t071234Z` (216 real Docker-container trials, `evidence_class: confirmatory`, `research_eligible: true`)
+**Analysis artifact:** `artifacts/experiments/protocol-v1/tables/profile-scope-primary-216.json`
+**First round (superseded, kept for provenance):** `study-20260905t181654Z` (144 trials) — `artifacts/experiments/protocol-v1/tables/profile-scope-primary.json`
 **Protocol:** `porygon.research.protocol.v1`, status `FROZEN`, both reviews approved (`docs/review/*.json`)
+**Reproduce the analysis:** `python3 -m experiments.analyze_scope_run <run_dir> --out <path>`
 
 ## Question
 
 Does conditioning a behavioral profile on immutable image digest + deployment context (`ARM-CONTEXT`) reduce benign false-alarm rate while preserving detection recall, versus a global profile (`ARM-GLOBAL`), a mutable-tag profile (`ARM-TAG`), or a digest-only profile (`ARM-DIGEST`)?
 
-## Result
+## Result (216-trial round, n roughly 1.5x the first round)
 
-| Arm | FPR (benign, n=35) | Recall (real attack scenarios, n=62) |
+| Arm | FPR (benign, n=53) | Recall (real attack scenarios, n=96) |
 |---|---|---|
-| `ARM-GLOBAL` | 35/35 = 100% [95% CI 90.0–100%] | 62/62 = 100% [95% CI 94.2–100%] |
-| `ARM-TAG` | 0/35 = 0% [95% CI 0–10.0%] | 62/62 = 100% |
-| `ARM-DIGEST` | 0/35 = 0% [95% CI 0–10.0%] | 62/62 = 100% |
-| `ARM-CONTEXT` | 0/35 = 0% [95% CI 0–10.0%] | 62/62 = 100% |
+| `ARM-GLOBAL` | 53/53 = 100% [95% CI 93.3–100%] | 96/96 = 100% [95% CI 96.2–100%] |
+| `ARM-TAG` | 0/53 = 0% [95% CI 0–6.7%] | 96/96 = 100% |
+| `ARM-DIGEST` | 0/53 = 0% [95% CI 0–6.7%] | 96/96 = 100% |
+| `ARM-CONTEXT` | 0/53 = 0% [95% CI 0–6.7%] | 96/96 = 100% |
 
-**`CONTEXT` vs `GLOBAL`:** exact McNemar p = 5.8×10⁻¹¹ (Holm-adjusted), relative FPR reduction 100% (≫ the frozen 25% material-effect threshold), recall non-inferior (stratified bootstrap, co-primary gate passes, never traded for FPR). **H1 supported** (`experiments/analysis.py:decide_primary_contrast`).
+**`CONTEXT` vs `GLOBAL`:** exact McNemar p = 2.2×10⁻¹⁶ (Holm-adjusted 6.7×10⁻¹⁶), relative FPR reduction 100% (≫ the frozen 25% material-effect threshold), recall non-inferior. **H1 supported** (`experiments/analysis.py:decide_primary_contrast`). This reproduces the first round's result (p was 5.8×10⁻¹¹ at n=35) at larger n with an even smaller p-value — the pooled-baseline finding is robust, not a small-sample artifact.
 
-**`CONTEXT` vs `DIGEST` (the paper's actual thesis) is a null result: p = 1.0, zero
-discordant pairs, arms agree on every single trial.** This dataset's fit split
-pools three services (nginx, redis, postgres) with almost no process-name
-overlap into one `ARM-GLOBAL` reference, so `ARM-GLOBAL` losing to every
-per-image scope (TAG, DIGEST, and CONTEXT alike) is close to a mathematical
-inevitability of that pooling, not evidence for context conditioning
-specifically. **`CONTEXT` beating `GLOBAL` must not be read as, or cited as,
-support for the paper's headline claim that digest-plus-context outperforms
-digest-alone** — the data that actually tests that claim (`CONTEXT` vs
-`DIGEST`) shows no measurable difference at process-name-distance granularity
-in this dataset. The only informative reading of this round is: (a) do not
-pool unrelated services into one anomaly baseline (unsurprising), and (b)
-context conditioning beyond exact digest identity adds nothing detectable
-here (the paper's real, more interesting hypothesis, currently unsupported).
+**`CONTEXT` vs `DIGEST` (the paper's actual thesis) is again a null result: p = 1.0, zero
+discordant pairs, arms agree on all 53 held-out trials.** This replicates the first round's null result exactly, at 1.5x the sample size. `CONTEXT` beating `GLOBAL` must not be read as, or cited as, support for the paper's headline claim that digest-plus-context outperforms digest-alone — the contrast that actually tests that claim is a confirmed, reproduced null result, not an artifact of the smaller first round.
 
-This is not a "no variation to test" artifact: the runtime-context hash did
-vary independently of digest in this dataset (each digest has trials under
-both a `baseline` and a `dropped_capabilities` context variant). The finding
-is genuinely that dropping a capability does not change which process names
-execute, so a process-name-only JS-distance feature cannot see a
-security-relevant context change of this kind. That is a real, specific,
-publishable negative result about the current feature's blind spot, not
-proof context conditioning is worthless in general — a feature that also
-used capability/mount/privileged-flag deltas directly (rather than only
-inferring them indirectly through process names) might still separate these
-cases. That is future work, not demonstrated here.
+The root cause traced in the first round holds here too: the tested context variant (dropping Linux capability `NET_RAW`) changes container privilege, not which processes execute, so a process-name-only Jensen-Shannon feature cannot reflect it by construction, independent of scope or sample size.
+
+## Recall non-inferiority: a caveat on "properly powered"
+
+The 216-trial run was sized to `n≈179`/arm based on `experiments/sample_size.py`'s power calculation for a 95%-reference-recall, 5-point-margin non-inferiority test. **That calculation assumed real variance in recall around 95%.** In both rounds, recall was actually 100% in every arm with zero variance (96/96, 62/62), so the stratified-bootstrap non-inferiority gate trivially passes regardless of n — it is not meaningfully "more powered" than the first round for this specific outcome, because there was never any recall difference to detect. The 216-trial run is properly justified for, and materially strengthens, the `CONTEXT_vs_GLOBAL` and `CONTEXT_vs_DIGEST` FPR contrasts (which did have real, measurable outcomes), not the recall gate.
 
 ## Follow-on exploratory finding: a direct context-delta feature does separate these cases
 
-That "future work" was tested, on the same already-collected data, no new
-trials run: `experiments/context_delta.py` scores the structured
-runtime-context document itself (privileged, capabilities, read-only-rootfs,
-network mode, mounts, devices) against each digest's fit-split reference
-context, instead of inferring context changes through process-name distance.
+`experiments/context_delta.py` scores the structured runtime-context document itself (privileged, capabilities, read-only-rootfs, network mode, mounts, devices) against each digest's fit-split reference context, instead of inferring context changes through process-name distance.
 
-Result (`artifacts/experiments/protocol-v1/exploratory/context-delta-finding.json`):
-**0/18 false positives on baseline trials [95% CI 0–18.5%], 17/17 correct
-detections of the `dropped_capabilities` variant [95% CI 80.5–100%]** — a
-change the frozen protocol's process-name JS-distance feature could not see
-at all (p=1.0, zero discordant pairs, reported above).
+Result on the 216-trial dataset (`artifacts/experiments/protocol-v1/exploratory/context-delta-finding-216.json`): **0/26 false positives on baseline trials [95% CI 0–13.2%], 27/27 correct detections of the `dropped_capabilities` variant [95% CI 87.2–100%]** — reproducing the first round's finding (0/18, 17/17) at larger n, with a change the frozen protocol's process-name JS-distance feature could not see at all (p=1.0, reported above).
 
-This is explicitly **exploratory, not confirmatory**: it reuses
-`study-20260905t181654Z`'s existing 35 held-out benign/context trials rather
-than a new pre-registered dataset, the delta weights
-(`experiments/context_delta.py:DELTA_FIELDS`) are fixed by hand rather than
-fit or calibrated, and it has not been tested against any real attack
-scenario. It should not be cited as a confirmed result. It is reported here
-because it is the one genuinely novel, falsifiable idea this project has
-produced that the process-name-only literature this project builds on does
-not already cover: **combine an immutable-digest process-name baseline with
-a direct, structured comparison of the container's security-relevant runtime
-configuration**, rather than hoping process-name distance will indirectly
-reveal a capability/privilege/mount change. Promoting this from exploratory
-to confirmatory requires a new protocol version with a pre-registered sample
-size and its own frozen threshold, per the revision rule in `CLAIMS_V1.md`.
+This is explicitly **exploratory, not confirmatory**: the delta weights (`experiments/context_delta.py:DELTA_FIELDS`) are fixed by hand rather than fit or calibrated, and it has not been tested against any real attack scenario. It should not be cited as a confirmed result. Promoting it to confirmatory requires a new protocol version with a pre-registered sample size and its own frozen threshold, per the revision rule in `CLAIMS_V1.md`.
 
-Real attack scenarios: `SCN-LOG4SHELL-SIM` (CVE-2021-44228-shaped, harmless), `SCN-RUNC-ESCAPE-SIM` (CVE-2019-5736-shaped, harmless) — both newly wired up this session (were previously dead code, never executed).
+Real attack scenarios: `SCN-LOG4SHELL-SIM` (CVE-2021-44228-shaped, harmless), `SCN-RUNC-ESCAPE-SIM` (CVE-2019-5736-shaped, harmless).
 
 ## Honest limits
 
-- **n=35/62 is well below** the frozen full-matrix confirmatory target (30 benign + 20 scenario per workload×variant cell = 200 total). This is a first result, not the final powered study.
-- **`ART-DES-001` sample-size lock does not exist for the next round.** Building it (`experiments/sample_size.py`) surfaced a genuine finding: the protocol's own frozen recall non-inferiority target (5-percentage-point margin at 95% reference recall, 80% power, capped at 120 runs/cell) is **infeasible by exact binomial calculation** — even n=120 only reaches ~60% power for that specific margin; ~200+ runs are actually needed. This needs a protocol revision or margin change before the next confirmatory round.
-- **`ARM-TAG` and `ARM-DIGEST` are indistinguishable** in this dataset — every human_tag maps to exactly one digest. A real mutable-tag-drift experiment was run (`experiments/tag_drift.py`, nginx 1.26.3-alpine → 1.28.0-alpine behind one shared local alias) and found process-name-level Jensen-Shannon distance is exactly 0.0 between the two versions — a genuine same-behavior patch upgrade invisible to this specific signal, not a bug in the drift-tracking mechanism (which correctly resolved two different real digests behind one tag, verified per-trial).
-- Six real bugs were found and fixed to get here (wrong API field name blocking all detections, dead code blocking attack scenarios, a fit-reference contamination bug, and an infinite-recursion bug in the Clopper-Pearson statistics code itself) — see git log `c137a89`..`e73c2d7` for details and regression tests.
+- **The recall non-inferiority gate has not been meaningfully stress-tested** in either round: both arms detected 100% of planted scenarios with zero variance, so the statistical machinery for detecting a recall trade-off has never actually been exercised against a real trade-off. A scenario design that produces some misses in at least one arm would be needed to validate the gate itself.
+- **`ARM-TAG` and `ARM-DIGEST` remain indistinguishable** in both rounds — every human_tag maps to exactly one digest. The `experiments/tag_drift.py` mutable-tag-drift experiment (nginx 1.26.3-alpine → 1.28.0-alpine behind one shared local alias) found process-name-level Jensen-Shannon distance is exactly 0.0 between the two versions — a genuine same-behavior patch upgrade invisible to this specific signal.
+- **The `CONTEXT` vs `DIGEST` null result has now been reproduced twice** (n=35 and n=53), which strengthens confidence it is a real property of the process-name feature and the tested context variant (capability-only changes), not a first-round sampling artifact. It does not rule out that a context variant which does change process behavior (e.g. a different entrypoint script, not tested here) could still show a difference.
+- Six real bugs were found and fixed to get the first confirmatory result (wrong API field name blocking all detections, dead code blocking attack scenarios, a fit-reference contamination bug, and an infinite-recursion bug in the Clopper-Pearson statistics code itself) — see git log `c137a89`..`e73c2d7`.
 - This is a single-reviewer self-review (both security and methodology), not independent peer review — state that plainly in any external write-up.
 
 ## Reproduce
@@ -90,6 +53,7 @@ Real attack scenarios: `SCN-LOG4SHELL-SIM` (CVE-2021-44228-shaped, harmless), `S
 ```
 python3 -m experiments.run study --workloads WL-NGX-V1,WL-RDS-V1,WL-PG-V1 \
   --scenarios SCN-EXEC,SCN-LOG4SHELL-SIM,SCN-RUNC-ESCAPE-SIM \
-  --variants baseline,dropped_capabilities --replicas 8 --operations 10
-python3 -c "from experiments.scope import compare_scopes; ..."  # see experiments/scope.py
+  --variants baseline,dropped_capabilities --replicas 12 --operations 10
+python3 -m experiments.analyze_scope_run artifacts/experiments/local/<run_id> --out <path>
+python3 -m experiments.context_delta artifacts/experiments/local/<run_id>
 ```

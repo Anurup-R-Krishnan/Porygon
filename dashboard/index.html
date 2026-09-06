@@ -54,7 +54,7 @@
   <div class="grain" aria-hidden="true"></div>
 
   <!-- Toasts — glass -->
-  <div class="fixed bottom-6 right-6 z-[60] flex flex-col gap-3 pointer-events-none">
+  <div class="fixed bottom-6 right-6 z-[70] flex flex-col gap-3 pointer-events-none">
     <template x-for="toast in toasts" :key="toast.id">
       <div class="toast-glass pointer-events-auto flex items-center gap-3 rounded-full px-4 py-3 pr-5 text-[13px] font-medium tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]" :class="toast.type==='danger' ? 'text-red-200' : toast.type==='warn' ? 'text-amber-200' : 'text-white'">
         <span class="h-2 w-2 rounded-full flex-shrink-0" :class="toast.type==='danger' ? 'bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.6)]' : toast.type==='warn' ? 'bg-amber-400 shadow-[0_0_10px_rgba(251,146,60,0.6)]' : 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.6)]'"></span>
@@ -63,61 +63,65 @@
     </template>
   </div>
 
-  <!-- Fluid Island Nav — floating glass pill detached mt-6 -->
-  <nav class="fixed top-0 left-1/2 -translate-x-1/2 z-40 mt-6 w-[calc(100%-16px)] max-w-[1100px] flex items-center justify-between gap-3 rounded-full border border-white/10 bg-white/[0.06] px-2 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.45),inset_0_1px_1px_rgba(255,255,255,0.14)] backdrop-blur-2xl will-transform transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]">
-    <div class="flex items-center gap-3 min-w-0">
+  <!-- Fluid Island Nav — floating glass pill — flex-isolated to prevent overlap -->
+  <nav class="fixed top-3 sm:top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-12px)] sm:w-[calc(100%-24px)] max-w-[1220px] flex items-center gap-2 sm:gap-3 rounded-full border border-white/10 bg-white/[0.07] px-2 sm:px-2.5 py-2 shadow-[0_12px_40px_rgba(0,0,0,0.45),inset_0_1px_1px_rgba(255,255,255,0.14)] backdrop-blur-2xl will-transform transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]">
+    <!-- Left: brand — fixed width, never overlapped -->
+    <div class="flex items-center gap-2.5 sm:gap-3 flex-shrink-0 min-w-0">
       <div class="h-9 w-9 rounded-full bg-white text-black grid place-items-center flex-shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)]">
         <i class="ph ph-shield-check text-[18px]"></i>
       </div>
-      <div class="hidden sm:block min-w-0">
-        <div class="font-display font-bold tracking-[-0.02em] leading-none text-[15px] flex items-center gap-2">PORYGON <span class="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-sans font-semibold tracking-[0.14em] uppercase text-white/70 ring-1 ring-white/10">eBPF</span></div>
-        <div class="text-[11px] tracking-[0.14em] uppercase font-medium text-white/50">Runtime Intelligence</div>
+      <div class="hidden sm:block min-w-0 flex-shrink-0">
+        <div class="font-display font-bold tracking-[-0.02em] leading-none text-[14px] sm:text-[15px] flex items-center gap-2 whitespace-nowrap">PORYGON <span class="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-sans font-semibold tracking-[0.14em] uppercase text-white/70 ring-1 ring-white/10">eBPF</span></div>
+        <div class="text-[10px] sm:text-[11px] tracking-[0.14em] uppercase font-medium text-white/50 whitespace-nowrap">Runtime Intelligence</div>
       </div>
-      <div class="sm:hidden font-display font-bold text-[14px] tracking-tight">PORYGON®</div>
+      <div class="sm:hidden font-display font-bold text-[14px] tracking-tight flex-shrink-0">PORYGON®</div>
     </div>
 
-    <!-- Desktop pills -->
-    <div class="hidden lg:flex items-center gap-1 rounded-full bg-black/20 p-1 ring-1 ring-white/5">
-      <button @click="activeTab='overview'" :class="activeTab==='overview' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]">Overview</button>
-      <button @click="activeTab='pathway'" :class="activeTab==='pathway' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] flex items-center gap-1"><i class="ph ph-git-fork text-[13px]"></i> Process Graph</button>
-      <button @click="activeTab='telemetry'" :class="activeTab==='telemetry' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] flex items-center gap-1.5">Telemetry <span class="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-mono" x-text="events.length">0</span></button>
-      <button @click="activeTab='anomalies'" :class="activeTab==='anomalies' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]">Math</button>
-      <button @click="activeTab='incidents'" :class="activeTab==='incidents' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] flex items-center gap-1.5">Incidents <span class="rounded-full bg-amber-400/20 text-amber-200 px-1.5 py-0.5 text-[10px] font-mono" x-text="incidents.length">0</span></button>
-      <button @click="activeTab='pipeline'" :class="activeTab==='pipeline' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]">Pipeline</button>
-      <button @click="activeTab='vulnerabilities'" :class="activeTab==='vulnerabilities' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]">Reachability</button>
+    <!-- Center: pills — flex-1 isolated, scrollable, never bleeds over brand -->
+    <div class="hidden xl:flex flex-1 min-w-0 justify-center overflow-hidden">
+      <div class="flex items-center gap-1 rounded-full bg-black/20 p-1 ring-1 ring-white/5 overflow-x-auto scrollbar-none max-w-full">
+        <button @click="activeTab='overview'" :class="activeTab==='overview' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="whitespace-nowrap flex-shrink-0 rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-200">Overview</button>
+        <button @click="activeTab='pathway'" :class="activeTab==='pathway' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="whitespace-nowrap flex-shrink-0 rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-200 flex items-center gap-1"><i class="ph ph-git-fork text-[13px] flex-shrink-0"></i> Process Graph</button>
+        <button @click="activeTab='telemetry'" :class="activeTab==='telemetry' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="whitespace-nowrap flex-shrink-0 rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-200 flex items-center gap-1.5">Telemetry <span class="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-mono flex-shrink-0" x-text="events.length">0</span></button>
+        <button @click="activeTab='anomalies'" :class="activeTab==='anomalies' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="whitespace-nowrap flex-shrink-0 rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-200">Math</button>
+        <button @click="activeTab='incidents'" :class="activeTab==='incidents' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="whitespace-nowrap flex-shrink-0 rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-200 flex items-center gap-1.5">Incidents <span class="rounded-full bg-amber-400/20 text-amber-200 px-1.5 py-0.5 text-[10px] font-mono flex-shrink-0" x-text="incidents.length">0</span></button>
+        <button @click="activeTab='pipeline'" :class="activeTab==='pipeline' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="whitespace-nowrap flex-shrink-0 rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-200">Pipeline</button>
+        <button @click="activeTab='vulnerabilities'" :class="activeTab==='vulnerabilities' ? 'bg-white text-black shadow-[0_4px_20px_rgba(255,255,255,0.16)]' : 'text-white/70 hover:text-white hover:bg-white/10'" class="whitespace-nowrap flex-shrink-0 rounded-full px-3 py-2 text-[13px] font-semibold tracking-tight transition-all duration-200">Reachability</button>
+      </div>
     </div>
 
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
       <div class="hidden md:flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-3 py-2 ring-1 ring-emerald-400/20">
         <span class="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)] animate-pulse"></span>
         <span class="text-[11px] font-semibold tracking-[0.14em] uppercase text-emerald-200">eBPF Active</span>
       </div>
-      <button @click="refreshAllData()" class="hidden sm:inline-flex group h-9 w-9 grid place-items-center rounded-full bg-white text-black transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-105 active:scale-[0.98]" title="Sync live telemetry">
+      <button @click="refreshAllData()" class="hidden sm:inline-flex group h-9 w-9 grid place-items-center rounded-full bg-white text-black transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]" title="Sync live telemetry">
         <i class="ph ph-arrows-clockwise text-[16px] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:rotate-180"></i>
       </button>
-      <button @click="manageOperatorToken()" class="hidden sm:inline-flex group h-9 w-9 grid place-items-center rounded-full ring-1 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-105 active:scale-[0.98]" :class="operatorToken ? 'bg-emerald-400 text-black ring-emerald-400' : 'bg-white/10 text-white/70 ring-white/10 hover:bg-white hover:text-black'" :title="operatorToken ? 'Operator token set — click to clear' : 'Set operator token for containment approval'">
+      <button @click="manageOperatorToken()" class="hidden sm:inline-flex group h-9 w-9 grid place-items-center rounded-full ring-1 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]" :class="operatorToken ? 'bg-emerald-400 text-black ring-emerald-400' : 'bg-white/10 text-white/70 ring-white/10 hover:bg-white hover:text-black'" :title="operatorToken ? 'Operator token set — click to clear' : 'Set operator token for containment approval'">
         <i class="ph text-[14px]" :class="operatorToken ? 'ph-key' : 'ph-lock-key'"></i>
       </button>
-      <button @click="showDocsModal = true" class="hidden sm:inline-flex group h-9 w-9 grid place-items-center rounded-full bg-white/10 text-white/80 ring-1 ring-white/10 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-105 hover:bg-white hover:text-black active:scale-[0.98]" title="Porygon Architecture Blueprint & Guide">
+      <button @click="showDocsModal = true" class="hidden sm:inline-flex group h-9 w-9 grid place-items-center rounded-full bg-white/10 text-white/80 ring-1 ring-white/10 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] hover:bg-white hover:text-black active:scale-[0.98]" title="Porygon Architecture Blueprint & Guide">
         <i class="ph ph-book-open text-[15px]"></i>
       </button>
       <!-- CTA island — button-in-button -->
-      <button @click="activeTab='simulator'" class="btn-island group hidden sm:inline-flex items-center gap-3 rounded-full bg-white px-1.5 py-1.5 pr-2 text-black font-semibold text-[13px] tracking-tight shadow-[0_8px_24px_rgba(255,255,255,0.18),inset_0_1px_1px_rgba(255,255,255,0.6)] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]">
+      <button @click="activeTab='simulator'" class="btn-island group hidden sm:inline-flex items-center gap-3 rounded-full bg-white px-1.5 py-1.5 pr-2 text-black font-semibold text-[13px] tracking-tight shadow-[0_8px_24px_rgba(255,255,255,0.18),inset_0_1px_1px_rgba(255,255,255,0.6)] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.01] active:scale-[0.98]">
         <span class="pl-3">Attack Simulator</span>
-        <span class="grid h-8 w-8 place-items-center rounded-full bg-black text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:scale-105">
+        <span class="grid h-8 w-8 place-items-center rounded-full bg-black text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:scale-[1.02]">
           <i class="ph ph-arrow-up-right text-[14px]"></i>
         </span>
       </button>
       <!-- Hamburger morph -->
-      <button @click="navOpen=!navOpen" aria-label="Menu" class="lg:hidden relative grid h-9 w-9 place-items-center rounded-full bg-white/10 ring-1 ring-white/10">
+      <button @click="navOpen=!navOpen" aria-label="Menu" class="xl:hidden relative grid h-9 w-9 place-items-center rounded-full bg-white/10 ring-1 ring-white/10">
         <span class="absolute h-[1.5px] w-4 bg-white rounded-full transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]" :class="navOpen ? 'rotate-45' : '-translate-y-[5px]'"></span>
         <span class="absolute h-[1.5px] w-4 bg-white rounded-full transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]" :class="navOpen ? '-rotate-45' : 'translate-y-[5px]'"></span>
       </button>
     </div>
   </nav>
+  <div class="pt-[72px] sm:pt-[76px]">
 
   <!-- Full-screen glass overlay — staggered mask reveal -->
-  <div x-show="navOpen" x-transition:enter="transition duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 z-30 grid place-items-center bg-black/70 backdrop-blur-3xl p-6 lg:hidden" @click.self="navOpen=false">
+  <div x-show="navOpen" x-transition:enter="transition duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 z-40 grid place-items-center bg-black/70 backdrop-blur-3xl p-6 xl:hidden" @click.self="navOpen=false">
     <div class="w-full max-w-sm rounded-[2rem] bg-white p-2 shadow-[0_24px_64px_rgba(0,0,0,0.5)]">
       <div class="rounded-[calc(2rem-0.5rem)] bg-[#FDFBF7] p-6 flex flex-col gap-5">
         <div class="flex items-center justify-between">
@@ -148,11 +152,11 @@
   </div>
 
   <!-- HERO — Technical Systems Architecture Console -->
-  <section x-show="activeTab==='overview'" x-transition.opacity.duration.400 class="relative min-h-[85dvh] px-4 pb-20 pt-28">
+  <section x-show="activeTab==='overview'" x-transition.opacity.duration.400 class="relative min-h-[68dvh] px-4 pb-12 pt-6 sm:pt-8">
     <div class="mx-auto max-w-[1280px]">
       <!-- Clean technical headline without AI tropes -->
       <div class="reveal mt-6 text-center" style="transition-delay:80ms">
-        <h1 class="font-display font-extrabold leading-[0.94] tracking-[-0.035em] text-white">
+        <h1 class="font-display font-extrabold leading-[0.92] tracking-[-0.035em] text-white break-words">
           <span class="block text-[clamp(2.4rem,6.8vw,5.4rem)]">Kernel-Level Behavioral Intelligence</span>
           <span class="block text-[clamp(1.4rem,3.8vw,2.8rem)] text-white/70 font-mono tracking-tight mt-2">&amp; Runtime Verification</span>
         </h1>
@@ -163,11 +167,11 @@
 
       <!-- Action console controls -->
       <div class="reveal mt-8 flex flex-wrap justify-center gap-3" style="transition-delay:160ms">
-        <button @click="activeTab='pathway'" class="btn-island group inline-flex items-center gap-3 rounded-full bg-white px-2 py-2 pl-6 text-[13px] font-mono uppercase tracking-wider font-bold text-black shadow-[0_16px_40px_rgba(255,255,255,0.16),inset_0_1px_1px_rgba(255,255,255,0.7)] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]">
+        <button @click="activeTab='pathway'" class="btn-island group inline-flex items-center gap-3 rounded-full bg-white px-2 py-2 pl-6 text-[13px] font-mono uppercase tracking-wider font-bold text-black shadow-[0_16px_40px_rgba(255,255,255,0.16),inset_0_1px_1px_rgba(255,255,255,0.7)] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.01] active:scale-[0.98]">
           Explore Process Graph
-          <span class="grid h-9 w-9 place-items-center rounded-full bg-black text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:scale-105"><i class="ph ph-git-fork text-[15px]"></i></span>
+          <span class="grid h-9 w-9 place-items-center rounded-full bg-black text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:scale-[1.02]"><i class="ph ph-git-fork text-[15px]"></i></span>
         </button>
-        <button @click="activeTab='telemetry'" class="inline-flex items-center gap-2 rounded-full bg-white/10 px-6 py-3 text-[13px] font-mono tracking-tight text-white ring-1 ring-white/15 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white hover:text-black hover:scale-[1.02] active:scale-[0.98]">
+        <button @click="activeTab='telemetry'" class="inline-flex items-center gap-2 rounded-full bg-white/10 px-6 py-3 text-[13px] font-mono tracking-tight text-white ring-1 ring-white/15 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-white hover:text-black hover:scale-[1.01] active:scale-[0.98]">
           <i class="ph ph-activity text-[15px]"></i> Live Telemetry Stream
         </button>
       </div>
@@ -202,7 +206,7 @@
                 <div>
                   <span class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-black">porygon.distance.v1</span>
                   <h3 class="mt-4 font-display text-[28px] font-bold tracking-tight leading-none">Behavioural Distance Timeline</h3>
-                  <p class="mt-2 max-w-[44ch] text-[13px] leading-relaxed text-white/50">Explainable Jensen-Shannon divergence across categorical executables, parent trees, UID, and CWD. Threshold <span class="text-amber-200">0.50</span> • Extreme <span class="text-red-300">0.75</span></p>
+                  <p class="mt-2 max-w-[44ch] text-[13px] leading-relaxed text-white/50">Explainable Jensen-Shannon divergence across process_name, executable, parent_child, user_uid, runtime_action, and process_sequence_bigram. Threshold <span class="text-amber-200">0.50</span> • Extreme <span class="text-red-300">0.75</span></p>
                 </div>
                 <div class="hidden sm:flex flex-col items-end gap-1 rounded-2xl bg-white p-3 text-black">
                   <span class="text-[10px] font-bold uppercase tracking-[0.16em] text-black/50">Current</span>
@@ -219,8 +223,8 @@
                 <span class="font-mono text-[11px] tracking-[0.08em] uppercase text-white/40">0.00 — 1.00 base-2</span>
               </div>
 
-              <div class="chart-glass mt-6 rounded-2xl p-3 sm:p-4">
-                <div class="h-[280px]"><canvas id="anomalyTimelineChart"></canvas></div>
+              <div class="chart-glass mt-6 rounded-2xl p-3 sm:p-4 overflow-hidden">
+                <div class="h-[260px] sm:h-[280px] w-full relative"><canvas id="anomalyTimelineChart"></canvas></div>
               </div>
 
               <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-medium">
@@ -258,7 +262,7 @@
                   <div class="mt-1 flex items-baseline gap-2"><span class="font-display text-[24px] font-bold leading-none" x-text="evidenceCounts.runtime_observed + evidenceCounts.runtime_observed_and_port_published">0</span><span class="text-[11px] font-medium text-black/50">observed by eBPF in memory</span></div>
                 </div>
               </div>
-              <button @click="activeTab='vulnerabilities'" class="btn-island mt-5 flex w-full items-center justify-between rounded-full bg-black px-2 py-2 pl-5 text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]">
+              <button @click="activeTab='vulnerabilities'" class="btn-island mt-5 flex w-full items-center justify-between rounded-full bg-black px-2 py-2 pl-5 text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.01] active:scale-[0.98]">
                 <span class="text-[13px] font-semibold">Explore reachability funnel</span>
                 <span class="grid h-8 w-8 place-items-center rounded-full bg-white text-black"><i class="ph ph-arrow-right text-sm"></i></span>
               </button>
@@ -271,8 +275,8 @@
                 <span class="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.6)]"></span>
                 <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-white/60">Score composition — fixed weights</span>
               </div>
-              <div class="mt-4 h-[220px]"><canvas id="anomalyCompositionChart"></canvas></div>
-              <p class="mt-3 text-[12px] leading-relaxed text-white/45">Deterministic, auditable, frozen in <span class="text-white/80 font-semibold">Research Protocol V1</span>. No black-box ML.</p>
+              <div class="mt-4 h-[210px] sm:h-[220px] w-full relative"><canvas id="anomalyCompositionChart"></canvas></div>
+              <p class="mt-3 text-[12px] leading-relaxed text-white/45">Deterministic, auditable, frozen in <span class="text-white/80 font-semibold">scoring.py:14 porygon.distance.v1</span> (protocol frozen docs/RESEARCH_PROTOCOL_V1.md:9). No black-box ML.</p>
             </div>
           </div>
         </div>
@@ -281,10 +285,10 @@
   </section>
 
   <!-- Content sections — py-24 macro whitespace -->
-  <main class="mx-auto max-w-[1280px] px-4">
+  <main class="mx-auto max-w-[1280px] px-4 pb-6">
     <!-- Pill filter bar — glass -->
-    <div class="reveal sticky top-[84px] z-20 -mx-4 px-4 sm:mx-0 sm:px-0">
-      <div class="mx-auto flex w-full max-w-[960px] items-center gap-2 overflow-x-auto rounded-full border border-white/10 bg-black/40 px-2 py-2 backdrop-blur-2xl scrollbar-none">
+    <div class="reveal sticky top-[72px] sm:top-[76px] z-30 -mx-4 px-4 sm:mx-0 sm:px-0 py-2">
+      <div class="mx-auto flex w-full max-w-[960px] items-center gap-2 overflow-x-auto rounded-full border border-white/10 bg-black/55 px-2 py-2 backdrop-blur-2xl scrollbar-none shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
         <template x-for="t in [{id:'overview',label:'Overview'},{id:'pathway',label:'Process Graph'},{id:'telemetry',label:'Telemetry'},{id:'anomalies',label:'Math'},{id:'incidents',label:'Incidents'},{id:'pipeline',label:'Pipeline'},{id:'vulnerabilities',label:'Reachability'},{id:'simulator',label:'Simulator'}]" :key="t.id">
           <button @click="activeTab=t.id" class="tab-pill whitespace-nowrap rounded-full px-5 py-2.5 text-[13px] font-semibold tracking-tight transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] flex items-center gap-2 flex-shrink-0" :class="activeTab===t.id ? 'active' : 'text-white/60 hover:text-white hover:bg-white/10'">
             <span x-text="t.label"></span>
@@ -360,8 +364,8 @@
               <h3 class="font-display text-[20px] font-bold tracking-tight">Discovered Containers &amp; Image Digests</h3>
               <span class="rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-black" x-text="containers.length + ' containers'">0 containers</span>
             </div>
-            <div class="mt-6 overflow-x-auto rounded-2xl ring-1 ring-white/10">
-              <table class="w-full text-left text-[13px]">
+            <div class="mt-6 overflow-x-auto rounded-2xl ring-1 ring-white/10 table-wrap">
+              <table class="w-full min-w-[640px] text-left text-[13px]">
                 <thead class="bg-white/[0.04] text-[10px] font-bold uppercase tracking-[0.14em] text-white/40">
                   <tr><th class="px-4 py-3">Container</th><th class="px-4 py-3">ID</th><th class="px-4 py-3">Image digest</th><th class="px-4 py-3">State</th><th class="px-4 py-3">PID</th><th class="px-4 py-3">Protection</th></tr>
                 </thead>
@@ -429,13 +433,13 @@
               <i class="ph ph-info text-white/40"></i>
               <span x-show="graphPathwayMode==='all'">Viewing complete DAG: All 4 system tiers active across data capture, analysis, and containment.</span>
               <span x-show="graphPathwayMode==='attack'" class="text-red-300">Active Trace: Syscall Execve &rarr; Docker Namespaces &rarr; Ingestion Gateway &rarr; JS Divergence &rarr; Detection Rules &rarr; Incident Ticket &rarr; Containment Lease.</span>
-              <span x-show="graphPathwayMode==='reachability'" class="text-emerald-300">Active Trace: CycloneDX SBOM &rarr; Image Digest Match &rarr; Kernel Memory Trace &rarr; 4-Stage Reachability Funnel &rarr; Noise Elimination.</span>
+              <span x-show="graphPathwayMode==='reachability'" class="text-emerald-300">Active Trace: CycloneDX SBOM &rarr; Image Digest Match &rarr; Heuristic Runtime-Observed Match &rarr; 4-Stage Reachability Funnel &rarr; Noise Elimination.</span>
             </div>
             <span class="text-[11px] text-white/40 uppercase tracking-widest hidden sm:inline">Click any node to inspect telemetry</span>
           </div>
 
           <!-- GRAPH CONTAINER -->
-          <div class="mt-8 relative pathway-grid rounded-3xl p-4 sm:p-6 ring-1 ring-white/10 bg-black/40 overflow-hidden">
+          <div class="mt-8 relative pathway-grid rounded-3xl p-4 sm:p-6 ring-1 ring-white/10 bg-black/40 overflow-hidden isolate">
             
             <!-- TIER 1: KERNEL & SYSTEM SOURCES -->
             <div>
@@ -468,7 +472,7 @@
                     <i class="ph ph-cube text-blue-400 text-lg"></i>
                   </div>
                   <div class="mt-3 font-display text-[15px] font-bold text-white tracking-tight">Docker Lifecycle Spool</div>
-                  <div class="text-[11px] text-white/40 font-mono mt-0.5">FIFO outbox • Namespace PIDs</div>
+                  <div class="text-[11px] text-white/40 font-mono mt-0.5">SQLite outbox.db • Namespace PIDs</div>
                   <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
                     <span class="text-white/40">Mapped:</span>
                     <span class="text-blue-300 font-bold" x-text="systemInfo.known_containers != null ? systemInfo.known_containers.toLocaleString() + ' containers' : 'loading…'"></span>
@@ -522,7 +526,7 @@
                     <i class="ph ph-brackets-curly text-violet-400 text-xl"></i>
                     <div>
                       <div class="font-display text-[16px] font-bold text-white tracking-tight">Telemetry Normalization Gateway</div>
-                      <div class="text-[12px] text-white/40 font-mono">Resolves Process Ancestry • Canonicalizes Paths • Maps Image SHA-256</div>
+                      <div class="text-[12px] text-white/40 font-mono">Resolves Process Ancestry • Lowercases busybox/toybox basenames • Maps Image SHA-256</div>
                     </div>
                   </div>
                   <div class="flex items-center gap-3 text-[11px] font-mono border-t sm:border-t-0 pt-2 sm:pt-0 border-white/5">
@@ -631,9 +635,9 @@
                     <i class="ph ph-funnel text-emerald-400 text-lg"></i>
                   </div>
                   <div class="mt-3 font-display text-[15px] font-bold text-white tracking-tight">4-Stage Reachability Funnel</div>
-                  <div class="text-[11px] text-white/40 font-mono mt-0.5">Package &rarr; Deployed &rarr; Memory &rarr; Port</div>
+                  <div class="text-[11px] text-white/40 font-mono mt-0.5">Package &rarr; Deployed &rarr; Runtime-Observed (heuristic) &rarr; Port</div>
                   <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
-                    <span class="text-white/40">In Memory:</span>
+                    <span class="text-white/40">Heuristic:</span>
                     <span class="text-emerald-300 font-bold" x-text="(evidenceCounts?.runtime_observed ?? 0) + ' CVEs observed'"></span>
                   </div>
                 </div>
@@ -645,7 +649,7 @@
                     <i class="ph ph-lock-key text-rose-400 text-lg"></i>
                   </div>
                   <div class="mt-3 font-display text-[15px] font-bold text-white tracking-tight">Containment Lease Engine</div>
-                  <div class="text-[11px] text-white/40 font-mono mt-0.5">Cryptographic operator token &bull; Fail-safe</div>
+                  <div class="text-[11px] text-white/40 font-mono mt-0.5">Shared-secret operator token (constant-time) &bull; Fail-safe</div>
                   <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
                     <span class="text-white/40">Status:</span>
                     <span class="text-rose-300 font-bold" x-text="operatorToken ? 'AUTHORIZED' : 'LOCKED'"></span>
@@ -677,7 +681,7 @@
                 </div>
 
                 <!-- Jump to specialized view button -->
-                <button @click="jumpToNodeTab(processGraphNodes[selectedGraphNode].targetTab)" class="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[12px] font-mono font-bold text-black hover:bg-white/90 hover:scale-105 active:scale-95 transition-all">
+                <button @click="jumpToNodeTab(processGraphNodes[selectedGraphNode].targetTab)" class="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[12px] font-mono font-bold text-black hover:bg-white/90 hover:scale-[1.02] active:scale-95 transition-all">
                   <span>Open Dedicated View</span>
                   <i class="ph ph-arrow-up-right"></i>
                 </button>
@@ -753,8 +757,8 @@
               <span x-show="!eventFilter" class="hidden sm:grid h-8 w-8 place-items-center rounded-full bg-black text-white"><i class="ph ph-arrow-right text-sm"></i></span>
             </div>
           </div>
-          <div class="mt-6 max-h-[560px] overflow-auto rounded-2xl ring-1 ring-white/10">
-            <table class="w-full text-left text-[12px]">
+          <div class="mt-6 max-h-[560px] overflow-auto rounded-2xl ring-1 ring-white/10 table-wrap">
+            <table class="w-full min-w-[720px] text-left text-[12px]">
               <thead class="sticky top-0 bg-[#0A0A0F]/90 backdrop-blur text-[10px] font-bold uppercase tracking-[0.14em] text-white/40">
                 <tr><th class="px-3 py-3">Timestamp</th><th class="px-3 py-3">Process</th><th class="px-3 py-3">Executable</th><th class="px-3 py-3">Parent</th><th class="px-3 py-3">UID</th><th class="px-3 py-3">Container</th><th class="px-3 py-3">Command</th></tr>
               </thead>
@@ -824,8 +828,8 @@
               <span class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-red-500"><span class="h-2 w-2 rounded-full bg-red-500"></span> Live Trace</span>
             </div>
           </div>
-          <div class="chart-glass mt-6 rounded-2xl p-4 flex justify-center">
-            <div class="h-[350px] w-full max-w-[600px]"><canvas id="syscallRadarChart"></canvas></div>
+          <div class="chart-glass mt-6 rounded-2xl p-4 flex justify-center overflow-hidden">
+            <div class="h-[320px] sm:h-[350px] w-full max-w-[600px] relative"><canvas id="syscallRadarChart"></canvas></div>
           </div>
         </div>
       </div>
@@ -865,8 +869,8 @@
                       </div>
                       <div class="mt-3 flex flex-wrap gap-2">
                         <button :disabled="inc.status==='acknowledged' || inc.status==='resolved'" @click="approveContainment(inc,'observe_only')" class="rounded-full bg-white/10 px-4 py-2 text-[12px] font-semibold text-white ring-1 ring-white/10 hover:bg-white hover:text-black transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] disabled:opacity-40">Observe</button>
-                        <button :disabled="inc.status==='acknowledged' || inc.status==='resolved'" @click="approveContainment(inc,'pause_container')" class="rounded-full bg-amber-400 px-4 py-2 text-[12px] font-bold text-black hover:scale-[1.02] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] disabled:opacity-40">Pause</button>
-                        <button :disabled="inc.status==='acknowledged' || inc.status==='resolved'" @click="approveContainment(inc,'stop_container')" class="rounded-full bg-red-500 px-4 py-2 text-[12px] font-bold text-white hover:scale-[1.02] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] disabled:opacity-40">Stop</button>
+                        <button :disabled="inc.status==='acknowledged' || inc.status==='resolved'" @click="approveContainment(inc,'pause_container')" class="rounded-full bg-amber-400 px-4 py-2 text-[12px] font-bold text-black hover:scale-[1.01] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] disabled:opacity-40">Pause</button>
+                        <button :disabled="inc.status==='acknowledged' || inc.status==='resolved'" @click="approveContainment(inc,'stop_container')" class="rounded-full bg-red-500 px-4 py-2 text-[12px] font-bold text-white hover:scale-[1.01] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] disabled:opacity-40">Stop</button>
                       </div>
                     </div>
                   </div>
@@ -1043,7 +1047,7 @@
       <div class="p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
         <div class="inner-bezel rounded-[calc(2rem-0.375rem)] bg-[#0A0A0F] p-6 sm:p-7">
           <div class="flex flex-wrap items-center justify-between gap-3"><h3 class="font-display text-[20px] font-bold tracking-tight">4-Stage Reachability Verification Funnel</h3><span class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-black">CycloneDX • EPSS • KEV</span></div>
-          <div class="chart-glass mt-6 rounded-2xl p-4"><div class="h-[220px]"><canvas id="evidenceLadderChart"></canvas></div></div>
+          <div class="chart-glass mt-6 rounded-2xl p-4 overflow-hidden"><div class="h-[200px] sm:h-[220px] w-full relative"><canvas id="evidenceLadderChart"></canvas></div></div>
           <div class="mt-6 grid gap-2">
             <div @click="reachabilityFilter = reachabilityFilter==='package_present' ? 'all' : 'package_present'" class="cursor-pointer flex items-center justify-between rounded-2xl bg-white/5 p-4 transition-all duration-300" :class="reachabilityFilter==='package_present' ? 'ring-2 ring-white bg-white/10' : 'ring-1 ring-white/10 hover:bg-white/[0.08]'"><div class="flex items-center gap-3"><span class="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-[12px] font-bold">1</span><div><div class="text-[12px] font-bold uppercase tracking-[0.06em]">Stage 1 — package_present</div><div class="text-[11px] text-white/40">File signature on disk inside image (click to filter)</div></div></div><span class="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-black" x-text="evidenceCounts.package_present + ' CVEs'"></span></div>
             <div @click="reachabilityFilter = reachabilityFilter==='deployed' ? 'all' : 'deployed'" class="cursor-pointer flex items-center justify-between rounded-2xl bg-white/5 p-4 transition-all duration-300" :class="reachabilityFilter==='deployed' ? 'ring-2 ring-emerald-400 bg-white/10' : 'ring-1 ring-white/10 hover:bg-white/[0.08]'"><div class="flex items-center gap-3"><span class="grid h-8 w-8 place-items-center rounded-full bg-emerald-400 text-black text-[12px] font-bold">2</span><div><div class="text-[12px] font-bold uppercase tracking-[0.06em]">Stage 2 — deployed</div><div class="text-[11px] text-white/40">Exact digest running on host (click to filter)</div></div></div><span class="rounded-full bg-emerald-400 px-3 py-1 text-[12px] font-bold text-black" x-text="evidenceCounts.deployed + ' CVEs'"></span></div>
@@ -1063,11 +1067,11 @@
                   <span x-text="'Stage: ' + reachabilityFilter"></span>
                   <button @click="reachabilityFilter='all'" class="hover:opacity-75 font-bold" title="Clear filter"><i class="ph ph-x"></i></button>
                 </span>
-                <span class="rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold uppercase text-white/70">Verified In-Memory</span>
+                <span class="rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold uppercase text-white/70">Heuristic Match</span>
               </div>
             </div>
-            <div class="overflow-x-auto rounded-2xl ring-1 ring-white/10 max-h-[360px] overflow-y-auto">
-              <table class="w-full text-left text-[12px]">
+            <div class="overflow-auto rounded-2xl ring-1 ring-white/10 max-h-[360px] table-wrap">
+              <table class="w-full min-w-[560px] text-left text-[12px]">
                 <thead class="sticky top-0 bg-[#0A0A0F] text-[10px] font-bold uppercase tracking-[0.14em] text-white/40">
                   <tr>
                     <th class="px-3 py-2.5">CVE ID</th>
@@ -1128,7 +1132,7 @@
             <div class="flex items-center gap-2"><span class="grid h-8 w-8 place-items-center rounded-full bg-white/10 ring-1 ring-white/10"><i class="ph ph-coins text-sm"></i></span><span class="font-semibold text-[13px] tracking-tight">Cryptominer</span></div>
             <p class="mt-2 text-[11px] leading-relaxed text-white/50">XMRig + EICAR signature.</p>
             <div class="mt-3 rounded-2xl bg-white/5 p-3 font-mono text-[10px] text-white/60 ring-1 ring-white/10 leading-relaxed">xmrig --version<br>cat eicar.com.txt</div>
-            <button :disabled="isExecutingAttack" @click="triggerAttackScenario({ id: 'cryptominer', name: 'XMRig Cryptominer Execution', rules: ['POR-DET-001', 'POR-DET-004'] })" class="btn-island mt-auto flex w-full items-center justify-between rounded-full bg-white px-2 py-2 pl-4 text-black text-[12px] font-bold transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]"><span>Trigger Cryptominer</span><span class="grid h-7 w-7 place-items-center rounded-full bg-black text-white"><i class="ph ph-arrow-up-right text-[11px]"></i></span></button>
+            <button :disabled="isExecutingAttack" @click="triggerAttackScenario({ id: 'cryptominer', name: 'XMRig Cryptominer Execution', rules: ['POR-DET-001', 'POR-DET-004'] })" class="btn-island mt-auto flex w-full items-center justify-between rounded-full bg-white px-2 py-2 pl-4 text-black text-[12px] font-bold transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.01] active:scale-[0.98]"><span>Trigger Cryptominer</span><span class="grid h-7 w-7 place-items-center rounded-full bg-black text-white"><i class="ph ph-arrow-up-right text-[11px]"></i></span></button>
           </div>
         </div>
         <div class="md:col-span-4 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
@@ -1136,7 +1140,7 @@
             <div class="flex items-center gap-2"><span class="grid h-8 w-8 place-items-center rounded-full bg-black text-white"><i class="ph ph-lock-key text-sm"></i></span><span class="font-semibold text-[13px] tracking-tight">Novel Root — UID 0</span></div>
             <p class="mt-2 text-[11px] leading-relaxed text-black/50">UID 0 in unprivileged container — POR-DET-003</p>
             <div class="mt-3 rounded-2xl bg-black p-3 font-mono text-[10px] text-emerald-300 leading-relaxed">su root • whoami<br>cat /proc/self/status</div>
-            <button :disabled="isExecutingAttack" @click="triggerAttackScenario({ id: 'priv_esc', name: 'Novel Root Execution', rules: ['POR-DET-001', 'POR-DET-003'] })" class="btn-island mt-auto flex w-full items-center justify-between rounded-full bg-black px-2 py-2 pl-4 text-white text-[12px] font-bold transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]"><span>Trigger Priv Esc</span><span class="grid h-7 w-7 place-items-center rounded-full bg-white text-black"><i class="ph ph-arrow-up-right text-[11px]"></i></span></button>
+            <button :disabled="isExecutingAttack" @click="triggerAttackScenario({ id: 'priv_esc', name: 'Novel Root Execution', rules: ['POR-DET-001', 'POR-DET-003'] })" class="btn-island mt-auto flex w-full items-center justify-between rounded-full bg-black px-2 py-2 pl-4 text-white text-[12px] font-bold transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.01] active:scale-[0.98]"><span>Trigger Priv Esc</span><span class="grid h-7 w-7 place-items-center rounded-full bg-white text-black"><i class="ph ph-arrow-up-right text-[11px]"></i></span></button>
           </div>
         </div>
         <div class="md:col-span-4 p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
@@ -1144,7 +1148,7 @@
             <div class="flex items-center gap-2"><span class="grid h-8 w-8 place-items-center rounded-full bg-white/10 ring-1 ring-white/10"><i class="ph ph-radar text-sm"></i></span><span class="font-semibold text-[13px] tracking-tight">Network Scan</span></div>
             <p class="mt-2 text-[11px] leading-relaxed text-white/50">Nmap / nc discovery — POR-DET-004</p>
             <div class="mt-3 rounded-2xl bg-white/5 p-3 font-mono text-[10px] text-white/60 ring-1 ring-white/10">nc -z -w1 127.0.0.1 80 8080 3000</div>
-            <button :disabled="isExecutingAttack" @click="triggerAttackScenario({ id: 'network_scan', name: 'Network Port Discovery', rules: ['POR-DET-001', 'POR-DET-004'] })" class="btn-island mt-auto flex w-full items-center justify-between rounded-full bg-white px-2 py-2 pl-4 text-black text-[12px] font-bold transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]"><span>Trigger Network Scan</span><span class="grid h-7 w-7 place-items-center rounded-full bg-black text-white"><i class="ph ph-arrow-up-right text-[11px]"></i></span></button>
+            <button :disabled="isExecutingAttack" @click="triggerAttackScenario({ id: 'network_scan', name: 'Network Port Discovery', rules: ['POR-DET-001', 'POR-DET-004'] })" class="btn-island mt-auto flex w-full items-center justify-between rounded-full bg-white px-2 py-2 pl-4 text-black text-[12px] font-bold transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.01] active:scale-[0.98]"><span>Trigger Network Scan</span><span class="grid h-7 w-7 place-items-center rounded-full bg-black text-white"><i class="ph ph-arrow-up-right text-[11px]"></i></span></button>
           </div>
         </div>
 
@@ -1174,7 +1178,7 @@
               <p class="mt-2 text-[12px] leading-relaxed text-black/50">Loaded with OWASP Top 10 (XSS, SQLi, RCE). Monitored live at <span class="rounded bg-black px-1.5 py-0.5 font-mono text-[11px] text-white">127.0.0.1:3001</span></p>
               <p class="mt-1 font-mono text-[11px] text-black/30">bkimminich/juice-shop:latest</p>
             </div>
-            <button :disabled="isExecutingAttack" @click="triggerAttackScenario({ id: 'juice_shop_toggle', name: 'OWASP Juice Shop Lab', rules: ['POR-DET-001'] })" class="btn-island group inline-flex items-center gap-3 rounded-full bg-black px-2 py-2 pl-6 text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98] flex-shrink-0"><span class="text-[13px] font-semibold">Toggle Juice Shop :3001</span><span class="grid h-9 w-9 place-items-center rounded-full bg-white text-black transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-1 group-hover:-translate-y-[1px]"><i class="ph ph-arrow-up-right text-sm"></i></span></button>
+            <button :disabled="isExecutingAttack" @click="triggerAttackScenario({ id: 'juice_shop_toggle', name: 'OWASP Juice Shop Lab', rules: ['POR-DET-001'] })" class="btn-island group inline-flex items-center gap-3 rounded-full bg-black px-2 py-2 pl-6 text-white transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.01] active:scale-[0.98] flex-shrink-0"><span class="text-[13px] font-semibold">Toggle Juice Shop :3001</span><span class="grid h-9 w-9 place-items-center rounded-full bg-white text-black transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-1 group-hover:-translate-y-[1px]"><i class="ph ph-arrow-up-right text-sm"></i></span></button>
           </div>
         </div>
       </div>
@@ -1208,7 +1212,7 @@
             <div class="mt-4 rounded-2xl bg-black p-4 text-white">
               <div class="text-[10px] font-bold uppercase tracking-[0.14em] text-white/50">Total D_JS</div>
               <div class="font-display text-[28px] font-bold leading-none tracking-[-0.03em]" x-text="currentAnomalyScore.toFixed(3)">0.000</div>
-              <div class="mt-2 text-[11px] font-medium text-white/60">Band <span class="font-bold text-white" x-text="currentScoreBand.toUpperCase()"></span> • Deterministic & frozen in Research Protocol V1</div>
+              <div class="mt-2 text-[11px] font-medium text-white/60">Band <span class="font-bold text-white" x-text="currentScoreBand.toUpperCase()"></span> • Deterministic & frozen in scoring.py:14 (protocol docs/RESEARCH_PROTOCOL_V1.md:9)</div>
             </div>
           </div>
         </div>
@@ -1216,8 +1220,10 @@
     </section>
   </main>
 
+  </div>
+
   <!-- Footer — double-bezel island -->
-  <footer class="mx-auto max-w-[1280px] px-4 py-12">
+  <footer class="mx-auto max-w-[1280px] px-4 pt-6 pb-12">
     <div class="p-1.5 rounded-[2rem] bg-white/5 ring-1 ring-white/10">
       <div class="inner-bezel flex flex-col sm:flex-row items-center justify-between gap-4 rounded-[calc(2rem-0.375rem)] bg-white px-6 py-5 text-black">
         <div class="text-center sm:text-left">
@@ -1233,7 +1239,7 @@
   </footer>
 
   <!-- Documentation Modal -->
-  <div x-show="showDocsModal" x-transition.opacity.duration.300 class="fixed inset-0 z-50 grid place-items-center bg-black/80 backdrop-blur-2xl p-4 sm:p-6" @click.self="showDocsModal=false" style="display: none;">
+  <div x-show="showDocsModal" x-transition.opacity.duration.300 class="fixed inset-0 z-[60] grid place-items-center bg-black/80 backdrop-blur-2xl p-4 sm:p-6" @click.self="showDocsModal=false" style="display: none;">
     <div class="w-full max-w-3xl rounded-[2rem] bg-white p-2 text-black shadow-[0_32px_96px_rgba(0,0,0,0.6)]">
       <div class="inner-bezel rounded-[calc(2rem-0.5rem)] bg-[#FDFBF7] p-6 sm:p-8 flex flex-col max-h-[85vh] overflow-y-auto">
         <div class="flex items-center justify-between pb-4 border-b border-black/10">
@@ -1241,7 +1247,7 @@
             <span class="rounded-full bg-black px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white">Architectural Blueprint</span>
             <h3 class="mt-2 font-display text-[22px] font-bold tracking-tight">Porygon System Architecture</h3>
           </div>
-          <button @click="showDocsModal=false" class="grid h-9 w-9 place-items-center rounded-full bg-black text-white hover:scale-105 transition-transform"><i class="ph ph-x text-sm"></i></button>
+          <button @click="showDocsModal=false" class="grid h-9 w-9 place-items-center rounded-full bg-black text-white hover:scale-[1.02] transition-transform"><i class="ph ph-x text-sm"></i></button>
         </div>
 
         <!-- Nav tabs for docs -->
@@ -1331,7 +1337,7 @@
 
         <div class="mt-8 pt-4 border-t border-black/10 flex items-center justify-between">
           <span class="text-[11px] font-mono text-black/40">Research Protocol • PORYGON®</span>
-          <button @click="showDocsModal=false" class="rounded-full bg-black px-5 py-2 text-[12px] font-bold text-white hover:scale-105 transition-transform">Close Guide</button>
+          <button @click="showDocsModal=false" class="rounded-full bg-black px-5 py-2 text-[12px] font-bold text-white hover:scale-[1.02] transition-transform">Close Guide</button>
         </div>
       </div>
     </div>

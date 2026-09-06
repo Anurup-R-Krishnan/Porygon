@@ -9,13 +9,13 @@ this cannot distinguish a `dropped_capabilities` context change from
 processes execute.
 
 This module tests a different, more direct idea: score the structured
-runtime-context *document* itself (capabilities, privileged, read-only-rootfs,
+runtime-context document itself (capabilities, privileged, read-only-rootfs,
 mounts, network mode, ports) against a digest's fit-split reference context,
 independently of process-name behaviour. This is exploratory, not
-confirmatory: it reuses the same 144-trial study-20260905t181654Z dataset the
-frozen protocol already collected (no new data collection, no protocol
-change), so it is reported as a secondary/exploratory finding, never
-substituted for the frozen protocol's own primary result.
+confirmatory: it reuses an already-collected study run's data (no new
+trial collection triggered by this analysis), so it is reported as a
+secondary/exploratory finding, never substituted for the frozen protocol's
+own primary result.
 """
 from __future__ import annotations
 
@@ -130,10 +130,12 @@ def evaluate(run_dir: Path) -> dict[str, Any]:
 
     return {
         "schema_version": "porygon.context-delta-exploratory.v1",
+        "source_run": run_dir.name,
         "note": (
-            "Exploratory, non-confirmatory: reuses study-20260905t181654Z's "
-            "already-collected data. Not a substitute for the frozen "
-            "protocol's process-name-based primary result."
+            "Exploratory, non-confirmatory: reuses an already-collected study "
+            "run's data (no new trials run for this analysis). Not a "
+            "substitute for the frozen protocol's process-name-based primary "
+            "result."
         ),
         "fit_digests": sorted(references.keys()),
         "by_context_variant": by_variant,

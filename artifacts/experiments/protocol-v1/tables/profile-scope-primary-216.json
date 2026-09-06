@@ -1,0 +1,263 @@
+{
+  "schema_version": "porygon.profile-scope-analysis.v1",
+  "source_run": "study-confirmatory-200-20260906t071234Z",
+  "threshold": 0.25,
+  "fpr_by_arm": {
+    "ARM-GLOBAL": {
+      "successes": 53,
+      "trials": 53,
+      "point_estimate": 1.0,
+      "lower": 0.9327654536932641,
+      "upper": 1.0,
+      "confidence": 0.95
+    },
+    "ARM-TAG": {
+      "successes": 0,
+      "trials": 53,
+      "point_estimate": 0.0,
+      "lower": 0.0,
+      "upper": 0.06723454630673587,
+      "confidence": 0.95
+    },
+    "ARM-DIGEST": {
+      "successes": 0,
+      "trials": 53,
+      "point_estimate": 0.0,
+      "lower": 0.0,
+      "upper": 0.06723454630673587,
+      "confidence": 0.95
+    },
+    "ARM-CONTEXT": {
+      "successes": 0,
+      "trials": 53,
+      "point_estimate": 0.0,
+      "lower": 0.0,
+      "upper": 0.06723454630673587,
+      "confidence": 0.95
+    }
+  },
+  "recall_by_arm": {
+    "ARM-GLOBAL": {
+      "successes": 96,
+      "trials": 96,
+      "point_estimate": 1.0,
+      "lower": 0.9623030783764079,
+      "upper": 1.0,
+      "confidence": 0.95
+    },
+    "ARM-TAG": {
+      "successes": 96,
+      "trials": 96,
+      "point_estimate": 1.0,
+      "lower": 0.9623030783764079,
+      "upper": 1.0,
+      "confidence": 0.95
+    },
+    "ARM-DIGEST": {
+      "successes": 96,
+      "trials": 96,
+      "point_estimate": 1.0,
+      "lower": 0.9623030783764079,
+      "upper": 1.0,
+      "confidence": 0.95
+    },
+    "ARM-CONTEXT": {
+      "successes": 96,
+      "trials": 96,
+      "point_estimate": 1.0,
+      "lower": 0.9623030783764079,
+      "upper": 1.0,
+      "confidence": 0.95
+    }
+  },
+  "primary_contrasts": {
+    "mcnemar": {
+      "CONTEXT_vs_ARM-GLOBAL": {
+        "contrast_id": "CONTEXT_vs_ARM-GLOBAL",
+        "n_pairs": 53,
+        "discordant_a_only": 0,
+        "discordant_b_only": 53,
+        "p_value": 2.220446049250313e-16,
+        "note": "exact two-sided conditional binomial test"
+      },
+      "CONTEXT_vs_ARM-TAG": {
+        "contrast_id": "CONTEXT_vs_ARM-TAG",
+        "n_pairs": 53,
+        "discordant_a_only": 0,
+        "discordant_b_only": 0,
+        "p_value": 1.0,
+        "note": "no discordant pairs; arms agree on every run"
+      },
+      "CONTEXT_vs_ARM-DIGEST": {
+        "contrast_id": "CONTEXT_vs_ARM-DIGEST",
+        "n_pairs": 53,
+        "discordant_a_only": 0,
+        "discordant_b_only": 0,
+        "p_value": 1.0,
+        "note": "no discordant pairs; arms agree on every run"
+      }
+    },
+    "holm_adjusted": {
+      "CONTEXT_vs_ARM-GLOBAL": {
+        "contrast_id": "CONTEXT_vs_ARM-GLOBAL",
+        "raw_p": 2.220446049250313e-16,
+        "adjusted_p": 6.661338147750939e-16,
+        "rejected_at_alpha": true
+      },
+      "CONTEXT_vs_ARM-TAG": {
+        "contrast_id": "CONTEXT_vs_ARM-TAG",
+        "raw_p": 1.0,
+        "adjusted_p": 1.0,
+        "rejected_at_alpha": false
+      },
+      "CONTEXT_vs_ARM-DIGEST": {
+        "contrast_id": "CONTEXT_vs_ARM-DIGEST",
+        "raw_p": 1.0,
+        "adjusted_p": 1.0,
+        "rejected_at_alpha": false
+      }
+    }
+  },
+  "decisions": {
+    "CONTEXT_vs_GLOBAL": {
+      "contrast_id": "CONTEXT_vs_GLOBAL",
+      "fpr_a": {
+        "successes": 53,
+        "trials": 53,
+        "point_estimate": 1.0,
+        "lower": 0.9327654536932641,
+        "upper": 1.0,
+        "confidence": 0.95
+      },
+      "fpr_b": {
+        "successes": 0,
+        "trials": 53,
+        "point_estimate": 0.0,
+        "lower": 0.0,
+        "upper": 0.06723454630673587,
+        "confidence": 0.95
+      },
+      "relative_fpr_reduction": 1.0,
+      "mcnemar": {
+        "contrast_id": "CONTEXT_vs_ARM-GLOBAL",
+        "n_pairs": 53,
+        "discordant_a_only": 0,
+        "discordant_b_only": 53,
+        "p_value": 2.220446049250313e-16,
+        "note": "exact two-sided conditional binomial test"
+      },
+      "holm_adjusted_p": 6.661338147750939e-16,
+      "recall": {
+        "strata": [
+          "WL-NGX:SCN-LOG4SHELL-SIM",
+          "WL-NGX:SCN-RUNC-ESCAPE-SIM",
+          "WL-PG:SCN-LOG4SHELL-SIM",
+          "WL-PG:SCN-RUNC-ESCAPE-SIM",
+          "WL-RDS:SCN-LOG4SHELL-SIM",
+          "WL-RDS:SCN-RUNC-ESCAPE-SIM"
+        ],
+        "n_runs": 96,
+        "point_estimate": 1.0,
+        "lower": 1.0,
+        "upper": 1.0,
+        "resamples": 10000,
+        "seed": 20260823,
+        "non_inferior": true,
+        "margin_pp": 0.05
+      },
+      "material_effect_met": true,
+      "significant_after_correction": true,
+      "recall_non_inferior": true,
+      "h1_supported": true,
+      "reason": "material FPR reduction achieved, significant after Holm correction, recall non-inferior"
+    },
+    "CONTEXT_vs_DIGEST": {
+      "contrast_id": "CONTEXT_vs_DIGEST",
+      "fpr_a": {
+        "successes": 0,
+        "trials": 53,
+        "point_estimate": 0.0,
+        "lower": 0.0,
+        "upper": 0.06723454630673587,
+        "confidence": 0.95
+      },
+      "fpr_b": {
+        "successes": 0,
+        "trials": 53,
+        "point_estimate": 0.0,
+        "lower": 0.0,
+        "upper": 0.06723454630673587,
+        "confidence": 0.95
+      },
+      "relative_fpr_reduction": null,
+      "mcnemar": {
+        "contrast_id": "CONTEXT_vs_ARM-DIGEST",
+        "n_pairs": 53,
+        "discordant_a_only": 0,
+        "discordant_b_only": 0,
+        "p_value": 1.0,
+        "note": "no discordant pairs; arms agree on every run"
+      },
+      "holm_adjusted_p": 1.0,
+      "recall": {
+        "strata": [
+          "WL-NGX:SCN-LOG4SHELL-SIM",
+          "WL-NGX:SCN-RUNC-ESCAPE-SIM",
+          "WL-PG:SCN-LOG4SHELL-SIM",
+          "WL-PG:SCN-RUNC-ESCAPE-SIM",
+          "WL-RDS:SCN-LOG4SHELL-SIM",
+          "WL-RDS:SCN-RUNC-ESCAPE-SIM"
+        ],
+        "n_runs": 96,
+        "point_estimate": 1.0,
+        "lower": 1.0,
+        "upper": 1.0,
+        "resamples": 10000,
+        "seed": 20260823,
+        "non_inferior": true,
+        "margin_pp": 0.05
+      },
+      "material_effect_met": false,
+      "significant_after_correction": false,
+      "recall_non_inferior": true,
+      "h1_supported": false,
+      "reason": "relative FPR reduction below the frozen 25% material threshold"
+    }
+  },
+  "recall_non_inferiority_context": {
+    "strata": [
+      "WL-NGX:SCN-LOG4SHELL-SIM",
+      "WL-NGX:SCN-RUNC-ESCAPE-SIM",
+      "WL-PG:SCN-LOG4SHELL-SIM",
+      "WL-PG:SCN-RUNC-ESCAPE-SIM",
+      "WL-RDS:SCN-LOG4SHELL-SIM",
+      "WL-RDS:SCN-RUNC-ESCAPE-SIM"
+    ],
+    "n_runs": 96,
+    "point_estimate": 1.0,
+    "lower": 1.0,
+    "upper": 1.0,
+    "resamples": 10000,
+    "seed": 20260823,
+    "non_inferior": true,
+    "margin_pp": 0.05
+  },
+  "sample_sizes": {
+    "ARM-GLOBAL": {
+      "benign_n": 53,
+      "scenario_n": 96
+    },
+    "ARM-TAG": {
+      "benign_n": 53,
+      "scenario_n": 96
+    },
+    "ARM-DIGEST": {
+      "benign_n": 53,
+      "scenario_n": 96
+    },
+    "ARM-CONTEXT": {
+      "benign_n": 53,
+      "scenario_n": 96
+    }
+  }
+}

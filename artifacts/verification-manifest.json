@@ -1,0 +1,35 @@
+{
+  "artifact_sha256": {
+    "artifacts/.gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "artifacts/results.html": "34ba5f80f5d3ea3d28dbb740eea7fb5009a1ddc7c7faf699fffc28430235acf6",
+    "artifacts/results.json": "67da6a44cc0664c90d07117d5f0ade9e071951550c63700afc1c8534df82e104"
+  },
+  "finished_at_utc": "2026-09-06T12:14:08Z",
+  "gates": [
+    {
+      "command": "make verify-static",
+      "duration_seconds": 7,
+      "name": "static",
+      "status": "passed"
+    },
+    {
+      "command": "make verify-response-live",
+      "duration_seconds": 0,
+      "name": "response-live",
+      "reason": "disruptive gate is explicit opt-in and is never part of aggregate verification",
+      "status": "skipped"
+    }
+  ],
+  "git_dirty": true,
+  "git_sha": "51c60a7",
+  "mode": "static",
+  "schema_version": "porygon.verification.v1",
+  "started_at_utc": "2026-09-06T12:14:01Z",
+  "status": "passed",
+  "tools": {
+    "compose": "5.5.0",
+    "docker": "29.7.2/29.7.2",
+    "python": "Python 3.14.7",
+    "ruff": "ruff 0.16.0"
+  }
+}

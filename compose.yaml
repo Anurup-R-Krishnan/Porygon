@@ -4,7 +4,7 @@ services:
   postgres:
     labels:
       com.porygon.protected: "true"
-    image: postgres:17.10-bookworm
+    image: postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
     restart: unless-stopped
     env_file:
       - .env
@@ -351,7 +351,7 @@ services:
   falco:
     labels:
       com.porygon.protected: "true"
-    image: falcosecurity/falco:0.44.1
+    image: falcosecurity/falco:0.44.1@sha256:d0cfe422d6ac0e0f20857798f46c7d7273210e1b064b22821e4e6e7f843cde6b
     restart: unless-stopped
     environment:
       HOST_ROOT: /host

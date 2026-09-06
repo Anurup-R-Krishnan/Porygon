@@ -1,0 +1,465 @@
+{
+  "schema_version": "porygon.context-delta-exploratory.v1",
+  "source_run": "study-confirmatory-200-20260906t071234Z",
+  "note": "Exploratory, non-confirmatory: reuses an already-collected study run's data (no new trials run for this analysis). Not a substitute for the frozen protocol's process-name-based primary result.",
+  "fit_digests": [
+    "nginx@sha256:1eadbb07820339e8bbfed18c771691970baee292ec4ab2558f1453d26153e22d",
+    "postgres@sha256:1d04b9ba1d4996401f2552b51beda8187f175c0645c091e4781134fc9c9a3eef",
+    "redis@sha256:ddd16a9b1575a774c7e62956be8daa1de5b32cfb5c25b7a216aefed8e0919f9b"
+  ],
+  "by_context_variant": {
+    "baseline": {
+      "total": 26,
+      "positive": 0
+    },
+    "dropped_capabilities": {
+      "total": 27,
+      "positive": 27
+    }
+  },
+  "trials": [
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r01",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r03",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r04",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r07",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r08",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r09",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r10",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-baseline-r11",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-dropped_capabilities-r02",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-dropped_capabilities-r03",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-dropped_capabilities-r04",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-dropped_capabilities-r05",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-dropped_capabilities-r06",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-dropped_capabilities-r07",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-dropped_capabilities-r09",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-dropped_capabilities-r10",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-dropped_capabilities-r11",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-ngx-v1-steady_http-scn-exec-dropped_capabilities-r12",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-baseline-r01",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-baseline-r02",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-baseline-r03",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-baseline-r05",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-baseline-r06",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-baseline-r07",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-baseline-r09",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-baseline-r11",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-baseline-r12",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-dropped_capabilities-r01",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-dropped_capabilities-r02",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-dropped_capabilities-r03",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-dropped_capabilities-r04",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-dropped_capabilities-r05",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-dropped_capabilities-r07",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-dropped_capabilities-r08",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-dropped_capabilities-r09",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-dropped_capabilities-r10",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-dropped_capabilities-r11",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-pg-v1-read_only_queries-scn-exec-dropped_capabilities-r12",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-rds-v1-steady_set_get-scn-exec-baseline-r01",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-rds-v1-steady_set_get-scn-exec-baseline-r02",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-rds-v1-steady_set_get-scn-exec-baseline-r03",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-rds-v1-steady_set_get-scn-exec-baseline-r04",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-rds-v1-steady_set_get-scn-exec-baseline-r05",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-rds-v1-steady_set_get-scn-exec-baseline-r07",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-rds-v1-steady_set_get-scn-exec-baseline-r08",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-rds-v1-steady_set_get-scn-exec-baseline-r11",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-rds-v1-steady_set_get-scn-exec-baseline-r12",
+      "context_variant": "baseline",
+      "delta_score": 0.0,
+      "differing_fields": [],
+      "positive": false
+    },
+    {
+      "trial_id": "wl-rds-v1-steady_set_get-scn-exec-dropped_capabilities-r01",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-rds-v1-steady_set_get-scn-exec-dropped_capabilities-r05",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-rds-v1-steady_set_get-scn-exec-dropped_capabilities-r07",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-rds-v1-steady_set_get-scn-exec-dropped_capabilities-r08",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-rds-v1-steady_set_get-scn-exec-dropped_capabilities-r09",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    },
+    {
+      "trial_id": "wl-rds-v1-steady_set_get-scn-exec-dropped_capabilities-r11",
+      "context_variant": "dropped_capabilities",
+      "delta_score": 0.3,
+      "differing_fields": [
+        "capabilities"
+      ],
+      "positive": true
+    }
+  ],
+  "stats": {
+    "baseline_false_positive_rate": {
+      "successes": 0,
+      "trials": 26,
+      "point_estimate": 0.0,
+      "lower": 0.0,
+      "upper": 0.1322746044975247,
+      "confidence": 0.95
+    },
+    "dropped_capabilities_detection_rate": {
+      "successes": 27,
+      "trials": 27,
+      "point_estimate": 1.0,
+      "lower": 0.8722971323845741,
+      "upper": 1.0,
+      "confidence": 0.95
+    }
+  }
+}
