@@ -388,9 +388,16 @@ confirmed at $p=6.7\times10^{-16}$ on the full 216-trial run).
             \item \textbf{Network segregation:} Services run across three isolated Docker networks (ingress / internal / egress) with least-privilege socket access.
             \item \textbf{Fixed, versioned scoring weights:} every historical score stays reproducible under a named algorithm version; a weight change requires a new version, never a silent edit.
         \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{3. Technical Knowledge \& Design Decisions (contd.)}
+    \framesubtitle{Rubric: Understanding of Methodology, Implementation \& Design Choices (5 Marks)}
+    \footnotesize
+    \begin{itemize}
         \item \textbf{Confirmed Findings (216 real trials, exact statistical pipeline):}
         \begin{itemize}
-            \item Per-image scoping vs.\ pooled baseline: significant, $p=6.7\times10^{-16}$, FPR $100\%\to0\%$, recall unchanged.
+            \item Per-image scoping vs.\ pooled baseline: significant, $p=6.7\times10^{-16}$, FPR $100\%\to0\%$, recall unchanged (96/96 both arms).
             \item Digest-plus-context vs.\ digest-only: no measurable difference in this dataset, $p=1.0$, reproduced at both $n=35$ and $n=53$ -- traced to the tested configuration change (a dropped Linux capability) not altering which processes execute, which the process-name feature cannot see by construction.
             \item Follow-on feature scoring the security-configuration document directly separates every tested case cleanly: 0/26 false positives, 27/27 correct detections.
         \end{itemize}
