@@ -25,17 +25,35 @@
 Read this before anything else below.
 
 - **What is validated**: the pipeline runs end-to-end on real Docker
-  containers (`docs/CONFIRMATORY_RESULT_V1.md`), and a 144-trial confirmatory
-  run found real, statistically significant evidence that per-image
-  behavioural scoping beats one pooled global baseline. **The paper's more
-  specific thesis — that digest-plus-context scoping beats digest-only
-  scoping — is currently a null result** (p=1.0) at process-name-distance
-  granularity; a follow-on exploratory feature that scores runtime
-  configuration (privileged/capabilities/mounts) directly, rather than
-  inferring it through process names, shows promise (0/18 FPR, 17/17
-  detection of a capability-drop scenario) but has not been confirmatory-
-  tested. See `docs/CONFIRMATORY_RESULT_V1.md` for the full, unfiltered
-  result including what did not work.
+  containers, and a 216-trial confirmatory run
+  (`docs/CONFIRMATORY_RESULT_V1.md`) found real, statistically significant
+  evidence that per-image behavioural scoping beats one pooled global
+  baseline (exact McNemar $p=6.7\times10^{-16}$, false-positive rate
+  $100\%\to0\%$, zero loss of recall). This reproduces an earlier 144-trial
+  result ($p=5.8\times10^{-11}$) at larger scale with a smaller p-value —
+  the finding is robust, not a small-sample artifact.
+- **The project's more ambitious thesis — that digest-plus-context scoping
+  beats digest-only scoping — is a reproduced null result** (p=1.0 at both
+  n=35 and n=53) at process-name-distance granularity. The root cause is
+  understood: the tested context variant (a dropped Linux capability)
+  changes container privilege without changing which processes execute, so
+  a process-name-only feature cannot see it by construction. A follow-on
+  exploratory feature that scores the runtime security-configuration
+  document directly (privileges, capabilities, mounts), instead of
+  inferring it through process names, separates every tested case cleanly
+  (0/26 false positives, 27/27 correct detections) — but this is
+  exploratory, not confirmatory, and has not been tested against real
+  attack scenarios. See `docs/CONFIRMATORY_RESULT_V1.md` for the full,
+  unfiltered result including what did not work.
+- **A live demonstration against real malware**
+  (`docs/LIVE_DEMO_RECORD_V1.md`) executed a real, functional XMRig
+  cryptominer binary from a published malware-testing container image
+  against a Porygon baseline built with zero prior knowledge of the
+  binary. The anomaly scorer flagged it (score 0.2696, `elevated` band)
+  purely on behavioural novelty. The fixed-list deterministic rule
+  (`POR-DET-004`) did **not** fire, because `xmrig` is not in its hardcoded
+  tool list — both outcomes are reported together as the honest, complete
+  picture of what each detection mechanism can and cannot do.
 - **What is not validated or claimed**: production readiness, detection
   superiority over any other tool, calibrated attack probabilities, or zero
   event loss. See `docs/CLAIMS_V1.md` for the complete, binding list of
@@ -45,8 +63,15 @@ Read this before anything else below.
   redirected to a malicious destination, a fileless payload, or an in-place
   binary replacement that keeps the same executable path is currently
   invisible to this system. See `docs/ADVERSARIAL_SCENARIOS_V1.md` for 18
-  worked scenarios, of which roughly half are structurally undetectable by
-  the current design and half are genuinely caught.
+  worked scenarios: 6 structurally undetectable, 4 depend on exact
+  process-identity granularity, 3 acknowledged but untested, 5 genuinely
+  caught by an existing rule.
+- **No prior work answers the specific research question tested here**:
+  `docs/RELATED_WORK_RECENT.md` lists 10 independently-verified papers
+  (last 5 years) on adjacent container/host anomaly-detection problems;
+  none of them run a controlled, statistically powered comparison of
+  baseline scoping granularity, confirming this project's methodological
+  gap is real rather than already answered elsewhere.
 - **Realistic use case**: a narrow, digest-identity-aware signal for
   detecting *new* process behaviour inside an already-running
   container — unexpected shells, unexpected dual-use tools, unexpected root
@@ -652,8 +677,11 @@ Additionally validated during CI/CD checks:
 For in-depth architectural specifications, threat models, and research protocols:
 
 - **Claim Boundaries (binding, read first)**: [`docs/CLAIMS_V1.md`](docs/CLAIMS_V1.md)
-- **Confirmatory Result (honest, unfiltered)**: [`docs/CONFIRMATORY_RESULT_V1.md`](docs/CONFIRMATORY_RESULT_V1.md)
+- **Confirmatory Result (honest, unfiltered, 216-trial)**: [`docs/CONFIRMATORY_RESULT_V1.md`](docs/CONFIRMATORY_RESULT_V1.md)
+- **Live Malware Demonstration Record**: [`docs/LIVE_DEMO_RECORD_V1.md`](docs/LIVE_DEMO_RECORD_V1.md)
 - **Adversarial Scenario Stress Test**: [`docs/ADVERSARIAL_SCENARIOS_V1.md`](docs/ADVERSARIAL_SCENARIOS_V1.md)
+- **Related Work (10 verified papers, last 5 years)**: [`docs/RELATED_WORK_RECENT.md`](docs/RELATED_WORK_RECENT.md)
+- **Panel Review Presentation**: [`docs/presentation/porygon_review_v2.pdf`](docs/presentation/porygon_review_v2.pdf)
 - **Pilot Results UI**: `artifacts/results.html` — regenerate with `python3 scripts/render_results.py`
 - **Implementation Status Matrix (evidence-based)**: [`docs/execution-status.md`](docs/execution-status.md)
 - **Design Decisions & Trade-offs**: [`docs/design-decisions.md`](docs/design-decisions.md)
