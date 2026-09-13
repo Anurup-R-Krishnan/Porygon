@@ -32,7 +32,10 @@ artifacts/experiments/local/
 # Agent tooling checked out locally, not part of the project source.
 .agents/
 .codex/
-.claude/skills/
+.claude/
+
+# Code-navigation index cache
+.codegraph/
 
 # LaTeX build products
 *.aux
@@ -41,3 +44,7 @@ artifacts/experiments/local/
 *.toc
 *.out
 docs/presentation/*.log
+docs/presentation/*.docx
+docs/presentation/*.zip
+# NB: docs/presentation/screenshots/ is deliberately NOT ignored — the decks
+# \includegraphics those files, so they are build inputs, not build output.
