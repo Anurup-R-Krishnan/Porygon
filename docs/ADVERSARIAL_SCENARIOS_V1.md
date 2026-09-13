@@ -39,8 +39,8 @@ score. All 7 rules and their exact firing conditions are read directly out of
 | POR-DET-001 | Anomaly score ≥ 0.50 |
 | POR-DET-002 | A shell name not present in the selected baseline executes |
 | POR-DET-003 | A UID-0 process executes and UID 0 was absent from baseline |
-| POR-DET-004 | A dual-use tool (curl/wget/nc/python/openssl/etc., fixed list) not present in baseline executes |
-| POR-DET-005 | An unseen shell is followed by an unseen dual-use tool within 120s |
+| POR-DET-004 | Any non-shell executable not present in baseline executes, regardless of name (no fixed tool-name list) |
+| POR-DET-005 | An unseen shell is followed by an unseen non-shell executable within 120s |
 | POR-DET-006 | Any `docker exec` occurred |
 | POR-DET-007 | Container reports `--privileged` |
 
@@ -117,7 +117,7 @@ behaviour.
     structurally catches that tag-based scoping cannot**, independent of the
     anomaly score.
 18. **Classic dropper pattern** `sh -c "curl ... | bash"` inside a container
-    that has never run a shell or a dual-use tool. **Caught by POR-DET-005**,
+    that has never run a shell or a non-shell executable. **Caught by POR-DET-005**,
     the highest-confidence rule (0.95), and this is a common real
     initial-access/dropper pattern.
 
@@ -133,7 +133,7 @@ protocol-acknowledged failure modes have never actually been tested.
 What is real and defensible (category D): Porygon is a **narrow,
 digest-identity-aware process-execution anomaly and rule signal for
 detecting new/unexpected process behaviour inside an already-running
-container** — new shells, new dual-use tools, unexpected privilege
+container** — new shells, new non-shell executables of any name, unexpected privilege
 escalation, unexpected privileged-mode reconfiguration, and mutable-tag/
 digest substitution. That is a real, useful, defensible niche for a research
 prototype (e.g., a defense-in-depth signal layered behind network-level

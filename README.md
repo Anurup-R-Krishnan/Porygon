@@ -25,13 +25,18 @@
 Read this before anything else below.
 
 - **What is validated**: the pipeline runs end-to-end on real Docker
-  containers, and a 216-trial confirmatory run
+  containers, and a 216-trial pilot run
   (`docs/CONFIRMATORY_RESULT_V1.md`) found real, statistically significant
   evidence that per-image behavioural scoping beats one pooled global
   baseline (exact McNemar $p=6.7\times10^{-16}$, false-positive rate
   $100\%\to0\%$, zero loss of recall). This reproduces an earlier 144-trial
   result ($p=5.8\times10^{-11}$) at larger scale with a smaller p-value —
-  the finding is robust, not a small-sample artifact.
+  the finding is robust, not a small-sample artifact. **This is pilot
+  evidence** (`kind: "real_container_pilot"`, `research_eligible: false`
+  on every trial and run record), **not the frozen protocol's confirmatory
+  bar** — a real confirmatory result requires protocol-conformance machinery
+  that does not exist yet and is tracked as separate future work; see
+  `docs/CONFIRMATORY_RESULT_V1.md` for the full evidence-class disclosure.
 - **The project's more ambitious thesis — that digest-plus-context scoping
   beats digest-only scoping — is a reproduced null result** (p=1.0 at both
   n=35 and n=53) at process-name-distance granularity. The root cause is
@@ -49,11 +54,16 @@ Read this before anything else below.
   (`docs/LIVE_DEMO_RECORD_V1.md`) executed a real, functional XMRig
   cryptominer binary from a published malware-testing container image
   against a Porygon baseline built with zero prior knowledge of the
-  binary. The anomaly scorer flagged it (score 0.2696, `elevated` band)
-  purely on behavioural novelty. The fixed-list deterministic rule
-  (`POR-DET-004`) did **not** fire, because `xmrig` is not in its hardcoded
-  tool list — both outcomes are reported together as the honest, complete
-  picture of what each detection mechanism can and cannot do.
+  binary, twice, across two dated runs. The **first run** (score 0.2696,
+  `elevated` band) was flagged purely on behavioural novelty by the anomaly
+  scorer, but the then-fixed-name-list `POR-DET-004` rule did **not** fire
+  because `xmrig` was not in its hardcoded tool list, so no incident was
+  created. `POR-DET-004` was subsequently generalised from a fixed name
+  list to *any* previously unseen non-shell executable. The **second,
+  current run**, against that broadened rule (score 0.567, `high` band),
+  had `POR-DET-004` fire and an incident created. Both runs are reported
+  together, in full, in `docs/LIVE_DEMO_RECORD_V1.md` — the honest, complete
+  picture of the rule change's effect, not a retroactively adjusted result.
 - **What is not validated or claimed**: production readiness, detection
   superiority over any other tool, calibrated attack probabilities, or zero
   event loss. See `docs/CLAIMS_V1.md` for the complete, binding list of
@@ -67,15 +77,16 @@ Read this before anything else below.
   process-identity granularity, 3 acknowledged but untested, 5 genuinely
   caught by an existing rule.
 - **No prior work answers the specific research question tested here**:
-  `docs/RELATED_WORK_RECENT.md` lists 10 independently-verified papers
-  (last 5 years) on adjacent container/host anomaly-detection problems;
+  `docs/RELATED_WORK_RECENT.md` lists 13 independently-verified papers
+  (last 5 years, plus one lower-confidence entry not independently
+  re-verified) on adjacent container/host anomaly-detection problems;
   none of them run a controlled, statistically powered comparison of
   baseline scoping granularity, confirming this project's methodological
   gap is real rather than already answered elsewhere.
 - **Realistic use case**: a narrow, digest-identity-aware signal for
   detecting *new* process behaviour inside an already-running
-  container — unexpected shells, unexpected dual-use tools, unexpected root
-  processes, unexpected privileged-mode reconfiguration, and mutable-tag/
+  container — unexpected shells, unexpected non-shell executables of any
+  name, unexpected root processes, unexpected privileged-mode reconfiguration, and mutable-tag/
   digest substitution. Not a general intrusion-detection or EDR replacement.
 
 ---
@@ -277,7 +288,7 @@ graph LR
 
 ## Deterministic Detection & Incident Correlation
 
-Findings are generated deterministically using the `porygon.detection.v1` ruleset (matcher `porygon.detection.matcher.v3`).
+Findings are generated deterministically using the `porygon.detection.v1` ruleset (matcher `porygon.detection.matcher.v4`).
 
 ```mermaid
 stateDiagram-v2
@@ -288,7 +299,7 @@ stateDiagram-v2
         POR_001: POR-DET-001 High Behavioural Distance
         POR_002: POR-DET-002 Novel Shell Execution
         POR_003: POR-DET-003 Novel Root Execution
-        POR_004: POR-DET-004 Novel Dual-Use Tool
+        POR_004: POR-DET-004 Unseen Non-Shell Executable
         POR_005: POR-DET-005 Shell-to-Tool Sequence (120s)
         POR_006: POR-DET-006 Docker Exec Activity
         POR_007: POR-DET-007 Privileged Container Config
@@ -309,8 +320,8 @@ stateDiagram-v2
 | **POR-DET-001** | High Behavioural Distance | Total anomaly distance $\ge 0.50$ | No *(Informational)* | No |
 | **POR-DET-002** | Previously Unseen Shell | Known shell binary (`sh`, `bash`, `ash`, `zsh`) absent from baseline | **Yes** | **Yes** *(Digest + Executable)* |
 | **POR-DET-003** | Novel Root Process | Process executed with UID 0 where UID 0 was absent in baseline | **Yes** | **Yes** *(Digest + Executable)* |
-| **POR-DET-004** | Novel Dual-Use Tool | Unseen network/utility binary (`curl`, `wget`, `nc`, `socat`, `base64`, `openssl`, `python`, `perl`) | **Yes** | **Yes** *(Digest + Executable)* |
-| **POR-DET-005** | Shell-to-Tool Sequence | Novel shell followed by novel dual-use tool within 120 seconds in same container | **Yes** | Derived *(Source suppression)* |
+| **POR-DET-004** | Previously Unseen Non-Shell Executable | Any non-shell executable absent from the digest baseline, regardless of name | **Yes** | **Yes** *(Digest + Executable)* |
+| **POR-DET-005** | Shell-to-Tool Sequence | Novel shell followed by novel non-shell executable within 120 seconds in same container | **Yes** | Derived *(Source suppression)* |
 | **POR-DET-006** | Docker Exec Activity | `exec_create` / `exec_start` observed in score window | No *(Contextual)* | No |
 | **POR-DET-007** | Privileged Configuration | Container created/started with privileged mode enabled | **Yes** | No |
 
@@ -428,7 +439,7 @@ Porygon/
 ├── compose.yaml                      # Multi-service container definitions & isolated networks
 ├── Makefile                          # Unified build, lint, test, and verification tasks
 ├── backend/                          # FastAPI core API & database migrations
-│   ├── alembic/versions/             # Database schema migrations (0001 through 0009)
+│   ├── alembic/versions/             # Database schema migrations (0001 through 0012)
 │   ├── src/porygon_api/
 │   │   ├── baseline.py               # Behavioural profile baseline engine
 │   │   ├── scoring.py                # Jensen-Shannon anomaly scoring engine
@@ -625,10 +636,14 @@ make experiment-validate RUN_DIR=artifacts/experiments/local/<run-id>
 
 > [!WARNING]
 > **Evidence classes are not interchangeable.** The smoke fixture is synthetic.
-> The pilot uses real containers but is collected while the research protocol is
-> review-pending. Both record `research_eligible: false`. Only a confirmatory run
-> — which the runner refuses to start until the protocol is frozen by independent
-> security and methodology review — may support a research claim.
+> The pilot uses real containers, and the research protocol is `FROZEN` with
+> both required reviews approved, but every pilot run still records
+> `research_eligible: false` — protocol freeze is necessary but not sufficient
+> for confirmatory status, which additionally requires protocol-conformance
+> machinery that has not been built yet (tracked as separate future work).
+> Only a confirmatory run may support a research claim; see
+> `docs/CONFIRMATORY_RESULT_V1.md` for the current evidence-class status of
+> every run collected so far.
 
 > [!IMPORTANT]
 > **Controlled Disruptive Response Gate**: The live response test (`make verify-response-live`) pauses and stops containers. It requires `PORYGON_RESPONSE_EXECUTION_MODE=live` in `.env` and must only be executed in an isolated test environment. It is never included in `make verify`.
@@ -657,9 +672,12 @@ responder 5, scanner 5). The stdlib-only experiment harness adds 41 tests, which
 The local experiment smoke fixture is synthetic and validates artifact
 provenance and replay only. The real-container pilot runner exercises the whole
 capture path against pinned image digests, but pilot data is still not research
-evidence. Confirmatory collection remains prohibited while the research protocol
-is review-pending. See [`docs/execution-status.md`](docs/execution-status.md) for
-the evidence-based module matrix and the current blockers.
+evidence — every trial and run record it produces carries
+`research_eligible: false`. The research protocol itself is `FROZEN` with both
+required reviews approved, but a confirmatory run additionally requires
+protocol-conformance machinery that has not been built yet; see
+`docs/CONFIRMATORY_RESULT_V1.md` for the current evidence-class status of every
+run collected so far.
 
 Additionally validated during CI/CD checks:
 - Python linting and code style via **Ruff**
@@ -668,7 +686,7 @@ Additionally validated during CI/CD checks:
 - Docker Compose and Falco rule YAML validation
 - Configuration TOML validation
 - OpenAPI JSON schema generation
-- Complete database migration chain (`0001_initial` through `0009_calibrated_rarity_provenance`)
+- Complete database migration chain (`0001_phase1_foundation` through `0012_custom_rule_lifecycle`)
 
 ---
 
@@ -677,23 +695,24 @@ Additionally validated during CI/CD checks:
 For in-depth architectural specifications, threat models, and research protocols:
 
 - **Claim Boundaries (binding, read first)**: [`docs/CLAIMS_V1.md`](docs/CLAIMS_V1.md)
-- **Confirmatory Result (honest, unfiltered, 216-trial)**: [`docs/CONFIRMATORY_RESULT_V1.md`](docs/CONFIRMATORY_RESULT_V1.md)
-- **Live Malware Demonstration Record**: [`docs/LIVE_DEMO_RECORD_V1.md`](docs/LIVE_DEMO_RECORD_V1.md)
+- **Pilot Result (honest, unfiltered, 216-trial; not yet confirmatory)**: [`docs/CONFIRMATORY_RESULT_V1.md`](docs/CONFIRMATORY_RESULT_V1.md)
+- **Live Malware Demonstration Record (two dated runs)**: [`docs/LIVE_DEMO_RECORD_V1.md`](docs/LIVE_DEMO_RECORD_V1.md)
 - **Adversarial Scenario Stress Test**: [`docs/ADVERSARIAL_SCENARIOS_V1.md`](docs/ADVERSARIAL_SCENARIOS_V1.md)
-- **Related Work (10 verified papers, last 5 years)**: [`docs/RELATED_WORK_RECENT.md`](docs/RELATED_WORK_RECENT.md)
-- **Panel Review Presentation**: [`docs/presentation/porygon_review_v2.pdf`](docs/presentation/porygon_review_v2.pdf)
+- **Related Work (13 verified papers, last 5 years)**: [`docs/RELATED_WORK_RECENT.md`](docs/RELATED_WORK_RECENT.md)
+- **Panel Review Presentation (current)**: [`docs/presentation/porygon_review_v3.pdf`](docs/presentation/porygon_review_v3.pdf) — supersedes `porygon_review_v2.pdf`, kept for provenance
 - **Pilot Results UI**: `artifacts/results.html` — regenerate with `python3 scripts/render_results.py`
-- **Implementation Status Matrix (evidence-based)**: [`docs/execution-status.md`](docs/execution-status.md)
-- **Design Decisions & Trade-offs**: [`docs/design-decisions.md`](docs/design-decisions.md)
-- **Demonstration Path**: [`docs/DEMO.md`](docs/DEMO.md)
-- **Verification Report**: [`docs/final-verification-report.md`](docs/final-verification-report.md)
-- **System Architecture**: [`docs/PHASE8_ARCHITECTURE.md`](docs/PHASE8_ARCHITECTURE.md)
-- **Vulnerability Evidence Model**: [`docs/VULNERABILITY_EVIDENCE_MODEL_V1.md`](docs/VULNERABILITY_EVIDENCE_MODEL_V1.md)
-- **Threat Model & Security Boundary Analysis**: [`docs/THREAT_MODEL_V1.md`](docs/THREAT_MODEL_V1.md)
-- **Detection & Correlation Ruleset**: [`docs/DETECTION_RULESET_V1.md`](docs/DETECTION_RULESET_V1.md)
-- **Response Policy & Guardrails**: [`docs/RESPONSE_POLICY_V1.md`](docs/RESPONSE_POLICY_V1.md)
-- **Behavioural Distance Scoring Model**: [`docs/SCORING_MODEL_V1.md`](docs/SCORING_MODEL_V1.md) & [`docs/SCORING_MODEL_CALIBRATED.md`](docs/SCORING_MODEL_CALIBRATED.md)
 - **Research Protocol & Experimental Design**: [`docs/RESEARCH_PROTOCOL_V1.md`](docs/RESEARCH_PROTOCOL_V1.md)
-- **Experiment Reproducibility**: [`docs/EXPERIMENT_REPRODUCIBILITY.md`](docs/EXPERIMENT_REPRODUCIBILITY.md)
-- **Phase 9 Acceptance Boundary**: [`docs/EXPERIMENT_ACCEPTANCE.md`](docs/EXPERIMENT_ACCEPTANCE.md)
-- **Audit & Subsystem Verification Reports**: [`docs/AUDIT_REPORT_PHASES_1_7.md`](docs/AUDIT_REPORT_PHASES_1_7.md)
+- **Threat Model & Security Boundary Analysis**: [`docs/THREAT_MODEL_V1.md`](docs/THREAT_MODEL_V1.md)
+
+The following documents referenced by earlier revisions of this index no
+longer exist in the repository and have been removed from this list rather
+than left as dead links: `docs/AUDIT_REPORT_PHASES_1_7.md`, `docs/DEMO.md`,
+`docs/design-decisions.md`, `docs/DETECTION_RULESET_V1.md`,
+`docs/execution-status.md`, `docs/EXPERIMENT_ACCEPTANCE.md`,
+`docs/EXPERIMENT_REPRODUCIBILITY.md`, `docs/final-verification-report.md`,
+`docs/PHASE8_ARCHITECTURE.md`, `docs/RESPONSE_POLICY_V1.md`,
+`docs/SCORING_MODEL_CALIBRATED.md`, `docs/SCORING_MODEL_V1.md`,
+`docs/VULNERABILITY_EVIDENCE_MODEL_V1.md`. The rule text, detection
+behaviour, scoring formula, and response policy they described are documented
+directly in `backend/src/porygon_api/detection.py`, `scoring.py`, and
+`response.py`, and summarized above in this README.

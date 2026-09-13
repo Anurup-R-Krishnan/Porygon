@@ -10,8 +10,13 @@ The version 1 protocol package is frozen. Both required human approvals are
 recorded (`docs/review/security-review.json`, `docs/review/methodology-review.json`,
 both `decision: approved`), and `scripts/review_gate.py apply` has set
 `RESEARCH_PROTOCOL_V1.md`'s status from `review_pending` to `FROZEN`.
-Confirmatory collection is permitted (`experiments/study.py` reports
-`evidence_class: confirmatory`, `research_eligible: true`).
+Protocol freeze and review sign-off are necessary but not sufficient for
+confirmatory collection: every run executed so far, including both studies
+below, recorded `evidence_class: pilot`, `research_eligible: false` after a
+mislabeling bug in the study-summary step (now fixed) was found and
+corrected. Confirmatory-grade collection additionally requires
+protocol-conformance machinery that has not been built yet; see
+`docs/CONFIRMATORY_RESULT_V1.md` for the current evidence-class status.
 
 - [`RESEARCH_PROTOCOL_V1.md`](RESEARCH_PROTOCOL_V1.md)
 - [`THREAT_MODEL_V1.md`](THREAT_MODEL_V1.md)
@@ -129,7 +134,7 @@ Implemented:
 
 - Versioned, hashed deterministic rule set (`POR-DET-001`..`007`)
 - High behavioural distance retained as informational context rather than standalone incident proof
-- Unseen shell, novel UID 0 process, unseen dual-use tool, Docker exec, and privileged-container rules
+- Unseen shell, novel UID 0 process, unseen non-shell executable (any name), Docker exec, and privileged-container rules
 - Same-container shell-to-tool correlation within a fixed 120-second window
 - Digest-scoped exact executable allowlists with named human approval, expiry, and deactivation audit fields
 - Allowlist-set hashing as part of detection-run identity
@@ -207,9 +212,9 @@ Exit condition: `./scripts/verify_phase8.sh` proves exact digest/image binding, 
 
 **Goal:** produce defensible results.
 
-Real progress: `docs/CONFIRMATORY_RESULT_V1.md` records the first genuinely
-confirmatory result (`study-20260905t181654Z`, 144 real trials,
-`evidence_class: confirmatory`): `ARM-CONTEXT` vs `ARM-GLOBAL` shows a 100%
+Real progress: `docs/CONFIRMATORY_RESULT_V1.md` records the first real pilot
+result (`study-20260905t181654Z`, 144 real trials,
+`evidence_class: pilot`, `research_eligible: false`): `ARM-CONTEXT` vs `ARM-GLOBAL` shows a 100%
 relative FPR reduction (35/35 → 0/35 false positives), exact McNemar
 p = 5.8×10⁻¹¹ (Holm-adjusted), recall non-inferior at 100% under both arms.
 `experiments/analysis.py` (exact McNemar, Holm correction, Clopper-Pearson

@@ -58,8 +58,8 @@ must not be presented as a deployment prevalence estimate.
 - Digest-plus-context is superior before the frozen confirmatory comparison.
 - Any anomaly score, rarity value, p-value, severity, or confidence field is an
   attack probability or probability of compromise.
-- A deterministic rule match, sequence, shell, root process, or dual-use tool
-  is proof that an attack occurred.
+- A deterministic rule match, sequence, shell, root process, or non-shell
+  executable is proof that an attack occurred.
 - A CVE/package match, EPSS score, KEV membership, process-name match, or open
   port proves reachability, exploitation, or compromise.
 - Porygon captures all kernel, Docker, Falco, process, file, DNS, or network

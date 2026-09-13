@@ -7,67 +7,107 @@ below was independently checked (DOI resolution, arXiv API lookup, or direct
 fetch of the publisher/journal page) before inclusion; verification notes are
 given per entry.
 
-## Directly cited in the presentation deck (verified real, prior to this note)
+## Directly cited in the presentation deck (verified real)
 
-- Forrest, Hofmeyr, Somayaji, Longstaff, "A sense of self for Unix processes,"
-  IEEE S&P, 1996. Foundational sequence-of-syscalls anomaly baseline.
-- Hofmeyr, Forrest, Somayaji, "Intrusion detection using sequences of system
-  calls," J. Computer Security, 1998.
-- Abed, Clancy, Levy, "Applying Bag of System Calls for Anomalous Behavior
-  Detection of Applications in Linux Containers," IEEE GLOBECOM Workshops,
-  2015 (arXiv:1611.03053). **Closest prior academic work**: container-level,
-  host-kernel-observed, no-prior-knowledge-required anomaly detection. Uses
-  bag-of-syscalls, not Jensen-Shannon distance specifically, and does not
-  compare baseline scoping strategies. Re-verified via arXiv API: confirmed.
-- Lin, "Divergence measures based on the Shannon entropy," IEEE Trans.
-  Information Theory, 1991. Mathematical origin of Jensen-Shannon divergence.
+Correction, 2026-09-13: an earlier revision of this document (2026-09-07)
+dropped Forrest/Hofmeyr/Somayaji/Longstaff 1996, Hofmeyr/Forrest/Somayaji
+1998, Abed/Clancy/Levy 2015, Lin 1991, and Salem/Naït-Abdesselam 2012 from
+the slide bibliography, on the theory that the deck enforced a 10-year
+(preferably 5-year) citation window. That rule was invented after the fact
+and is not how citation works: a primary source is cited for being the true
+origin of a result, regardless of publication age -- the same way Shannon
+1948 is still the citation for entropy. Two of the five are reinstated as
+acknowledged foundational prior art:
 
-## Found in this search, not yet cited -- 10 papers, all within the last 5 years
+- **Lin, J., "Divergence Measures Based on the Shannon Entropy," IEEE
+  Transactions on Information Theory, 1991.** The paper that defines
+  Jensen-Shannon divergence itself -- the exact distance measure Porygon's
+  scorer implements. Cited in `porygon_review_v3.tex` (`\bibitem{lin1991}`)
+  regardless of age, alongside a 2026 security application of the same
+  distance family (Bouke et al., below) to show the family remains active,
+  not to replace the primary source.
+- **Forrest, Hofmeyr, Somayaji, Longstaff, "A Sense of Self for Unix
+  Processes," IEEE Symposium on Security and Privacy, 1996.** The
+  foundational paper establishing host-based anomaly detection from
+  sequences of system calls -- the methodological ancestor of every syscall/
+  process-behaviour anomaly detector cited below, including Porygon's. Cited
+  as acknowledged prior art regardless of age, for the same reason as Lin
+  1991: it is the true origin of the approach this whole literature (and
+  this project) builds on.
 
-1. **Salem, Naït-Abdesselam et al., "Anomaly detection in network traffic
-   using Jensen-Shannon divergence,"** IEEE ICC, 2012. Origin of applying
-   JS-divergence specifically (not just distributional distance generally)
-   to anomaly detection, at the network-traffic layer. Direct mathematical/
-   methodological ancestor of Porygon's `jensen_shannon_distance` scoring
-   function. Note: this one is outside the 5-year window (2012); kept for
-   completeness of the JS-divergence lineage, not counted toward the 10.
-   **Verified:** PDF fetched directly from the author's institutional page
-   (helios2.mi.parisdescartes.fr), HTTP 200.
+Hofmeyr/Forrest/Somayaji 1998, Abed/Clancy/Levy 2015, and
+Salem/Naït-Abdesselam 2012 remain superseded in the deck's bibliography by
+closer, more recent prior work on the same specific problem (Castanhel et al.
+2021, El Khairi et al. 2022, below) -- that substitution is legitimate
+recency-driven refinement, not the invented citation-window rule. Both
+`ref.bib` and the presentation decks have been reconciled against this
+correction; see `docs/presentation/README.md` for which deck is current.
 
-2. **Lin, Chen, Yang, Yang, Luo, Yang, "eBPF-Guard: a detection method for
+- Castanhel, Heinrich, Ceschin, Maziero, "Taking a Peek: An Evaluation of
+  Anomaly Detection Using System Calls for Containers," IEEE ISCC, 2021.
+  **Closest prior academic work** (replaces Abed/Clancy/Levy 2015 in this
+  role): container-level, kernel-observed, system-call anomaly detection
+  with no prior workload knowledge required. Uses ML classifiers over
+  syscall features, not Jensen-Shannon distance; no baseline-scoping
+  comparison. **Verified:** IEEE Xplore ISCC 2021 conference program PDF and
+  independent Google Scholar author pages (Heinrich, Maziero, Ceschin) all
+  confirm title/authors/venue.
+- El Khairi, Caselli, Knierim, Peter, Continella, "Contextualizing System
+  Calls in Containers for Anomaly-Based Intrusion Detection," ACM Cloud
+  Computing Security Workshop (CCSW), 2022. Container-specific HIDS modeling
+  normal syscall context via a graph structure; no baseline-scoping
+  comparison. **Verified:** ACM DL landing page (DOI 10.1145/3560810.3564266),
+  cross-confirmed via the lead author's own publication page and a public
+  GitHub artifact repo (github.com/Asbatel/ContainerHIDS).
+- Fournier, Afchain, Baubeau, "Runtime Security Monitoring with eBPF," 17th
+  SSTIC Symposium, 2021. Foundational description of eBPF-based runtime
+  security tooling (Porygon's sensor layer). **Verified:** Semantic Scholar
+  entry and the paper's own SSTIC-hosted PDF, both matching title/authors/
+  venue/year. Note: an earlier draft of the deck misattributed this paper's
+  authors as "Ledoux, Rousseau" -- corrected to the verified author list
+  (Fournier, Afchain, Baubeau) on 2026-09-07.
+- Bouke, Sayeed, Heng, Abdullah et al., "Multi-Level Distributional Entropy
+  for Explainable Network Intrusion Detection," arXiv:2606.29797, 2026.
+  Applies Jensen-Shannon divergence (cross-directional JSD as one of three
+  entropy levels) to network-flow intrusion detection -- current security
+  application of the same distance family Porygon's scorer uses.
+  **Verified:** confirmed directly on the arXiv abstract page
+  (arxiv.org/abs/2606.29797).
+
+## Found in this search, all within the last 5 years (items 3, 4, 8 already cited in the deck)
+
+1. **Lin, Chen, Yang, Yang, Luo, Yang, "eBPF-Guard: a detection method for
    container escape via multi-level monitoring and enhanced analysis
    model,"** *Empirical Software Engineering* (Springer) 31, article 51,
    published 18 Dec 2025. DOI: 10.1007/s10664-025-10784-1. Same sensor
    layer as Porygon (eBPF-based container behavior monitoring), different
    scoring method (fine-tuned Qwen1.5-1.8B LLM via LoRA instead of a
    statistical distance; reports 99.22% detection accuracy on simulated
-   attacks). Closest 2025 match found for the sensor layer.
+   attacks). Closest 2025 match found for the sensor layer. Already cited
+   in the deck as `lin2026`.
    **Verified:** fetched the full Springer landing page directly -- real
    DOI, named authors with institutional affiliations (Fujian Normal
    University, Univ. of Southern Queensland, RMIT, Minjiang University),
-   funding acknowledgment (NSFC grants 62302203, 62277010), full reference
-   list including Forrest 1996.
+   funding acknowledgment (NSFC grants 62302203, 62277010).
 
-3a. **"Unsupervised Anomaly Detection for Container via Attention Mechanisms
+2. **"Unsupervised Anomaly Detection for Container via Attention Mechanisms
    and Convolutional Neural Networks,"** Springer book chapter, DOI
    10.1007/978-981-96-2468-3_76, 2025.
    **Verified:** DOI resolves via link.springer.com (HTTP 200), title
    confirmed on fetch.
 
-3b. **Li Wei, Yuan Zekun, Wu Kehe, Cheng Rui (North China Electric Power
+3. **Li Wei, Yuan Zekun, Wu Kehe, Cheng Rui (North China Electric Power
    University), "Container Anomaly Detection Based on Attention Mechanism
    and Multiscale Convolutional Neural Network,"** *Journal of Information
    Security Research*, Vol 11, No 1, pp 35-, published 2025-01-24.
-   Modernizes Abed/Clancy 2015's bag-of-syscalls approach with attention/
+   Modernizes the older bag-of-syscalls line of work with attention/
    multiscale CNN. Directly comparable to Porygon's `process_sequence_bigram`
    feature family; different modeling technique (neural vs. explicit
-   statistical distance).
+   statistical distance). Already cited in the deck as `li2025`.
    **Verified:** fetched directly from the journal's own site (sicris.cn)
-   with full author affiliations, abstract, and a reference list that
-   itself cites Forrest 1996 and Abed/Clancy 2015 directly -- confirming
-   this is a real, independently-authored paper in the same lineage this
-   project already cites, not a duplicate of 3a (different authors, venue,
-   and language).
+   with full author affiliations and abstract, confirming this is a real,
+   independently-authored paper (not a duplicate of item 2 above --
+   different authors, venue, and language).
 
 4. **Ke Xiong, Zhonghao Wu, Xuzhong Jia, "DeepContainer: A Deep
    Learning-based Framework for Real-time Anomaly Detection in Cloud-Native
@@ -76,7 +116,8 @@ given per entry.
    detection accuracy, 7.3ms latency, as single point estimates with no
    confidence interval or significance test. Useful contrast for Porygon's
    explicit rejection of unqualified accuracy figures (the "Judge against
-   held-back normal runs" design decision in the presentation deck).
+   held-back normal runs" design decision in the presentation deck). Already
+   cited in the deck as `xiong2025`.
    **Verified:** DOI resolves (HTTP 200); cross-confirmed via Semantic
    Scholar entry with matching authors/venue/Corpus ID 276402623.
 
@@ -88,14 +129,7 @@ given per entry.
    **Verified:** confirmed present via the official arXiv API
    (export.arxiv.org/api/query), exact matching title returned.
 
-6. **"Multi-Level Distributional Entropy for Explainable Network Intrusion
-   Detection,"** arXiv:2606.29797. Uses distributional/entropy measures
-   explicitly for explainability, philosophically aligned with Porygon's
-   decomposable JS-distance approach versus opaque ML models. Supports the
-   "no opaque machine-learning model" design decision.
-   **Verified:** confirmed via arXiv API, exact matching title.
-
-7. **"Enhancing Kubernetes Resilience through Anomaly Detection and
+6. **"Enhancing Kubernetes Resilience through Anomaly Detection and
    Prediction,"** arXiv:2503.14114. Surveys/extends container anomaly
    detection for Kubernetes microservices (monitoring, data processing,
    fault injection modules). Useful to situate Porygon's single-host scope
@@ -103,7 +137,7 @@ given per entry.
    disclosed in `docs/ADVERSARIAL_SCENARIOS_V1.md` and the README.
    **Verified:** confirmed via arXiv API, exact matching title.
 
-8. **"Mutating the 'Immutable': A Large-Scale Study of Git Tag
+7. **"Mutating the 'Immutable': A Large-Scale Study of Git Tag
    Alterations,"** arXiv:2606.31354. Not containers, but directly relevant:
    an empirical, large-scale study of tag mutability being exploited for
    supply-chain attacks in an adjacent domain (Git, not Docker). Strong
@@ -111,25 +145,26 @@ given per entry.
    security-relevant distinction, not a contrived one.
    **Verified:** confirmed via arXiv API, exact matching title.
 
-9. **Ring, Van Oort, Durst, White, Near, Skalka (University of Vermont),
+8. **Ring, Van Oort, Durst, White, Near, Skalka (University of Vermont),
    "Methods for Host-based Intrusion Detection with Deep Learning,"**
    *Digital Threats: Research and Practice* (ACM DTRAP), Vol 2 No 4, 2021.
    DOI: 10.1145/3461462. Survey and improvement of HIDS approaches modeling
-   "normal" system behavior from system-call/bash-command sequences.
+   "normal" system behavior from system-call/bash-command sequences. Already
+   cited in the deck as `ring2021`.
    **Verified:** the direct ACM landing page returned HTTP 403 (bot-blocked,
    not evidence of non-existence); cross-confirmed via the paper's own
    author-hosted PDF (ceskalka.w3.uvm.edu, University of Vermont faculty
    page) and an independent NSF public-access mirror
    (par.nsf.gov/servlets/purl/10386265), both matching title and authors.
 
-10. **threaTrace: Detecting and Tracing Host-based Threats in Node Level
-    Through Provenance Graph Learning,** arXiv:2111.04333, 2021. Learns
-    per-node behavioral roles from system provenance graphs (host-based,
-    not container-specific). Structural parallel to Porygon's per-digest
-    learned baseline: both learn "normal" per specific entity rather than
-    one global model.
-    **Verified:** confirmed via arXiv API, exact matching title (slightly
-    longer than the informal title used in initial search results).
+9. **threaTrace: Detecting and Tracing Host-based Threats in Node Level
+   Through Provenance Graph Learning,** arXiv:2111.04333, 2021. Learns
+   per-node behavioral roles from system provenance graphs (host-based,
+   not container-specific). Structural parallel to Porygon's per-digest
+   learned baseline: both learn "normal" per specific entity rather than
+   one global model.
+   **Verified:** confirmed via arXiv API, exact matching title (slightly
+   longer than the informal title used in initial search results).
 
 ## Lower-confidence, not independently re-verified
 

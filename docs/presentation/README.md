@@ -1,10 +1,16 @@
 # Panel review deck
 
-`porygon_review.tex` fills the department's Phase 2 review template with this
-project's real content and measured numbers. Build it with:
+**Current deck: `porygon_review_v3.tex`.** `porygon_review_v2.tex` is
+superseded and kept only for provenance (it carries a superseded notice on
+its own first slide); v3 corrects a confirmatory/pilot evidence-class
+mislabeling present throughout v2, restores foundational citations (Lin
+1991, Forrest 1996) v2's bibliography had dropped, describes the current
+broadened `POR-DET-004` rule instead of v2's fixed dual-use-tool name list,
+and documents a second, later live XMRig run v2 does not include. Build
+whichever `.tex` you need with:
 
 ```bash
-pdflatex porygon_review.tex && pdflatex porygon_review.tex
+pdflatex porygon_review_v3.tex && pdflatex porygon_review_v3.tex
 ```
 
 Two passes are needed so the section navigation resolves. There are no external

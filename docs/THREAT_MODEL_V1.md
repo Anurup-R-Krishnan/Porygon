@@ -67,7 +67,8 @@ must report this boundary even when containers run as non-root.
 ## Attacker and disturbance capabilities
 
 The controlled scenarios model an actor or operator who can execute processes
-inside an already running study container, invoke a shell or dual-use utility,
+inside an already running study container, invoke a shell or any non-shell
+executable absent from the baseline,
 change workload intensity, or exploit an intentionally varied deployment
 context. The study also models benign administrators performing maintenance,
 reload, backup, debug, log-rotation, and traffic-spike actions.

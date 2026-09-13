@@ -2,6 +2,18 @@
 % compiles without IEEEtran.bst. If IEEEtran is installed, replace the manual
 % thebibliography frame with \bibliographystyle{IEEEtran}\bibliography{ref}.
 % Verify every DOI and page range against the publisher record before submission.
+%
+% Reconciled 2026-09-13 to match porygon_review_v3.tex's bibliography exactly
+% (the current, canonical deck -- porygon_review_v2.tex is superseded and its
+% now-stale bibliography was not fixed in parallel; see the superseded notice
+% at the top of that file).
+
+@article{lin1991,
+  author  = {Lin, Jianhua},
+  title   = {Divergence Measures Based on the {Shannon} Entropy},
+  journal = {IEEE Transactions on Information Theory},
+  volume  = {37}, number = {1}, pages = {145--151}, year = {1991}
+}
 
 @inproceedings{forrest1996,
   author    = {Forrest, Stephanie and Hofmeyr, Steven A. and Somayaji, Anil and Longstaff, Thomas A.},
@@ -11,45 +23,68 @@
   year      = {1996}
 }
 
-@article{hofmeyr1998,
-  author  = {Hofmeyr, Steven A. and Forrest, Stephanie and Somayaji, Anil},
-  title   = {Intrusion Detection Using Sequences of System Calls},
-  journal = {Journal of Computer Security},
-  volume  = {6}, number = {3}, pages = {151--180}, year = {1998}
-}
-
-@inproceedings{abed2015,
-  author    = {Abed, Amr S. and Clancy, T. Charles and Levy, David S.},
-  title     = {Applying Bag of System Calls for Anomalous Behavior Detection of Applications in {Linux} Containers},
-  booktitle = {Proc. IEEE Globecom Workshops},
-  pages     = {1--5},
-  year      = {2015}
-}
-
-@article{lin1991,
-  author  = {Lin, Jianhua},
-  title   = {Divergence Measures Based on the {Shannon} Entropy},
+@article{endres2003,
+  author  = {Endres, Dominik M. and Schindelin, Johannes E.},
+  title   = {A New Metric for Probability Distributions},
   journal = {IEEE Transactions on Information Theory},
-  volume  = {37}, number = {1}, pages = {145--151}, year = {1991}
+  volume  = {49}, number = {7}, pages = {1858--1860}, year = {2003}
 }
 
-@book{vovk2005,
-  author    = {Vovk, Vladimir and Gammerman, Alexander and Shafer, Glenn},
-  title     = {Algorithmic Learning in a Random World},
-  publisher = {Springer}, address = {New York, NY, USA}, year = {2005}
+@inproceedings{hoyos2023,
+  author    = {Hoyos-Osorio, Jhoan K. and Sanchez-Giraldo, Luis G.},
+  title     = {The Representation {Jensen-Shannon} Divergence},
+  booktitle = {Proc. 37th Conf. Neural Information Processing Systems (NeurIPS)},
+  year      = {2023}
 }
 
-@article{shafer2008,
-  author  = {Shafer, Glenn and Vovk, Vladimir},
-  title   = {A Tutorial on Conformal Prediction},
-  journal = {Journal of Machine Learning Research},
-  volume  = {9}, pages = {371--421}, year = {2008}
+@inproceedings{castanhel2021,
+  author    = {Castanhel, Gabriel R. and Heinrich, Tiago and Ceschin, Fabricio and Maziero, Carlos A.},
+  title     = {Taking a Peek: An Evaluation of Anomaly Detection Using System Calls for Containers},
+  booktitle = {Proc. IEEE Symposium on Computers and Communications (ISCC)},
+  year      = {2021}
 }
 
-@book{gregg2019,
-  author    = {Gregg, Brendan},
-  title     = {BPF Performance Tools: Linux System and Application Observability},
-  publisher = {Addison-Wesley}, address = {Boston, MA, USA}, year = {2019}
+@inproceedings{elkhairi2022,
+  author    = {El Khairi, Anna and Caselli, Marco and Knierim, Christian and Peter, Andreas and Continella, Andrea},
+  title     = {Contextualizing System Calls in Containers for Anomaly-Based Intrusion Detection},
+  booktitle = {Proc. ACM Cloud Computing Security Workshop (CCSW)},
+  pages     = {9--21},
+  year      = {2022}
+}
+
+@misc{bouke2026,
+  author = {Bouke, Mohamed Amine and others},
+  title  = {Multi-Level Distributional Entropy for Explainable Network Intrusion Detection},
+  note   = {arXiv:2606.29797},
+  year   = {2026}
+}
+
+@inproceedings{fournier2021,
+  author    = {Fournier, Guillaume and Afchain, Sylvain and Baubeau, Sylvain},
+  title     = {Runtime Security Monitoring with {eBPF}},
+  booktitle = {Proc. Symposium sur la S\'ecurit\'e des Technologies de l'Information et des Communications (SSTIC)},
+  year      = {2021}
+}
+
+@article{lin2026,
+  author  = {Lin, Xin and Chen, Zhi and Yang, Wei and Yang, Xin and Luo, Jian and Yang, Xi},
+  title   = {{eBPF-Guard}: A Detection Method for Container Escape via Multi-Level Monitoring and Enhanced Analysis Model},
+  journal = {Empirical Software Engineering},
+  volume  = {31}, number = {51}, year = {2026}
+}
+
+@article{li2025,
+  author  = {Li, Wei and Yuan, Zekun and Wu, Kehe and Cheng, Rui},
+  title   = {Container Anomaly Detection Based on Attention Mechanism and Multiscale Convolutional Neural Network},
+  journal = {Journal of Information Security Research},
+  volume  = {11}, number = {1}, pages = {35--}, year = {2025}
+}
+
+@article{xiong2025,
+  author  = {Xiong, Ke and Wu, Zhonghao and Jia, Xuzhong},
+  title   = {{DeepContainer}: A Deep Learning-Based Framework for Real-Time Anomaly Detection in Cloud-Native Container Environments},
+  journal = {Journal of Advanced Computing Systems},
+  year    = {2025}
 }
 
 @misc{falco,

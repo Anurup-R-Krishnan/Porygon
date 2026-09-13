@@ -1,9 +1,22 @@
-# Confirmatory Result Summary
+# Pilot Result Summary
 
-**Latest run:** `study-confirmatory-200-20260906t071234Z` (216 real Docker-container trials, `evidence_class: confirmatory`, `research_eligible: true`)
+> **Evidence class: pilot, not confirmatory.** These are real Docker-container
+> trials with real measured statistics, but every trial and run record for
+> both rounds below carries `kind: "real_container_pilot"` and
+> `research_eligible: false`. An earlier version of this document, and the
+> study-level summary manifest it was generated from, mislabeled this result
+> `evidence_class: confirmatory` / `research_eligible: true` due to a bug in
+> the study-summary step (now fixed). No confirmatory-grade run has ever been
+> collected: a confirmatory run requires the frozen protocol's full
+> conformance machinery (not yet built) in addition to protocol freeze and
+> review sign-off. The numbers below (p-values, confidence intervals, trial
+> counts) are unchanged and were independently re-verified as arithmetically
+> correct — only the evidence-class label was wrong.
+
+**Latest run:** `study-confirmatory-200-20260906t071234Z` (216 real Docker-container trials, `evidence_class: pilot`, `research_eligible: false`; the run ID retains its original `confirmatory` naming for provenance/traceability, not as a claim about evidence class)
 **Analysis artifact:** `artifacts/experiments/protocol-v1/tables/profile-scope-primary-216.json`
-**First round (superseded, kept for provenance):** `study-20260905t181654Z` (144 trials) — `artifacts/experiments/protocol-v1/tables/profile-scope-primary.json`
-**Protocol:** `porygon.research.protocol.v1`, status `FROZEN`, both reviews approved (`docs/review/*.json`)
+**First round (superseded, kept for provenance):** `study-20260905t181654Z` (144 trials, also `evidence_class: pilot`, `research_eligible: false`) — `artifacts/experiments/protocol-v1/tables/profile-scope-primary.json`
+**Protocol:** `porygon.research.protocol.v1`, status `FROZEN`, both reviews approved (`docs/review/*.json`) — freeze and review are necessary but not sufficient for confirmatory status; see the evidence-class note above
 **Reproduce the analysis:** `python3 -m experiments.analyze_scope_run <run_dir> --out <path>`
 
 ## Question
@@ -45,7 +58,7 @@ Real attack scenarios: `SCN-LOG4SHELL-SIM` (CVE-2021-44228-shaped, harmless), `S
 - **The recall non-inferiority gate has not been meaningfully stress-tested** in either round: both arms detected 100% of planted scenarios with zero variance, so the statistical machinery for detecting a recall trade-off has never actually been exercised against a real trade-off. A scenario design that produces some misses in at least one arm would be needed to validate the gate itself.
 - **`ARM-TAG` and `ARM-DIGEST` remain indistinguishable** in both rounds — every human_tag maps to exactly one digest. The `experiments/tag_drift.py` mutable-tag-drift experiment (nginx 1.26.3-alpine → 1.28.0-alpine behind one shared local alias) found process-name-level Jensen-Shannon distance is exactly 0.0 between the two versions — a genuine same-behavior patch upgrade invisible to this specific signal.
 - **The `CONTEXT` vs `DIGEST` null result has now been reproduced twice** (n=35 and n=53), which strengthens confidence it is a real property of the process-name feature and the tested context variant (capability-only changes), not a first-round sampling artifact. It does not rule out that a context variant which does change process behavior (e.g. a different entrypoint script, not tested here) could still show a difference.
-- Six real bugs were found and fixed to get the first confirmatory result (wrong API field name blocking all detections, dead code blocking attack scenarios, a fit-reference contamination bug, and an infinite-recursion bug in the Clopper-Pearson statistics code itself) — see git log `c137a89`..`e73c2d7`.
+- Six real bugs were found and fixed to get the first pilot result (wrong API field name blocking all detections, dead code blocking attack scenarios, a fit-reference contamination bug, and an infinite-recursion bug in the Clopper-Pearson statistics code itself) — see git log `c137a89`..`e73c2d7`.
 - This is a single-reviewer self-review (both security and methodology), not independent peer review — state that plainly in any external write-up.
 
 ## Reproduce

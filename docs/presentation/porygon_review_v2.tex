@@ -16,6 +16,8 @@
 
 % --- Branding Colors ---
 \definecolor{amritaMaroon}{HTML}{A4123F}
+\definecolor{warnAmber}{HTML}{B26A00}
+\definecolor{okGreen}{HTML}{1B7A3D}
 
 % --- Theme Setup ---
 \usetheme{Madrid}
@@ -24,6 +26,34 @@
 \setbeamertemplate{footline}[frame number]
 
 \begin{document}
+
+% --- SUPERSEDED NOTICE ---
+% This deck (v2) is kept for provenance only. porygon_review_v3.tex is the
+% current, corrected deck: it fixes the confirmatory/pilot evidence-class
+% mislabeling present throughout this file, restores the Lin 1991 and
+% Forrest 1996 foundational citations dropped from this file's bibliography,
+% reflects the broadened (non-fixed-list) POR-DET-004 rule, and documents
+% the second, later live XMRig run. Do not cite numbers from this file as
+% current without checking them against v3 first.
+\begin{frame}
+    \centering
+    \vspace{2cm}
+    {\LARGE\bfseries\textcolor{amritaMaroon}{Superseded --- see porygon\_review\_v3}}\\[0.6cm]
+    \begin{minipage}{0.8\textwidth}
+        \small
+        This deck is kept for provenance only and is not the current panel
+        review deck. \texttt{porygon\_review\_v3.tex} supersedes it: v3
+        corrects the confirmatory/pilot evidence-class mislabeling present
+        throughout this file (every ``confirmatory'' 216-trial or 144-trial
+        result below is pilot evidence, \texttt{research\_eligible: false}),
+        restores the Lin (1991) and Forrest et al. (1996) foundational
+        citations this file's bibliography dropped, describes the current
+        broadened \texttt{POR-DET-004} rule rather than the old fixed
+        dual-use-tool name list, and documents a second, later live XMRig
+        run this file does not include. Read \texttt{porygon\_review\_v3.tex}
+        instead unless you specifically need this file's historical content.
+    \end{minipage}
+\end{frame}
 
 % --- CUSTOM TITLE SLIDE (Research) ---
 \begin{frame}
@@ -105,10 +135,10 @@ capabilities).
 \end{enumerate}
 
 No existing tool or published study (Falco, Sysdig, Aqua, or the academic
-line from Forrest et al. 1996 through Abed/Clancy 2015) measures which of
-these four actually reduces false alarms. This project does, using 216
-real container trials and formal statistical testing rather than a single
-accuracy figure.
+line from Castanhel et al., ISCC 2021, through eBPF-Guard, 2025--2026)
+measures which of these four actually reduces false alarms. This project
+does, using 216 real container trials and formal statistical testing
+rather than a single accuracy figure.
 
 \smallskip
 \textbf{Result:} option 3 eliminated false alarms entirely versus option 1
@@ -125,13 +155,14 @@ time.
 \framesubtitle{What is actually new here, stated precisely}
 \scriptsize
 
-\textbf{What is not new:} eBPF-based container process monitoring
-and Jensen--Shannon divergence as a distance measure (Lin 1991; Salem \&
-Na\"it-Abdesselam, ICC 2012, network traffic) both predate this project.
+\textbf{What is not new:} eBPF-based container process monitoring is an
+established technique, and Jensen--Shannon divergence is a well-established
+distance measure, applied to network-traffic intrusion detection as
+recently as Bouke et al. (arXiv, 2026); both predate this project.
 
 \medskip
 \textbf{What is new:} no located tool or published study -- commercial
-(Falco, Sysdig, Aqua) or academic (Forrest 1996 through 2025--2026) --
+(Falco, Sysdig, Aqua) or academic (Castanhel 2021 through 2025--2026) --
 measures which of four concrete baseline-scoping granularities (pooled /
 mutable-tag / exact-digest / digest-plus-configuration) actually reduces
 false alarms, using controlled trials and significance testing rather
@@ -142,9 +173,13 @@ reports both a significant result and a null result from one protocol.
 \textbf{Closest prior work, checked directly:}
 \begin{itemize}
     \setlength{\itemsep}{1pt}
-    \item Abed, Clancy \& Levy (GLOBECOM Workshops, 2015) -- closest match:
-    container-level, kernel-observed, no-prior-knowledge detection. Uses
-    bag-of-syscalls, not JS-distance; no scoping comparison.
+    \item Castanhel et al. (IEEE ISCC, 2021) -- closest match: container-level,
+    kernel-observed, system-call anomaly detection with no prior knowledge
+    of the workload. Uses ML classifiers over syscall features, not
+    JS-distance; no scoping comparison.
+    \item El Khairi et al. (Cloud Computing Security Workshop, ACM CCSW,
+    2022) -- container-specific HIDS modeling normal syscall context via a
+    graph structure; no baseline-scoping comparison.
     \item Lin et al., ``eBPF-Guard'' (\emph{Empirical Software Engineering},
     Dec 2025) -- same sensor layer, scores via a fine-tuned LLM; single
     99.22\% accuracy figure, no scoping comparison.
@@ -391,6 +426,131 @@ the only service with outbound internet reachability.
     \end{itemize}
 \end{frame}
 
+% --- METHODOLOGY: SCORING MATHEMATICS ---
+\begin{frame}{1. Methodology --- The Scoring Mathematics}
+\framesubtitle{Rubric: Mathematical Model / Formulation (5 Marks)}
+
+\setlength{\abovedisplayskip}{3pt}
+\setlength{\belowdisplayskip}{3pt}
+\begin{columns}[T,onlytextwidth]
+\column{0.54\textwidth}
+\scriptsize
+\textbf{Production path} -- generates every reported number. Base-2
+Jensen--Shannon distance between baseline $p$ and observed window $q$:
+\[
+D_{JS}(p\Vert q)=\sqrt{\tfrac12 D_{KL}(p\Vert m)+\tfrac12 D_{KL}(q\Vert m)},
+\quad m=\tfrac{p+q}{2}
+\]
+Bounded in $[0,1]$ under base-2 logs; $0$ means identical. An empty observed
+window returns \texttt{None} -- excluded, never scored as zero.
+
+\smallskip
+\textbf{Aggregation} (\texttt{scoring.py}, algorithm
+\texttt{porygon.distance.v1}, fixed and versioned):
+\[
+\text{score}=0.50\cdot\overline{D_{JS}}_{\,6\ \text{families}}
++0.30\cdot\text{novelty}
++0.20\cdot\overline{z}_{\,5\ \text{numeric}}
+\]
+Categorical family weights: executable $0.25$, parent--child $0.20$,
+sequence bigram $0.20$, process name $0.15$, user UID $0.10$, runtime
+action $0.10$. A missing family is excluded and the remaining weights are
+renormalized -- never imputed as zero.
+
+\smallskip
+\textbf{Study threshold:} $D_{JS}\geq0.25$ is a positive call
+(\texttt{DEFAULT\_THRESHOLD}, the \texttt{baseline\_like} band edge).
+
+\column{0.43\textwidth}
+\scriptsize
+\textbf{Exploratory alternative, used for no reported number.}
+\texttt{calibrated\_rarity.py} implements an unweighted-mean fusion over
+four rarity components with a conformal-style exceedance $p$-value:
+\[
+p=\frac{1+\#\{\text{calibration values}\geq\text{test}\}}{n+1}
+\]
+It is feature-flagged off (\texttt{calibrated\_enabled}, default
+\texttt{False}); the 216-trial study used the production JS-distance path,
+not this module.
+
+\medskip
+\textbf{Not a probability.} A JS-distance or fused rarity value is a
+distributional-deviation measure. Neither module defines or claims a
+$P(\text{attack})$ field, and \texttt{docs/CLAIMS\_V1.md} explicitly
+prohibits reporting one.
+
+\medskip
+{\textcolor{warnAmber}{\textbf{Disclosed limitation:}} the
+$0.50/0.30/0.20$ top-level weights are a fixed implementation decision,
+not fit to data. This is stated rather than hidden, and is why the
+unweighted alternative exists in the codebase at all.}
+\end{columns}
+\end{frame}
+
+% --- METHODOLOGY: DATASET, SPLITS, METRICS ---
+\begin{frame}{1. Methodology --- Dataset, Splits, and Evaluation Metrics}
+\framesubtitle{Rubric: Datasets, Preprocessing \& Evaluation Metrics (5 Marks)}
+
+\begin{columns}[T,onlytextwidth]
+\column{0.46\textwidth}
+\scriptsize
+\textbf{No public dataset answers this question.} Data is generated from
+three real OCI images, each pinned by frozen index digest, not a resolvable
+tag:
+
+\smallskip
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Workload} & \textbf{Pinned tag} \\
+\midrule
+\texttt{WL-NGX-V1} & \texttt{nginx:1.26.3-alpine} \\
+\texttt{WL-RDS-V1} & \texttt{redis:7.2.7-alpine} \\
+\texttt{WL-PG-V1} & \texttt{postgres:16.6-alpine} \\
+\bottomrule
+\end{tabular}
+\par{\tiny Digests listed in \texttt{docs/PROFILE\_SCOPE\_EXPERIMENT\_V1.md}.}
+
+\smallskip
+Two simulated attack scenarios carry planted ground truth:
+\texttt{SCN-LOG4SHELL-SIM} (CVE-2021-44228-shaped spawn) and
+\texttt{SCN-RUNC-ESCAPE-SIM} (CVE-2019-5736-shaped write), both harmless,
+plus \texttt{SCN-EXEC}, a capture canary, not ground truth.
+
+\smallskip
+\textbf{Independent unit: the whole workload run.} Fit / calibration / test
+splits are assigned per run by a deterministic run-ID hash before any
+outcome is observed (\texttt{artifacts.py:assign\_split}), so adjacent
+near-duplicate windows cannot straddle a split.
+
+\column{0.51\textwidth}
+\scriptsize
+\textbf{Primary metrics (\texttt{docs/RESEARCH\_PROTOCOL\_V1.md})}
+
+\smallskip
+\begin{tabular}{@{}p{2.4cm}p{4.4cm}@{}}
+\toprule
+\textbf{Metric ID} & \textbf{Definition} \\
+\midrule
+\texttt{MET-FPR-001} & benign runs with $\geq1$ positive call; Clopper--Pearson interval \\
+\texttt{MET-REC-001} & ground-truthed runs detected within the frozen horizon \\
+\texttt{MET-OTP-001} & occurrence-to-persistence latency (declared; not reported this round) \\
+\texttt{MET-CPU-001} & CPU-seconds, RSS, disk writes per workload-minute \\
+\texttt{MET-CAL-001} & held-out benign coverage vs.\ the calibrated threshold \\
+\bottomrule
+\end{tabular}
+
+\smallskip
+\textbf{Realised split, pilot run (not yet confirmatory):} of 216 real container trials,
+$n=53$ held-out benign runs feed \texttt{MET-FPR-001} and $n=96$
+ground-truthed scenario runs feed \texttt{MET-REC-001}.
+
+\smallskip
+\textcolor{amritaMaroon}{\textbf{Reporting standard:}} every percentage
+ships with numerator, denominator, and a 95\% confidence interval -- no
+bare accuracy figures.
+\end{columns}
+\end{frame}
+
 
 % --- SLIDE 2: IMPLEMENTATION PROGRESS (Rubric: 8 Marks) ---
 \section{Implementation Progress}
@@ -413,7 +573,7 @@ the only service with outbound internet reachability.
             \hline
             Deterministic Detection Engine (\texttt{detection.py}) & 7 correlation rules (POR-DET-001--007) generating findings/incidents & Functional \\
             \hline
-            4-Arm Scope Comparison (\texttt{experiments/}) & 216-trial confirmatory run analysed end to end, exact statistical pipeline & Complete \\
+            4-Arm Scope Comparison (\texttt{experiments/}) & 216-trial pilot run analysed end to end, exact statistical pipeline (not yet confirmatory-grade) & Complete \\
             \hline
         \end{tabular}
     \end{table}
@@ -449,7 +609,7 @@ the only service with outbound internet reachability.
 
 % --- LIVE TEST RESULTS AND COMPARISON ---
 \begin{frame}{Live Test Results and Comparison}
-\framesubtitle{Confirmatory statistical run (216 trials) alongside the live malware demonstration}
+\framesubtitle{Pilot statistical run (216 trials, not yet confirmatory) alongside the live malware demonstration}
 \scriptsize
 \begin{table}
     \centering
@@ -659,12 +819,12 @@ Full scenario-by-scenario table: \texttt{docs/ADVERSARIAL\_SCENARIOS\_V1.md}.
 
     \item \textbf{Frozen protocol before results:} the statistical
     protocol (\texttt{porygon.research.protocol.v1}) was written and
-    reviewed \emph{before} the confirmatory run, with a pre-registered
+    reviewed \emph{before} the pilot run, with a pre-registered
     sample size, primary contrast, and material-effect threshold, marked
     \texttt{FROZEN} -- cannot be edited post hoc to fit a result.
 
     \item \textbf{Six real bugs found and fixed} to obtain the first
-    confirmatory result: a wrong API field name silently blocking all
+    pilot result: a wrong API field name silently blocking all
     detections, dead code blocking attack scenarios, a fit-reference
     contamination bug, and an infinite-recursion bug in the
     Clopper--Pearson confidence-interval code itself. Commit range in
@@ -676,6 +836,111 @@ Full scenario-by-scenario table: \texttt{docs/ADVERSARIAL\_SCENARIOS\_V1.md}.
     \item \textbf{Disclosed limitation:} single-reviewer self-review, not
     independent third-party peer review -- stated plainly.
 \end{itemize}
+\end{frame}
+
+% --- TECHNICAL KNOWLEDGE: TRADE-OFFS ---
+\begin{frame}{3. Technical Knowledge --- Trade-offs}
+\framesubtitle{Rubric: Design Choices \& Trade-offs (5 Marks)}
+
+\begin{columns}[T,onlytextwidth]
+\column{0.60\textwidth}
+\scriptsize
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{@{}p{3.2cm}p{4.2cm}@{}}
+\toprule
+\textbf{Benefit accepted} & \textbf{Cost accepted} \\
+\midrule
+Low-overhead process-execution signal, no app instrumentation
+& Zero network, DNS, socket, or file-access telemetry \\
+Finer-grained baselines per digest and context
+& Fewer runs per stratum; some return \texttt{insufficient\_profile} \\
+Fixed, disclosed scoring weights
+& Not claimed to be the most accurate achievable weighting \\
+Exact intervals (Clopper--Pearson, McNemar)
+& More runs per arm than a point estimate needs \\
+Versioned distance-to-score mapping
+& Valid only while expected behaviour does not itself drift \\
+No automated disruptive response
+& Slower operator reaction to a confirmed incident \\
+One language (Python) across all services
+& A known single-process write-throughput ceiling \\
+\bottomrule
+\end{tabular}
+
+\column{0.38\textwidth}
+\scriptsize
+\textbf{Edge cases handled in code, with tests}
+\begin{itemize}\setlength\itemsep{2pt}
+  \item Backend outage $\rightarrow$ SQLite outbox spool, exponential
+  backoff retry
+  \item Sensor restart $\rightarrow$ durable telemetry cursor, no rewind
+  \item Duplicate delivery $\rightarrow$ deterministic event ID, dedup upsert
+  \item Malformed input $\rightarrow$ rejected, kept as a short scrubbed
+  sample
+  \item Too little data $\rightarrow$ \texttt{insufficient\_profile}, never a
+  guessed score
+  \item Runtime-context fingerprint redacts secret-shaped flags and values;
+  the raw process \texttt{command\_line} is stored as-is, \emph{not}
+  redacted -- a disclosed residual exposure
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% --- TECHNICAL KNOWLEDGE: CLAIM BOUNDARIES ---
+\begin{frame}{3. Technical Knowledge --- Claim Boundaries}
+\framesubtitle{Rubric: Preliminary Observations (5 Marks) --- \texttt{docs/CLAIMS\_V1.md} governs what may be stated}
+
+\begin{columns}[T,onlytextwidth]
+\column{0.55\textwidth}
+\scriptsize
+\textbf{What is, and is not, yet claimed}
+
+\smallskip
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{@{}p{3.1cm}p{3.5cm}@{}}
+\toprule
+\textbf{Claim} & \textbf{Status at this review} \\
+\midrule
+Per-image scoping beats a pooled baseline
+& \textcolor{okGreen}{\textbf{Supported}}, $p{=}6.7{\times}10^{-16}$ (216 trials) \\
+Digest-plus-context beats digest-only
+& \textcolor{amritaMaroon}{\textbf{Null}}, $p{=}1.0$, reproduced at $n{=}35$ and $n{=}53$ \\
+Direct context-delta feature works
+& \textcolor{warnAmber}{Exploratory only}; hand-fixed weights, no attack scenarios \\
+Recall gate properly stress-tested
+& \textcolor{warnAmber}{No} -- recall was 100\% with zero variance in every arm \\
+Suitable for production
+& \textcolor{amritaMaroon}{Not claimed} \\
+\bottomrule
+\end{tabular}
+
+\smallskip
+The 216-trial re-run strengthened the two FPR contrasts, which had real
+measurable outcomes. It did \emph{not} strengthen the recall gate: with
+zero recall variance, there was no difference for the test to detect.
+
+\column{0.42\textwidth}
+\scriptsize
+\textbf{Honest process notes}
+\begin{enumerate}\setlength\itemsep{2pt}
+  \item An early draft framed the easy win (per-image vs.\ pooled) as though
+  it supported the harder thesis (context vs.\ digest). Caught and corrected
+  in self-review before publication; the null is now reported as the outcome
+  of the actual thesis contrast.
+  \item Single-reviewer self-review for both security and methodology, not
+  independent peer review.
+\end{enumerate}
+
+\medskip
+\textbf{Unusual is not the same as malicious.}
+\begin{itemize}\setlength\itemsep{2pt}
+  \item Unusual but harmless: scheduled backups, operator debugging,
+  restarts, a traffic spike.
+  \item Harmful but ordinary-looking: an attacker using only tools already
+  present in the baseline.
+\end{itemize}
+An anomaly score is deviation evidence, never a probability of compromise.
+\end{columns}
 \end{frame}
 
 % --- TEAM CONTRIBUTION AND PROJECT STATUS ---
@@ -700,7 +965,7 @@ Full scenario-by-scenario table: \texttt{docs/ADVERSARIAL\_SCENARIOS\_V1.md}.
         \hline
         Response policy engine & Functional, human-approval gated \\
         \hline
-        4-arm scoping confirmatory study & Complete, 216 trials, two reproduced results \\
+        4-arm scoping pilot study (not yet confirmatory) & Complete, 216 trials, two reproduced results \\
         \hline
         Live real-malware demonstration & Complete, XMRig, documented including the miss \\
         \hline
@@ -752,7 +1017,7 @@ All eight modules are integrated into one running Docker Compose stack
 
 \textbf{Limitations:}
 \begin{itemize}
-    \item The confirmatory 216-trial run covers the tested attack and
+    \item The pilot 216-trial run (not yet confirmatory) covers the tested attack and
     workload set; it does not claim coverage of every real-world attack
     pattern or benign workload shape.
     \item Scoring uses categorical process-name/edge features; it does not
@@ -779,31 +1044,28 @@ All eight modules are integrated into one running Docker Compose stack
 \scriptsize
 \begin{thebibliography}{9}
 
-\bibitem{forrest1996}
-S.~Forrest, S.~A. Hofmeyr, A.~Somayaji, and T.~A. Longstaff,
-``A sense of self for Unix processes,''
-in \emph{Proc. IEEE Symp. Security and Privacy}, 1996, pp.~120--128.
+\bibitem{castanhel2021}
+G.~R. Castanhel, T.~Heinrich, F.~Ceschin, and C.~A. Maziero,
+``Taking a peek: an evaluation of anomaly detection using system calls
+for containers,''
+in \emph{Proc. IEEE Symp. Computers and Communications (ISCC)}, 2021.
 
-\bibitem{hofmeyr1998}
-S.~A. Hofmeyr, S.~Forrest, and A.~Somayaji,
-``Intrusion detection using sequences of system calls,''
-\emph{Journal of Computer Security}, vol.~6, no.~3, pp.~151--180, 1998.
+\bibitem{elkhairi2022}
+A.~El Khairi, M.~Caselli, C.~Knierim, A.~Peter, and A.~Continella,
+``Contextualizing system calls in containers for anomaly-based intrusion
+detection,''
+in \emph{Proc. ACM Cloud Computing Security Workshop (CCSW)}, 2022, pp.~9--21.
 
-\bibitem{abed2015}
-A.~S. Abed, T.~C. Clancy, and D.~S. Levy,
-``Applying bag of system calls for anomalous behavior detection of applications
-in Linux containers,''
-in \emph{Proc. IEEE Globecom Workshops}, 2015, pp.~1--5.
+\bibitem{bouke2026}
+M.~A. Bouke \emph{et al.},
+``Multi-level distributional entropy for explainable network intrusion
+detection,'' arXiv:2606.29797, 2026.
 
-\bibitem{lin1991}
-J.~Lin,
-``Divergence measures based on the Shannon entropy,''
-\emph{IEEE Trans. Information Theory}, vol.~37, no.~1, pp.~145--151, 1991.
-
-\bibitem{salem2012}
-A.~Salem and F.~Naït-Abdesselam,
-``Anomaly detection in network traffic using Jensen-Shannon divergence,''
-in \emph{Proc. IEEE International Conference on Communications (ICC)}, 2012.
+\bibitem{fournier2021}
+G.~Fournier, S.~Afchain, and S.~Baubeau,
+``Runtime security monitoring with eBPF,''
+in \emph{Proc. Symp. sur la Sécurité des Technologies de l'Information et
+des Communications (SSTIC)}, 2021.
 
 \bibitem{lin2026}
 X.~Lin, Z.~Chen, W.~Yang, X.~Yang, J.~Luo, and X.~Yang,
@@ -827,11 +1089,6 @@ detection in cloud-native container environments,''
 J.~H. Ring, C.~M. Van Oort, S.~Durst, V.~White, J.~P. Near, and C.~Skalka,
 ``Methods for host-based intrusion detection with deep learning,''
 \emph{Digital Threats: Research and Practice}, vol.~2, no.~4, 2021.
-
-\bibitem{gregg2019}
-B.~Gregg,
-\emph{BPF Performance Tools: Linux System and Application Observability}.
-Boston, MA, USA: Addison-Wesley, 2019.
 
 \bibitem{falco}
 The Falco Authors,
