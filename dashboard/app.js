@@ -24,7 +24,6 @@ document.addEventListener('alpine:init', () => {
     systemInfo: {},
     services: [],
     containers: [],
-    runtimeEvents: [],
     selectedContainer: null,
 
     // Telemetry & Events (process-level eBPF)
@@ -39,6 +38,16 @@ document.addEventListener('alpine:init', () => {
     activeProfile: null,
     currentAnomalyScore: 0,
     currentScoreBand: 'no_data',
+    // Real window_start of the scoring window backing currentAnomalyScore, so a
+    // "CURRENT" label can show the actual timestamp instead of implying a live
+    // score when it's really the last window that could be scored.
+    currentScoreWindowStart: null,
+    // True when the most recent window returned by the backend has
+    // status === 'insufficient_data' — i.e. there wasn't enough telemetry to
+    // score it yet. currentAnomalyScore may still reflect an older scored
+    // window in this case; this flag is what makes that visible instead of
+    // silently mislabeling a stale window as current.
+    latestWindowInsufficientData: false,
     scoreContributors: [],
     unseenTokens: [],
 
@@ -47,6 +56,44 @@ document.addEventListener('alpine:init', () => {
     rulesMeta: {},
     incidents: [],
     selectedIncident: null,
+
+    // Unified view of built-in + custom detection rules for the Incidents
+    // tab's single rules list. Custom rules are mapped onto the same shape
+    // as built-in rules (rule_id, name, description, severity_weight,
+    // confidence_weight) plus is_custom/enabled flags and a back-reference
+    // to the original custom rule object so the Disable action still works.
+    get allRules() {
+      const mappedCustom = this.customRules.map(r => ({
+        rule_id: r.rule_id || `POR-CUS-${r.slug}`,
+        name: r.name,
+        description: r.description,
+        severity_weight: r.severity_weight,
+        confidence_weight: r.confidence_weight,
+        enabled: r.enabled,
+        // Canonical text form of the rule's condition, rendered by the backend from
+        // the stored tree, so builder- and text-authored rules read the same here.
+        expression: r.expression,
+        is_custom: true,
+        _customRule: r,
+      }));
+      return [...this.rules, ...mappedCustom];
+    },
+
+    // Custom detection rules
+    customRules: [],
+    showAddRuleModal: false,
+    ruleFormError: '',
+    newRuleDraft: {
+      slug: '',
+      name: '',
+      description: '',
+      category: 'custom',
+      target: 'process',
+      severity_weight: 0.6,
+      confidence_weight: 0.8,
+      incident_eligible: true,
+      conditions: [{ field: 'executable', op: 'equals', value: '', scope: 'event' }],
+    },
 
     // Pipeline trace (raw event -> rule match -> incident)
     pipelineIncidentId: '',
@@ -108,7 +155,7 @@ document.addEventListener('alpine:init', () => {
         tag: 'RUNTIME SPOOL',
         badgeColor: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
         summary: 'Monitors Docker Engine events via durable SQLite outbox spool (outbox.db), extracting immutable SHA-256 image digests and container namespace PID maps.',
-        technicalHook: 'GET /events?filters={"type":["container"]}\nSQLite outbox spool: /var/lib/porygon/outbox.db (spool.py:35)',
+        technicalHook: 'GET /events?filters={"type":["container"]}\nSQLite outbox spool: /var/lib/porygon/outbox.db (spool.py::OutboxStore)',
         inputSource: 'Docker daemon container start, exec_create, and die life-cycle broadcasts.',
         outputArtifact: 'Shared-secret image_digest (SHA-256) binding + Host-to-Container PID translation map.',
         liveMetricKey: 'Active Containers',
@@ -149,7 +196,7 @@ document.addEventListener('alpine:init', () => {
         icon: 'ph-brackets-curly',
         tag: 'PIPELINE GATEWAY',
         badgeColor: 'text-violet-400 bg-violet-400/10 border-violet-400/20',
-        summary: 'Event ingestion gateway. Lowercases busybox/toybox basenames (detection.py:166, baseline.py:56), resolves parent-child execution trees (best-effort 600s lookback), and persists to PostgreSQL via an outbox spool. Raw command-line strings are stored as-received; no argument sanitization is currently implemented.',
+        summary: 'Event ingestion gateway. Lowercases busybox/toybox basenames (detection.py::_resolve_multicall_name), resolves parent-child execution trees (best-effort 600s lookback), and persists to PostgreSQL via an outbox spool. Raw command-line strings are stored as-received; no argument sanitization is currently implemented.',
         technicalHook: 'POST /api/v1/events\nOutbox-pattern batcher (MET-OTP-001 occurrence-to-persistence latency has not yet been measured/reported)',
         inputSource: 'Uncorrelated eBPF syscall records + Docker runtime container lifecycle metadata.',
         outputArtifact: 'Enriched ProcessExecEventOut records with resolved container_name, image_digest, and ppid lineage.',
@@ -171,7 +218,7 @@ document.addEventListener('alpine:init', () => {
         tag: 'D_JS DIVERGENCE',
         badgeColor: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
         summary: 'Calculates symmetric information-theoretic distance between baseline empirical probability P(x) and live sliding window Q(x) across categorical, novelty, and numeric distributions.',
-        technicalHook: 'D_JS(P || Q) = sqrt(1/2 * D_KL(P || M) + 1/2 * D_KL(Q || M))  base-2, range [0,1]\nWeights: Categorical 50% • Novelty 30% • Numeric 20% (numeric_deviation is Robust Z, scoring.py:14)',
+        technicalHook: 'D_JS(P || Q) = sqrt(1/2 * D_KL(P || M) + 1/2 * D_KL(Q || M))  base-2, range [0,1]\nWeights: Categorical 50% • Novelty 30% • Numeric 20% (numeric_deviation is Robust Z, scoring.py::_numeric_deviation)',
         inputSource: 'Configurable sliding window (default 60s, operator-adjustable 5-3600s) of normalized execution tokens compared against digest-bound training profile.',
         outputArtifact: 'Continuous anomaly distance score [0.00, 1.00] with token-level attribution vectors.',
         liveMetricKey: 'Current Distance',
@@ -254,10 +301,10 @@ document.addEventListener('alpine:init', () => {
         icon: 'ph-lock-key',
         tag: 'FAIL-SAFE ACTUATOR',
         badgeColor: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
-        summary: 'Issues time-bounded containment leases (pause, stop, isolate) gated behind a shared-secret operator token (secrets.compare_digest, PORYGON_OPERATOR_API_TOKEN, security.py:18), with fail-safe auto-reversion. Not PKI/JWT.',
-        technicalHook: 'POST /api/v1/operator/containment-actions/approve\nHeader: X-Porygon-Operator-Token (shared secret, secrets.compare_digest)',
+        summary: 'Issues operator-approved containment actions (observe_only, pause_container, stop_container — no isolate action exists) gated behind a shared-secret operator token (secrets.compare_digest, PORYGON_OPERATOR_API_TOKEN, security.py::require_operator_token). Reversal is operator-initiated via a dedicated rollback call, not an automatic timer; a separate lease-expiry requeue only reassigns a stalled executor claim to another responder instance. Not PKI/JWT.',
+        technicalHook: 'POST /operator/v1/response-recommendations/{recommendation_id}/approve\nPOST /operator/v1/response-executions/{execution_id}/rollback (operator-initiated)\nHeader: X-Porygon-Operator-Token (shared secret, secrets.compare_digest)',
         inputSource: 'Approved incident containment recommendations from authorized human operators.',
-        outputArtifact: 'Enforced container freeze/stop lease with automatic lease expiration timer.',
+        outputArtifact: 'Enforced container pause/stop execution; reversal requires an explicit operator-approved rollback call, not automatic lease expiration.',
         liveMetricKey: 'Operator Posture',
         metricType: 'containment',
         status: 'ARMED & FAIL-SAFE',
@@ -346,6 +393,60 @@ document.addEventListener('alpine:init', () => {
       } catch(e){}
     },
 
+    // Styled operator-token entry modal — replaces window.prompt() everywhere a
+    // human operator needs to authorize a write. Returns the entered token (or
+    // null if cancelled) via a Promise so call sites can `await` it exactly like
+    // the old prompt()-based flow did.
+    tokenModal: { show: false, title: '', message: '', value: '', resolve: null },
+
+    requestOperatorToken(message, title = 'Operator authorization required') {
+      return new Promise((resolve) => {
+        this.tokenModal.title = title;
+        this.tokenModal.message = message;
+        this.tokenModal.value = '';
+        this.tokenModal.show = true;
+        this.tokenModal.resolve = resolve;
+      });
+    },
+
+    submitTokenModal() {
+      const value = (this.tokenModal.value || '').trim();
+      const resolve = this.tokenModal.resolve;
+      this.tokenModal.show = false;
+      this.tokenModal.resolve = null;
+      if (resolve) resolve(value || null);
+    },
+
+    cancelTokenModal() {
+      const resolve = this.tokenModal.resolve;
+      this.tokenModal.show = false;
+      this.tokenModal.resolve = null;
+      if (resolve) resolve(null);
+    },
+
+    // Styled confirmation modal — replaces raw window.confirm() for destructive
+    // actions (disabling a custom rule, clearing the operator token), matching
+    // the same Promise-returning pattern as the operator-token modal above.
+    confirmModal: { show: false, title: '', message: '', confirmLabel: 'Confirm', danger: true, resolve: null },
+
+    requestConfirm(message, title = 'Confirm action', confirmLabel = 'Confirm', danger = true) {
+      return new Promise((resolve) => {
+        this.confirmModal.title = title;
+        this.confirmModal.message = message;
+        this.confirmModal.confirmLabel = confirmLabel;
+        this.confirmModal.danger = danger;
+        this.confirmModal.show = true;
+        this.confirmModal.resolve = resolve;
+      });
+    },
+
+    submitConfirmModal(result) {
+      const resolve = this.confirmModal.resolve;
+      this.confirmModal.show = false;
+      this.confirmModal.resolve = null;
+      if (resolve) resolve(result);
+    },
+
     // Chart.js instances are NOT kept as an Alpine component property at
     // all (no `charts: {}`, no getter). Even a getter returning the plain
     // chartRegistry object still let Alpine's underlying @vue/reactivity
@@ -361,6 +462,7 @@ document.addEventListener('alpine:init', () => {
       // expose reveal
       if (typeof window.initReveal === 'function') window.initReveal();
       await this.fetchRules();
+      await this.fetchCustomRules();
       await this.refreshAllData();
       this.initCharts();
       // after DOM for charts, init reveal again for bento
@@ -446,6 +548,158 @@ document.addEventListener('alpine:init', () => {
       } catch(e){}
     },
 
+    async fetchCustomRules() {
+      try {
+        const res = await fetch('/api/v1/custom-detection-rules');
+        if (res.ok) {
+          this.customRules = await res.json();
+          // Index custom rules into rulesMeta too, so a custom-rule match
+          // shown elsewhere (e.g. Pipeline evidence-chain rows) can look up
+          // its description alongside the built-in rules.
+          for (const r of this.customRules) {
+            const ruleId = r.rule_id || `POR-CUS-${r.slug}`;
+            this.rulesMeta[ruleId] = { ...r, rule_id: ruleId };
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load custom detection rules:', err);
+      }
+    },
+
+    openAddRuleModal() {
+      this.newRuleDraft = {
+        slug: '',
+        name: '',
+        description: '',
+        category: 'custom',
+        target: 'process',
+        severity_weight: 0.6,
+        confidence_weight: 0.8,
+        incident_eligible: true,
+        mode: 'builder',
+        expression: '',
+        conditions: [{ field: 'executable', op: 'equals', value: '', scope: 'event' }],
+      };
+      this.ruleFormError = '';
+      this.showAddRuleModal = true;
+    },
+
+    // Field vocabulary shown as a reference alongside the expression editor. It
+    // mirrors _PROCESS_FIELDS/_RUNTIME_FIELDS in backend detection.py; the backend
+    // validator remains the authority and rejects anything outside it.
+    get expressionFields() {
+      return this.newRuleDraft.target === 'process'
+        ? ['executable', 'process_name', 'parent_executable', 'parent_name', 'command_line', 'user_uid', 'container_id']
+        : ['action', 'privileged', 'image_digest', 'container_id'];
+    },
+
+    addRuleCondition() {
+      this.newRuleDraft.conditions.push({ field: 'executable', op: 'equals', value: '', scope: 'event' });
+    },
+
+    removeRuleCondition(index) {
+      this.newRuleDraft.conditions.splice(index, 1);
+    },
+
+    async submitCustomRule() {
+      if (!this.operatorToken) {
+        const t = await this.requestOperatorToken('Adding a custom detection rule requires operator authorization.', 'Authorize new rule');
+        if (!t) return;
+        this.operatorToken = t;
+      }
+      const draft = this.newRuleDraft;
+      const payload = {
+        slug: draft.slug,
+        name: draft.name,
+        description: draft.description,
+        category: draft.category,
+        target: draft.target,
+        severity_weight: Number(draft.severity_weight),
+        confidence_weight: Number(draft.confidence_weight),
+        incident_eligible: !!draft.incident_eligible,
+        created_by: 'dashboard-operator',
+      };
+
+      // The backend accepts exactly one of 'expression' or 'condition'. Text is
+      // compiled server-side into the same condition tree the builder emits, so both
+      // paths land on one validated representation.
+      if (draft.mode === 'expression') {
+        if (!String(draft.expression || '').trim()) {
+          this.showToast('Write an expression first', 'warn');
+          return;
+        }
+        payload.expression = draft.expression.trim();
+      } else {
+        const leaves = draft.conditions
+          .filter(c => String(c.value).trim() !== '')
+          .map(c => ({
+            field: c.field,
+            op: c.op,
+            scope: draft.target === 'process' ? c.scope : 'event',
+            value: c.op === 'in' || c.op === 'not_in'
+              ? String(c.value).split(',').map(v => v.trim()).filter(Boolean)
+              : (c.field === 'privileged' ? c.value === 'true' : c.value),
+          }));
+        if (!leaves.length) {
+          this.showToast('Add at least one condition', 'warn');
+          return;
+        }
+        payload.condition = { all: leaves };
+      }
+      try {
+        const res = await this._apiFetch('/operator/v1/custom-detection-rules', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          throw new Error(await this._extractApiError(res));
+        }
+        this.showToast(`Custom rule '${draft.name}' added`, 'success');
+        this.showAddRuleModal = false;
+        await this.fetchCustomRules();
+      } catch (err) {
+        this.ruleFormError = err.message;
+        this.showToast(`Failed to add rule: ${err.message}`, 'error');
+      }
+    },
+
+    // FastAPI validation failures arrive as a list of {loc, msg, ...}; the useful part
+    // for an operator writing an expression is the parser's own message, not the envelope.
+    async _extractApiError(res) {
+      const body = await res.json().catch(() => null);
+      const detail = body && body.detail;
+      if (typeof detail === 'string') return detail;
+      if (Array.isArray(detail)) {
+        const messages = detail
+          .map(item => (item && typeof item.msg === 'string' ? item.msg.replace(/^Value error, /, '') : null))
+          .filter(Boolean);
+        if (messages.length) return messages.join('; ');
+      }
+      return `HTTP ${res.status}`;
+    },
+
+    async disableCustomRule(rule) {
+      const confirmed = await this.requestConfirm(`Disable custom rule '${rule.name}'?`, 'Disable custom rule', 'Disable');
+      if (!confirmed) return;
+      if (!this.operatorToken) {
+        const t = await this.requestOperatorToken(`Disabling '${rule.name}' requires operator authorization.`, 'Authorize disable');
+        if (!t) return;
+        this.operatorToken = t;
+      }
+      try {
+        const res = await this._apiFetch(`/operator/v1/custom-detection-rules/${rule.custom_rule_id}/disable`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ actor: 'dashboard-operator' }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        await this.fetchCustomRules();
+      } catch (err) {
+        this.showToast(`Failed to disable rule: ${err.message}`, 'error');
+      }
+    },
+
     async fetchSystemInfo() {
       try {
         const res = await fetch('/api/v1/system/info');
@@ -473,12 +727,15 @@ document.addEventListener('alpine:init', () => {
     async fetchContainers() {
       try {
         const res = await fetch('/api/v1/containers?limit=100');
-        if (res.ok) {
-          const data = await res.json();
-          this.containers = Array.isArray(data) ? data : (data.items || []);
-        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        this.containers = Array.isArray(data) ? data : (data.items || []);
       } catch (err) {
+        // An unavailable containers endpoint must not look like an empty,
+        // fully-monitored fleet — clear stale data and signal the gap.
         console.warn('Could not fetch containers:', err);
+        this.containers = [];
+        this.showToast('Container inventory is unavailable', 'warn');
       }
     },
 
@@ -488,13 +745,24 @@ document.addEventListener('alpine:init', () => {
         const res = await fetch('/api/v1/process-events?limit=40');
         if (res.ok) {
           this.events = await res.json();
-        } else {
-          // fallback to older /events if process-events not yet available
-          const r2 = await fetch('/api/v1/events?limit=40');
-          if (r2.ok) this.runtimeEvents = await r2.json();
+          return;
         }
+        // fallback to older /events if process-events not yet available.
+        // Real bug found live: this used to write the fallback result into
+        // this.runtimeEvents, a property nothing in the template reads —
+        // the Telemetry tab (bound to `events`) silently stayed empty even
+        // though the fallback fetch succeeded. Writing into `events` here
+        // fixes that.
+        const r2 = await fetch('/api/v1/events?limit=40');
+        if (r2.ok) {
+          this.events = await r2.json();
+          return;
+        }
+        throw new Error(`process-events HTTP ${res.status}, events fallback HTTP ${r2.status}`);
       } catch (err) {
         console.warn('Could not fetch process-events:', err);
+        this.events = [];
+        this.showToast('Process telemetry is unavailable', 'warn');
       }
     },
 
@@ -505,11 +773,18 @@ document.addEventListener('alpine:init', () => {
           const list = await res.json();
           if (Array.isArray(list) && list.length) {
             this.scores = list;
+            // The most recent window (list[0]) may not have enough telemetry to
+            // be scored yet — surface that explicitly rather than silently
+            // falling back to an older scored window and mislabeling it CURRENT.
+            this.latestWindowInsufficientData = list[0]?.status === 'insufficient_data';
             // use most recent scored window
             const latest = list.find(s => s.status === 'scored') || list[0];
             if (latest && latest.total_score != null) {
               this.currentAnomalyScore = latest.total_score;
               this.currentScoreBand = latest.score_band || this._bandForScore(latest.total_score);
+              // Real timestamp of the window backing the score above, so a
+              // "CURRENT" label can show it and make a stale window visibly stale.
+              this.currentScoreWindowStart = latest.window_start || null;
               // extract unseen tokens / contributors from explanation if present.
               // Real bug found live: GET /api/v1/anomaly-scores/{id}'s
               // explanation.unseen_tokens is an array of objects
@@ -561,70 +836,78 @@ document.addEventListener('alpine:init', () => {
       if (this.currentAnomalyScore != null) {
         this.currentScoreBand = this._bandForScore(this.currentAnomalyScore);
       }
-      if (chartRegistry.radar && this.currentAnomalyScore > 0.5) {
-        this.updateRadarChart(this.unseenTokens[0] || 'novel_process');
-      }
     },
 
     async fetchIncidents() {
       try {
         const res = await fetch('/api/v1/incidents?limit=50');
-        if (res.ok) {
-          const fetched = await res.json();
-          const getTime = (x) => {
-            const d = new Date(x.created_at || x.first_seen_at || x.occurred_at || 0);
-            return isNaN(d.getTime()) ? 0 : d.getTime();
-          };
-          this.incidents = fetched.sort((a,b)=> getTime(b) - getTime(a));
-          if (this.incidents.length > 0 && !this.selectedIncident) {
-            this.selectedIncident = this.incidents[0];
-          }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const fetched = await res.json();
+        const getTime = (x) => {
+          const d = new Date(x.created_at || x.first_seen_at || x.occurred_at || 0);
+          return isNaN(d.getTime()) ? 0 : d.getTime();
+        };
+        this.incidents = fetched.sort((a,b)=> getTime(b) - getTime(a));
+        if (this.incidents.length > 0 && !this.selectedIncident) {
+          this.selectedIncident = this.incidents[0];
         }
       } catch (err) {
+        // An unavailable incidents endpoint must not read as "all clear" —
+        // clear stale data and signal the gap instead of leaving whatever
+        // was last fetched on screen with no indicator.
         console.warn('Could not fetch incidents:', err);
+        this.incidents = [];
+        this.showToast('Incident feed is unavailable', 'warn');
       }
     },
 
     async fetchScans() {
       try {
         const res = await fetch('/api/v1/image-scans?limit=20');
-        if (res.ok) {
-          const scans = await res.json();
-          if (Array.isArray(scans) && scans.length > 0) {
-            const completedScans = scans.filter(s => s.status === 'completed');
-            // Prioritize completed scans that have findings
-            const prioritized = completedScans.filter(s => (s.summary?.finding_count || 0) > 0);
-            const targets = prioritized.length ? prioritized.slice(0, 3) : completedScans.slice(0, 1);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const scans = await res.json();
+        if (Array.isArray(scans) && scans.length > 0) {
+          const completedScans = scans.filter(s => s.status === 'completed');
+          // Real bug found live: this used to cap detail fetches at the first
+          // 3 prioritized scans (`.slice(0, 3)`) while the reachability funnel
+          // and its counts implied full coverage of all completed scans.
+          // Fetching detail for every completed scan (bounded by the
+          // image-scans limit=20 above) keeps the funnel counts honest.
+          const targets = completedScans;
 
-            const allFindings = [];
-            for (const scan of targets) {
-              try {
-                const detailRes = await fetch(`/api/v1/image-scans/${scan.scan_id}`);
-                if (detailRes.ok) {
-                  const detail = await detailRes.json();
-                  if (Array.isArray(detail.vulnerabilities)) {
-                    allFindings.push(...detail.vulnerabilities);
-                  }
+          const allFindings = [];
+          for (const scan of targets) {
+            try {
+              const detailRes = await fetch(`/api/v1/image-scans/${scan.scan_id}`);
+              if (detailRes.ok) {
+                const detail = await detailRes.json();
+                if (Array.isArray(detail.vulnerabilities)) {
+                  allFindings.push(...detail.vulnerabilities);
                 }
-              } catch (e) {}
-            }
-
-            // Deduplicate findings by finding_id or cve_id + package_name
-            const seen = new Set();
-            this.vulnerabilityFindings = allFindings.filter(f => {
-              const key = f.finding_id || `${f.cve_id}-${f.package_name}`;
-              if (seen.has(key)) return false;
-              seen.add(key);
-              return true;
-            });
-            this.calculateEvidenceCounts();
-          } else {
-            this.vulnerabilityFindings = [];
-            this.calculateEvidenceCounts();
+              }
+            } catch (e) {}
           }
+
+          // Deduplicate findings by finding_id or cve_id + package_name
+          const seen = new Set();
+          this.vulnerabilityFindings = allFindings.filter(f => {
+            const key = f.finding_id || `${f.cve_id}-${f.package_name}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          this.calculateEvidenceCounts();
+        } else {
+          this.vulnerabilityFindings = [];
+          this.calculateEvidenceCounts();
         }
       } catch (err) {
+        // An unavailable scan endpoint must not leave a stale reachability
+        // funnel on screen with no indicator that it's out of date.
         console.warn('Could not fetch scans:', err);
+        this.vulnerabilityFindings = [];
+        this.calculateEvidenceCounts();
+        this.showToast('Vulnerability scan data is unavailable', 'warn');
       }
     },
 
@@ -718,7 +1001,11 @@ document.addEventListener('alpine:init', () => {
                 borderColor: '#FFFFFF',
                 backgroundColor: 'rgba(124,58,237,0.10)',
                 borderWidth: 2.5,
-                tension: 0.4,
+                // 0, not smoothed: scored windows can have real time gaps between
+                // them (a window that couldn't be scored, a restart, a burst of
+                // polling misses). A smoothed curve (tension>0) visually implies
+                // continuous monitoring across those gaps that didn't happen.
+                tension: 0,
                 fill: true,
                 pointBackgroundColor: '#FFFFFF',
                 pointBorderColor: '#0A0A0F',
@@ -886,50 +1173,12 @@ document.addEventListener('alpine:init', () => {
         });
       }
 
-      // 4. Live Radar Flow Chart (if present)
-      const radarCtx = document.getElementById('syscallRadarChart');
-      if (radarCtx) {
-        chartRegistry.radar = new Chart(radarCtx, {
-          type: 'radar',
-          data: {
-            labels: ['epoll_wait', 'read', 'write', 'sendto', 'recvfrom', 'execve', 'connect', 'mmap', 'ptrace'],
-            datasets: [
-              {
-                label: 'BASELINE',
-                data: [90, 85, 80, 70, 70, 0, 0, 5, 0],
-                backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                borderColor: '#10B981',
-                pointBackgroundColor: '#10B981',
-                borderWidth: 2,
-              },
-              {
-                label: 'LIVE TRACE',
-                data: [90, 85, 80, 70, 70, 0, 0, 5, 0],
-                backgroundColor: 'rgba(239, 68, 68, 0.28)',
-                borderColor: '#EF4444',
-                pointBackgroundColor: '#EF4444',
-                borderWidth: 2,
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              r: {
-                angleLines: { color: 'rgba(255,255,255,0.08)' },
-                grid: { color: 'rgba(255,255,255,0.08)' },
-                pointLabels: { color: 'rgba(255,255,255,0.55)', font: { family: 'JetBrains Mono', size: 10 } },
-                ticks: { display: false, max: 100, min: 0 }
-              }
-            },
-            plugins: {
-              legend: { display: false },
-              tooltip: { backgroundColor: 'rgba(10,10,12,0.9)', titleColor:'#fff', bodyColor:'rgba(255,255,255,0.7)', borderColor:'rgba(255,255,255,0.1)', borderWidth:1, cornerRadius:12, padding:10 }
-            }
-          }
-        });
-      }
+      // NOTE: A "System Call Flow Deviation Radar" chart previously lived here,
+      // rendering hardcoded per-syscall frequency data (epoll_wait/read/write/etc)
+      // as if it were live telemetry. Porygon's sensor is execve/execveat-only
+      // (see docs/THREAT_MODEL_V1.md) — it never captures per-syscall frequency
+      // data, so there was no real signal behind that chart. Removed rather than
+      // relabeled, since there's no backing data source to show instead.
     },
 
     updateTimelineChart() {
@@ -962,25 +1211,6 @@ document.addEventListener('alpine:init', () => {
         this.evidenceCounts.runtime_observed_and_port_published
       ];
       chart.update();
-    },
-
-    updateRadarChart(detectedProcess) {
-      if (!chartRegistry.radar) return;
-      const chart = chartRegistry.radar;
-      let liveData = [92, 83, 81, 75, 72, 0, 0, 5, 0];
-      if (detectedProcess) {
-        liveData = [40, 30, 30, 20, 20, 95, 85, 90, 60];
-      }
-      chart.data.datasets[1].data = liveData;
-      chart.update();
-      if (detectedProcess) {
-        setTimeout(() => {
-          if (!this.isExecutingAttack && chartRegistry.radar) {
-            chartRegistry.radar.data.datasets[1].data = [90, 85, 80, 70, 70, 0, 0, 5, 0];
-            chartRegistry.radar.update();
-          }
-        }, 8000);
-      }
     },
 
     // Interactive Attack Scenario Execution — backend-only; never fabricate telemetry.
@@ -1024,6 +1254,65 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
+    // Mirrors backend/src/porygon_api/response.py::allowed_actions_for_incident()
+    // and its RESPONSE_POLICY["decision_thresholds"] constants. This is a
+    // client-side convenience only — the backend remains the sole authority
+    // and will still 422 any action these thresholds don't actually allow.
+    // Keeping this in sync with response.py lets the dashboard disable
+    // Pause/Stop up front (and explain why) instead of only reacting to a
+    // raw backend error after the operator has already clicked.
+    incidentAllowedActions(incident) {
+      const thresholds = {
+        pause_min_severity: 0.70,
+        pause_min_confidence: 0.55,
+        stop_min_severity: 0.90,
+        stop_min_confidence: 0.75,
+      };
+      const strongRuleIds = new Set(['POR-DET-005', 'POR-DET-007']);
+      const allowed = ['observe_only'];
+      // Mirrors main.py's recommendation generation: targets are derived
+      // from incident.container_ids (sorted set), falling back to [None]
+      // when empty — i.e. has_target is true only when container_ids is
+      // non-empty. The Incident API response has no top-level
+      // target_container_id field.
+      const hasTarget = !!(incident && Array.isArray(incident.container_ids) && incident.container_ids.length > 0);
+      if (!incident || !hasTarget) return allowed;
+
+      const severity = incident.severity_score || 0;
+      const confidence = incident.confidence_score || 0;
+
+      if (severity >= thresholds.pause_min_severity && confidence >= thresholds.pause_min_confidence) {
+        allowed.push('pause_container');
+      }
+
+      const ruleIds = new Set((incident.findings || []).map(f => f.rule_id).filter(Boolean));
+      const strongRule = [...strongRuleIds].some(id => ruleIds.has(id));
+      if (
+        severity >= thresholds.stop_min_severity &&
+        confidence >= thresholds.stop_min_confidence &&
+        strongRule
+      ) {
+        allowed.push('stop_container');
+      }
+      return allowed;
+    },
+
+    // Human-readable explanation for why `action` is (or would be) blocked
+    // for `incident` — used both as a button tooltip and as the toast
+    // message when the backend rejects the approval. Reuses the same
+    // thresholds as incidentAllowedActions() so they're defined in one place.
+    containmentBlockReason(incident, action) {
+      const severity = (incident?.severity_score || 0).toFixed(2);
+      const confidence = (incident?.confidence_score || 0).toFixed(2);
+      if (action === 'pause_container') {
+        return `Pause requires severity ≥ 0.70 and confidence ≥ 0.55 (currently severity ${severity}, confidence ${confidence}).`;
+      }
+      if (action === 'stop_container') {
+        return `Stop requires severity ≥ 0.90, confidence ≥ 0.75, and a strong rule match (POR-DET-005/POR-DET-007) (currently severity ${severity}, confidence ${confidence}).`;
+      }
+      return '';
+    },
+
     // Containment Action Approval — operates only on persisted backend incidents.
     async approveContainment(incident, action) {
       this.logTerminal('RESPONDER', `Operator approving ${action} for ${incident.target_container_name || incident.container_ids?.[0] || incident.incident_id}`, 'info');
@@ -1032,9 +1321,9 @@ document.addEventListener('alpine:init', () => {
       // Real incident: need to generate recommendation then approve via operator token
       try {
         if (!this.operatorToken) {
-          const t = prompt('Operator token required for containment approval.\nPaste X-Porygon-Operator-Token from .env (PORYGON_OPERATOR_API_TOKEN):');
+          const t = await this.requestOperatorToken('Approving containment actions requires operator authorization.', 'Authorize containment');
           if (!t) { this.showToast('Operator token required — approval cancelled', 'danger'); return; }
-          this.operatorToken = t.trim();
+          this.operatorToken = t;
         }
 
         // 1) Generate recommendation for this incident (idempotent)
@@ -1084,12 +1373,29 @@ document.addEventListener('alpine:init', () => {
             this.operatorToken = '';
             throw new Error('Operator token invalid — cleared, try again');
           }
+          // Defense in depth: incidentAllowedActions() already disables the
+          // button client-side, but this incident's cached severity/
+          // confidence could be stale, or the recommendation-matching above
+          // fell back to a recommendation that doesn't actually allow
+          // `action`. Detect that specific policy-rejection shape and show
+          // the operator the real reason instead of a raw backend error.
+          let policyRejected = false;
+          try {
+            const parsed = JSON.parse(txt);
+            policyRejected = approveRes.status === 422
+              && typeof parsed.detail === 'string'
+              && parsed.detail.toLowerCase().includes('not allowed by the recorded response policy');
+          } catch (_) { /* not JSON — fall through to generic error */ }
+
+          if (policyRejected) {
+            throw new Error(this.containmentBlockReason(incident, action) || `${action} is not yet allowed by the response policy for this incident.`);
+          }
           throw new Error(`Approve failed ${approveRes.status}: ${txt.slice(0,400)}`);
         }
       } catch (err) {
         console.warn('Containment approve error', err);
         this.logTerminal('ERROR', err.message, 'error');
-        this.showToast(`Approval failed: ${err.message.slice(0,120)}`, 'danger');
+        this.showToast(`Approval failed: ${err.message.slice(0,220)}`, 'danger');
         // do not mutate incident on failure
       }
     },
@@ -1186,15 +1492,16 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
-    manageOperatorToken() {
+    async manageOperatorToken() {
       if (this.operatorToken) {
-        if (confirm(`Operator token is active (${this.operatorToken.slice(0, 6)}...). Clear stored token?`)) {
+        const confirmed = await this.requestConfirm(`Operator token is active (${this.operatorToken.slice(0, 6)}...). Clear stored token?`, 'Clear operator token', 'Clear', false);
+        if (confirmed) {
           this.clearOperatorToken();
         }
       } else {
-        const val = prompt('Paste X-Porygon-Operator-Token from .env (PORYGON_OPERATOR_API_TOKEN):');
-        if (val && val.trim()) {
-          this.operatorToken = val.trim();
+        const val = await this.requestOperatorToken('Paste the X-Porygon-Operator-Token value from your local .env (PORYGON_OPERATOR_API_TOKEN).', 'Set operator token');
+        if (val) {
+          this.operatorToken = val;
           this.showToast('Operator token stored securely in localStorage', 'success');
           this.logTerminal('OPERATOR', 'Operator token configured for human-in-the-loop containment', 'success');
         }
