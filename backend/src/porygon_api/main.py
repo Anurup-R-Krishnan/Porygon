@@ -33,6 +33,7 @@ from porygon_api.detection import (
     allowlist_set_hash,
     build_allowlist_matcher_hash,
     build_detection_run_key,
+    custom_ruleset_hash,
     evaluate_detection,
     ruleset_hash,
 )
@@ -40,6 +41,7 @@ from porygon_api.db import get_db
 from porygon_api.models import (
     AnomalyScore,
     BehaviorProfile,
+    CustomDetectionRule,
     DetectionAllowlist,
     DetectionRun,
     Incident,
@@ -68,6 +70,10 @@ from porygon_api.schemas import (
     BehaviorProfileBuildIn,
     BehaviorProfileOut,
     ContainerIdentityOut,
+    CustomDetectionRuleCreateIn,
+    CustomDetectionRuleDisableIn,
+    CustomDetectionRuleEnableIn,
+    CustomDetectionRuleOut,
     DetectionAllowlistCreateIn,
     DetectionAllowlistDeactivateIn,
     DetectionAllowlistOut,
@@ -1819,6 +1825,155 @@ def deactivate_detection_allowlist(
     return record
 
 
+@app.get(
+    "/api/v1/custom-detection-rules",
+    response_model=list[CustomDetectionRuleOut],
+    tags=["detection"],
+)
+def list_custom_detection_rules(
+    enabled: bool | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> list[CustomDetectionRule]:
+    statement = select(CustomDetectionRule)
+    if enabled is not None:
+        statement = statement.where(CustomDetectionRule.enabled == enabled)
+    return list(
+        db.scalars(statement.order_by(CustomDetectionRule.created_at.desc())).all()
+    )
+
+
+@app.post(
+    "/operator/v1/custom-detection-rules",
+    response_model=CustomDetectionRuleOut,
+    status_code=status.HTTP_201_CREATED,
+    tags=["operator", "detection"],
+    dependencies=[Depends(require_operator_token)],
+)
+def create_custom_detection_rule(
+    payload: CustomDetectionRuleCreateIn,
+    db: Session = Depends(get_db),
+) -> CustomDetectionRule:
+    # Slug uniqueness is enforced only among enabled rows (see the partial index in
+    # models.py): a rule that was disabled to fix and replace it must not permanently
+    # burn its slug, so this pre-check mirrors that scope rather than blocking on any
+    # row that ever used the slug.
+    existing = db.scalar(
+        select(CustomDetectionRule).where(
+            CustomDetectionRule.slug == payload.slug,
+            CustomDetectionRule.enabled.is_(True),
+        )
+    )
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An enabled custom rule with this slug already exists",
+        )
+    now = datetime.now(timezone.utc)
+    record = CustomDetectionRule(
+        custom_rule_id=str(uuid4()),
+        slug=payload.slug,
+        name=payload.name,
+        description=payload.description,
+        category=payload.category,
+        target=payload.target,
+        condition=payload.condition,
+        severity_weight=payload.severity_weight,
+        confidence_weight=payload.confidence_weight,
+        incident_eligible=payload.incident_eligible,
+        enabled=True,
+        created_by=payload.created_by,
+        created_at=now,
+        updated_at=now,
+        disabled_at=None,
+        disabled_by=None,
+    )
+    db.add(record)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An enabled custom rule with this slug already exists",
+        ) from exc
+    db.refresh(record)
+    return record
+
+
+@app.post(
+    "/operator/v1/custom-detection-rules/{custom_rule_id}/disable",
+    response_model=CustomDetectionRuleOut,
+    tags=["operator", "detection"],
+    dependencies=[Depends(require_operator_token)],
+)
+def disable_custom_detection_rule(
+    custom_rule_id: str,
+    payload: CustomDetectionRuleDisableIn,
+    db: Session = Depends(get_db),
+) -> CustomDetectionRule:
+    record = db.get(CustomDetectionRule, custom_rule_id)
+    if record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Custom rule not found")
+    if not record.enabled:
+        return record
+    now = datetime.now(timezone.utc)
+    record.enabled = False
+    record.disabled_at = now
+    record.disabled_by = payload.actor
+    record.updated_at = now
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+@app.post(
+    "/operator/v1/custom-detection-rules/{custom_rule_id}/enable",
+    response_model=CustomDetectionRuleOut,
+    tags=["operator", "detection"],
+    dependencies=[Depends(require_operator_token)],
+)
+def enable_custom_detection_rule(
+    custom_rule_id: str,
+    payload: CustomDetectionRuleEnableIn,
+    db: Session = Depends(get_db),
+) -> CustomDetectionRule:
+    record = db.get(CustomDetectionRule, custom_rule_id)
+    if record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Custom rule not found")
+    if record.enabled:
+        return record
+    # A different, currently-enabled rule may have already claimed this slug while
+    # this one was disabled (that's exactly what the partial unique index permits), so
+    # re-enabling can conflict even though it never could before.
+    conflict = db.scalar(
+        select(CustomDetectionRule).where(
+            CustomDetectionRule.slug == record.slug,
+            CustomDetectionRule.enabled.is_(True),
+            CustomDetectionRule.custom_rule_id != record.custom_rule_id,
+        )
+    )
+    if conflict is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Another enabled custom rule already uses this slug",
+        )
+    now = datetime.now(timezone.utc)
+    record.enabled = True
+    record.disabled_at = None
+    record.disabled_by = None
+    record.updated_at = now
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Another enabled custom rule already uses this slug",
+        ) from exc
+    db.refresh(record)
+    return record
+
+
 @app.post(
     "/internal/v1/detections/run",
     response_model=DetectionExecutionOut,
@@ -1846,7 +2001,30 @@ def run_detection(
         ).all()
     )
     selected_allowlist_hash = allowlist_set_hash(active_allowlists)
-    run_key = build_detection_run_key(score.score_id, selected_allowlist_hash)
+    enabled_custom_rules = list(
+        db.scalars(
+            select(CustomDetectionRule)
+            .where(CustomDetectionRule.enabled.is_(True))
+            .order_by(CustomDetectionRule.slug)
+        ).all()
+    )
+    custom_rule_documents = [
+        {
+            "slug": rule.slug,
+            "name": rule.name,
+            "category": rule.category,
+            "description": rule.description,
+            "target": rule.target,
+            "condition": rule.condition,
+            "severity_weight": rule.severity_weight,
+            "confidence_weight": rule.confidence_weight,
+            "incident_eligible": rule.incident_eligible,
+            "enabled": rule.enabled,
+        }
+        for rule in enabled_custom_rules
+    ]
+    selected_custom_ruleset_hash = custom_ruleset_hash(custom_rule_documents)
+    run_key = build_detection_run_key(score.score_id, selected_allowlist_hash, selected_custom_ruleset_hash)
     existing = db.scalar(select(DetectionRun).where(DetectionRun.run_key == run_key))
     if existing is not None:
         return _detection_execution(db, existing)
@@ -1888,6 +2066,7 @@ def run_detection(
         process_events=process_events,
         runtime_events=runtime_events,
         allowlists=active_allowlists,
+        custom_rules=custom_rule_documents,
     )
     run = DetectionRun(
         run_id=str(uuid4()),
@@ -1896,6 +2075,7 @@ def run_detection(
         ruleset_version=RULESET_VERSION,
         ruleset_hash=ruleset_hash(),
         allowlist_set_hash=selected_allowlist_hash,
+        custom_ruleset_hash=selected_custom_ruleset_hash,
         applied_allowlist_ids=[item.allowlist_id for item in active_allowlists],
         image_digest=score.image_digest,
         window_start=score.window_start,
@@ -2437,6 +2617,7 @@ def generate_response_recommendations(
             approved_action=None,
         )
         db.add(record)
+        db.flush()
         _response_audit(
             db,
             incident_id=incident.incident_id,
@@ -2597,6 +2778,7 @@ def approve_response_recommendation(
         rollback_completed_at=None,
     )
     db.add(execution)
+    db.flush()
     _response_audit(
         db,
         incident_id=record.incident_id,

@@ -410,7 +410,7 @@ class DetectionAllowlist(Base):
     __tablename__ = "detection_allowlists"
     __table_args__ = (
         CheckConstraint(
-            "rule_id IN ('POR-DET-002', 'POR-DET-003', 'POR-DET-004')",
+            "rule_id IN ('POR-DET-002', 'POR-DET-003', 'POR-DET-004') OR rule_id LIKE 'POR-CUS-%'",
             name="ck_detection_allowlists_rule_id",
         ),
         Index(
@@ -439,6 +439,48 @@ class DetectionAllowlist(Base):
     deactivated_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
 
+class CustomDetectionRule(Base):
+    __tablename__ = "custom_detection_rules"
+    __table_args__ = (
+        CheckConstraint("target IN ('process', 'runtime')", name="ck_custom_detection_rules_target"),
+        CheckConstraint(
+            "severity_weight >= 0 AND severity_weight <= 1",
+            name="ck_custom_detection_rules_severity_range",
+        ),
+        CheckConstraint(
+            "confidence_weight >= 0 AND confidence_weight <= 1",
+            name="ck_custom_detection_rules_confidence_range",
+        ),
+        # Partial (enabled-only) uniqueness: a disabled rule must not permanently burn
+        # its slug. Recreating a rule under the same slug after disabling the old one
+        # is a normal "fix and re-enable" workflow, not a conflict.
+        Index(
+            "uq_custom_detection_rules_slug_enabled",
+            "slug",
+            unique=True,
+            postgresql_where=text("enabled"),
+        ),
+        Index("ix_custom_detection_rules_enabled", "enabled"),
+    )
+
+    custom_rule_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    slug: Mapped[str] = mapped_column(String(40), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(String(64), nullable=False)
+    target: Mapped[str] = mapped_column(String(16), nullable=False)
+    condition: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    severity_weight: Mapped[float] = mapped_column(Float, nullable=False)
+    confidence_weight: Mapped[float] = mapped_column(Float, nullable=False)
+    incident_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    disabled_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+
 class DetectionRun(Base):
     __tablename__ = "detection_runs"
     __table_args__ = (
@@ -451,6 +493,7 @@ class DetectionRun(Base):
             "score_id",
             "ruleset_version",
             "allowlist_set_hash",
+            "custom_ruleset_hash",
             name="uq_detection_runs_score_ruleset_allowlists",
         ),
         Index("ix_detection_runs_image_digest_window", "image_digest", "window_start"),
@@ -468,6 +511,7 @@ class DetectionRun(Base):
     ruleset_version: Mapped[str] = mapped_column(String(64), nullable=False)
     ruleset_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     allowlist_set_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    custom_ruleset_hash: Mapped[str] = mapped_column(String(64), nullable=False, server_default="")
     applied_allowlist_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     image_digest: Mapped[str] = mapped_column(String(255), nullable=False)
     window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

@@ -3,9 +3,15 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 from porygon_api.calibrated_provenance import MIN_CALIBRATION_RUNS, validate_run_split
+from porygon_api.rule_expression import (
+    MAX_EXPRESSION_LENGTH,
+    ExpressionError,
+    parse_expression,
+    render_expression,
+)
 
 
 class HealthResponse(BaseModel):
@@ -528,6 +534,7 @@ class DetectionRunOut(BaseModel):
     ruleset_version: str
     ruleset_hash: str
     allowlist_set_hash: str
+    custom_ruleset_hash: str
     applied_allowlist_ids: list[str]
     image_digest: str
     window_start: datetime
@@ -600,19 +607,41 @@ class IncidentStatusUpdateIn(BaseModel):
     note: str | None = Field(default=None, max_length=4000)
 
 
+_FIXED_ALLOWLIST_RULE_IDS = {"POR-DET-002", "POR-DET-003", "POR-DET-004"}
+
+
 class DetectionAllowlistCreateIn(BaseModel):
     image_digest: str = Field(
         min_length=72,
         max_length=255,
         pattern=r"^[^\s@]+@sha256:[0-9a-f]{64}$",
     )
-    rule_id: Literal["POR-DET-002", "POR-DET-003", "POR-DET-004"]
+    # Either one of the three fixed built-in rules that support allowlisting, or a
+    # custom rule id (`POR-CUS-<slug>`) so operators can allowlist a custom rule's
+    # matches too. Widened from a fixed Literal, which could never reference a custom
+    # rule id no matter what the rule's condition matched.
+    rule_id: str = Field(min_length=1, max_length=64)
     executable: str = Field(min_length=1, max_length=4096)
     parent_executable: str | None = Field(default=None, min_length=1, max_length=4096)
     reason: str = Field(min_length=1, max_length=4000)
     approved_by: str = Field(min_length=1, max_length=128)
     approval_reference: str | None = Field(default=None, max_length=255)
     expires_at: datetime | None = None
+
+    @field_validator("rule_id")
+    @classmethod
+    def validate_rule_id(cls, value: str) -> str:
+        from porygon_api.detection import CUSTOM_RULE_ID_PREFIX
+
+        if value in _FIXED_ALLOWLIST_RULE_IDS:
+            return value
+        if value.startswith(CUSTOM_RULE_ID_PREFIX) and len(value) > len(CUSTOM_RULE_ID_PREFIX):
+            return value
+        raise ValueError(
+            "rule_id must be one of "
+            f"{sorted(_FIXED_ALLOWLIST_RULE_IDS)} or a custom rule id prefixed with "
+            f"{CUSTOM_RULE_ID_PREFIX!r}"
+        )
 
     @field_validator("expires_at")
     @classmethod
@@ -642,6 +671,82 @@ class DetectionAllowlistOut(BaseModel):
 
 
 class DetectionAllowlistDeactivateIn(BaseModel):
+    actor: str = Field(min_length=1, max_length=128)
+
+
+class CustomDetectionRuleCreateIn(BaseModel):
+    slug: str = Field(min_length=1, max_length=40, pattern=r"^[a-z0-9-]{1,40}$")
+    name: str = Field(min_length=1, max_length=255)
+    description: str = Field(min_length=1, max_length=4000)
+    category: str = Field(min_length=1, max_length=64)
+    target: Literal["process", "runtime"]
+    condition: dict[str, Any] | None = None
+    expression: str | None = Field(default=None, max_length=MAX_EXPRESSION_LENGTH)
+    severity_weight: float = Field(ge=0.0, le=1.0)
+    confidence_weight: float = Field(ge=0.0, le=1.0)
+    incident_eligible: bool
+    created_by: str = Field(min_length=1, max_length=128)
+
+    @model_validator(mode="after")
+    def validate_condition_tree(self) -> "CustomDetectionRuleCreateIn":
+        from porygon_api.detection import validate_custom_condition
+
+        if (self.condition is None) == (self.expression is None):
+            raise ValueError("provide exactly one of 'condition' or 'expression'")
+
+        if self.expression is not None:
+            try:
+                self.condition = parse_expression(self.expression)
+            except ExpressionError as exc:
+                raise ValueError(f"invalid expression: {exc}") from exc
+
+        try:
+            validate_custom_condition(self.condition, target=self.target)
+        except ValueError as exc:
+            raise ValueError(f"invalid condition: {exc}") from exc
+        return self
+
+
+class CustomDetectionRuleOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    custom_rule_id: str
+    slug: str
+    name: str
+    description: str
+    category: str
+    target: Literal["process", "runtime"]
+    condition: dict[str, Any]
+    severity_weight: float
+    confidence_weight: float
+    incident_eligible: bool
+    enabled: bool
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+    disabled_at: datetime | None
+    disabled_by: str | None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def expression(self) -> str | None:
+        """Canonical text form of `condition`, rendered rather than stored.
+
+        Keeping the tree as the single source of truth means a rule authored in the
+        builder and one authored as text are indistinguishable afterwards, and the two
+        representations cannot drift apart.
+        """
+        try:
+            return render_expression(self.condition)
+        except ExpressionError:
+            return None
+
+
+class CustomDetectionRuleDisableIn(BaseModel):
+    actor: str = Field(min_length=1, max_length=128)
+
+
+class CustomDetectionRuleEnableIn(BaseModel):
     actor: str = Field(min_length=1, max_length=128)
 
 
