@@ -19,6 +19,8 @@ from experiments.artifacts import (
     canonical_json,
     reconcile_boundaries,
     sha256_file,
+    versioned_artifact_paths,
+    write_versioned_json,
 )
 
 
@@ -157,10 +159,16 @@ def run_smoke(run_dir: Path, run_id: str = "smoke-fixture") -> Path:
 
 
 def validate(run_dir: Path) -> None:
-    if not (run_dir / "run.json").is_file() or not (run_dir / "artifact-manifest.json").is_file():
+    manifests = versioned_artifact_paths(run_dir, "artifact-manifest")
+    if not (run_dir / "run.json").is_file() or not manifests:
         raise ArtifactError("missing artifact: run.json or artifact-manifest.json")
+    # The latest version is authoritative: it is the only one guaranteed to account for
+    # every artifact a later stage (e.g. experiments/study.py adding study-manifest.json)
+    # added after an earlier version was already completed and left immutable.
+    manifest_path = manifests[-1]
+    manifest_names = {path.name for path in manifests}
     run = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
-    manifest = json.loads((run_dir / "artifact-manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("run_id") != run.get("run_id"):
         raise ArtifactError("manifest run_id does not match run.json")
     for name, expected in manifest["artifact_hashes"].items():
@@ -172,7 +180,7 @@ def validate(run_dir: Path) -> None:
     present = {
         str(path.relative_to(run_dir))
         for path in run_dir.rglob("*")
-        if path.is_file() and path.name != "artifact-manifest.json"
+        if path.is_file() and path.name not in manifest_names
     }
     unlisted = sorted(present - set(manifest["artifact_hashes"]))
     if unlisted:
@@ -319,17 +327,25 @@ def _replay_pilot(run_dir: Path) -> None:
         raise ArtifactError("analysis replay differs from the recorded summary")
 
 
-def _write_manifest(run_dir: Path, run_id: str, analysis_status: str, source_of_truth: str) -> None:
+def _write_manifest(run_dir: Path, run_id: str, analysis_status: str, source_of_truth: str) -> Path:
+    """Write (or version) the run's artifact manifest.
+
+    This can legitimately be called more than once against the same run directory -- e.g.
+    experiments/study.py re-invokes it after adding study-manifest.json so the manifest
+    accounts for that file too. Rather than unlinking and rewriting in place (which would
+    silently defeat atomic_write_bytes's completed-artifact guard), a content change
+    produces a new `artifact-manifest.vN.json` and the previous version is left untouched;
+    see `write_versioned_json`.
+    """
+    manifest_names = {path.name for path in versioned_artifact_paths(run_dir, "artifact-manifest")}
     hashes = {
         str(path.relative_to(run_dir)): sha256_file(path)
         for path in sorted(run_dir.rglob("*"))
-        if path.is_file() and path.name != "artifact-manifest.json"
+        if path.is_file() and path.name not in manifest_names
     }
-    manifest_path = run_dir / "artifact-manifest.json"
-    if manifest_path.exists():
-        manifest_path.unlink()
-    atomic_write_json(
-        manifest_path,
+    return write_versioned_json(
+        run_dir,
+        "artifact-manifest",
         {
             "schema_version": "porygon.experiment.artifact-manifest.v1",
             "run_id": run_id,

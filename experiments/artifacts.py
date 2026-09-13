@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -78,6 +79,59 @@ def atomic_write_bytes(path: Path, encoded: bytes) -> str:
         os.fsync(handle.fileno())
     os.replace(temporary, path)
     return sha256_bytes(encoded)
+
+
+def _versioned_pattern(stem: str, suffix: str) -> re.Pattern[str]:
+    return re.compile(rf"^{re.escape(stem)}(?:\.v(\d+))?{re.escape(suffix)}$")
+
+
+def _artifact_version(path: Path, pattern: "re.Pattern[str]") -> int:
+    match = pattern.match(path.name)
+    return int(match.group(1)) if match and match.group(1) else 1
+
+
+def versioned_artifact_paths(directory: Path, stem: str, suffix: str = ".json") -> list[Path]:
+    """Every existing version of a versioned artifact, oldest first.
+
+    The bare `<stem><suffix>` is the implicit first version; `<stem>.vN<suffix>` (N >= 2)
+    are later versions written by `write_versioned_json` when the content legitimately
+    changed after the first version was already completed.
+    """
+    if not directory.is_dir():
+        return []
+    pattern = _versioned_pattern(stem, suffix)
+    found = [path for path in directory.glob(f"{stem}*{suffix}") if path.is_file() and pattern.match(path.name)]
+    return sorted(found, key=lambda path: _artifact_version(path, pattern))
+
+
+def write_versioned_json(directory: Path, stem: str, value: Any, suffix: str = ".json") -> Path:
+    """Write a JSON artifact that must never be silently changed once completed.
+
+    `atomic_write_bytes` already refuses to overwrite a completed artifact whose content
+    differs -- that guard is the whole point of the provenance contract. Calling code must
+    not route around it by unlinking the file first (that defeats the guard entirely,
+    letting anyone silently rewrite a "completed" artifact, including its evidence-class
+    labels, in place).
+
+    So: if nothing with this name exists yet, it is written as `<stem><suffix>`. If the
+    latest existing version has byte-identical content, this is a no-op (an idempotent
+    resume writing the same thing again). If the latest version's content differs -- e.g.
+    a later pipeline stage legitimately has more to say than the run did when it first
+    completed -- the existing file is left exactly as it is and the new content is written
+    to the next `<stem>.vN<suffix>` instead, so every completed version stays exactly as
+    originally written and the full history is auditable.
+    """
+    pattern = _versioned_pattern(stem, suffix)
+    existing = versioned_artifact_paths(directory, stem, suffix)
+    if existing:
+        latest = existing[-1]
+        if load_json(latest) == value:
+            return latest
+        target = directory / f"{stem}.v{_artifact_version(latest, pattern) + 1}{suffix}"
+    else:
+        target = directory / f"{stem}{suffix}"
+    atomic_write_json(target, value)
+    return target
 
 
 def load_json(path: Path) -> Any:

@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from experiments import real
-from experiments.artifacts import assign_split, atomic_write_json, check_split_isolation
+from experiments.artifacts import assign_split, check_split_isolation, write_versioned_json
 
 ROOT = Path(__file__).resolve().parents[1]
 STUDY_ROOT = ROOT / "artifacts/experiments/local"
@@ -393,6 +393,37 @@ def stage_results(ctx: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Evidence class
+# ---------------------------------------------------------------------------
+
+
+def _run_evidence_class(run_dir: Path | None) -> tuple[str, bool]:
+    """Derive the study's evidence class from the pilot run's own recorded facts.
+
+    `stage_protocol` reports whether the *protocol document* currently permits
+    confirmatory collection, but that is independent of what the *run actually is*.
+    A confirmatory label requires both: the protocol frozen AND the run itself having
+    gone through real confirmatory collection. No confirmatory collection path exists yet
+    -- `stage_collect` only ever calls `run_pilot`, whose run.json always records
+    `kind: "real_container_pilot"` / `research_eligible: false` -- so this must always
+    resolve to pilot/False for any run this pipeline produces, regardless of protocol
+    status, until a real confirmatory runner exists (see run.py's `confirmatory`, which is
+    an intentional stub).
+    """
+    if run_dir is None:
+        return "pilot", False
+    run_path = Path(run_dir) / "run.json"
+    if not run_path.is_file():
+        return "pilot", False
+    try:
+        run = json.loads(run_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return "pilot", False
+    research_eligible = bool(run.get("research_eligible", False))
+    return ("confirmatory" if research_eligible else "pilot"), research_eligible
+
+
+# ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
 
@@ -446,25 +477,46 @@ def run_study(**options: Any) -> Path:
         if entry["status"] == "failed" and stage.required:
             break
 
-    manifest = {
-        "schema_version": "porygon.study.manifest.v1",
-        "run_id": ctx["run_id"],
-        "status": status,
-        "evidence_class": "confirmatory" if ctx.get("confirmatory_permitted") else "pilot",
-        "research_eligible": bool(ctx.get("confirmatory_permitted")),
-        "git_sha": _sh("git", "rev-parse", "HEAD")[1],
-        "git_dirty": bool(_sh("git", "status", "--porcelain")[1]),
-        "started_at_utc": stages[0]["started_at_utc"] if stages else real.now_utc(),
-        "finished_at_utc": real.now_utc(),
-        "duration_seconds": round(time.monotonic() - started, 2),
-        "configuration": {k: v for k, v in ctx.items() if k not in ("trials", "analysis", "splits", "run_dir", "storage_before")},
-        "stages": stages,
-    }
+    run_dir = ctx.get("run_dir")
+
+    def _build_manifest(current_stages: list[dict[str, Any]], current_status: str) -> dict[str, Any]:
+        evidence_class, research_eligible = _run_evidence_class(run_dir)
+        return {
+            "schema_version": "porygon.study.manifest.v1",
+            "run_id": ctx["run_id"],
+            "status": current_status,
+            "evidence_class": evidence_class,
+            "research_eligible": research_eligible,
+            "git_sha": _sh("git", "rev-parse", "HEAD")[1],
+            "git_dirty": bool(_sh("git", "status", "--porcelain")[1]),
+            "started_at_utc": stages[0]["started_at_utc"] if stages else real.now_utc(),
+            "finished_at_utc": real.now_utc(),
+            "duration_seconds": round(time.monotonic() - started, 2),
+            "configuration": {k: v for k, v in ctx.items() if k not in ("trials", "analysis", "splits", "run_dir", "storage_before")},
+            "stages": current_stages,
+        }
+
     out_dir = STUDY_ROOT / ctx["run_id"]
     out_dir.mkdir(parents=True, exist_ok=True)
-    path = out_dir / "study-manifest.json"
-    if path.exists():
-        path.unlink()
-    atomic_write_json(path, manifest)
+    path = write_versioned_json(out_dir, "study-manifest", _build_manifest(stages, status))
     print(f"[study] manifest: {path.relative_to(ROOT)}")
+
+    if run_dir is not None and Path(run_dir).is_dir():
+        # study-manifest.json now lives inside run_dir (the same directory run_pilot wrote
+        # artifact-manifest.json into). run.py's own validate() asserts every file present
+        # in a run directory is listed in its artifact-manifest.json, but nothing ever
+        # re-ran that check -- or regenerated the manifest to include this file -- after it
+        # was added, so validate() would always fail on a completed study run with
+        # "artifacts present but absent from the manifest: ['study-manifest.json']".
+        #
+        # This must be the last thing done to run_dir: regenerate the manifest so it
+        # accounts for study-manifest.json, then validate() end to end. It is a required
+        # stage -- a failure here means the pipeline's own artifact bookkeeping is broken,
+        # so it is allowed to raise rather than being swallowed and filed away like the
+        # stages above.
+        from experiments.run import _write_manifest, validate
+
+        _write_manifest(run_dir, ctx["run_id"], "pilot_plus_study", "trials/")
+        validate(run_dir)
+
     return path
