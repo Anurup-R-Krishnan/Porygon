@@ -166,10 +166,8 @@ falco_events_init = services['falco-events-init']
 assert not services['backend'].get('ports'), 'backend must not publish a host port'
 assert gateway['ports'] == ['127.0.0.1:${BACKEND_PORT:-8000}:8080']
 assert set(gateway['networks']) == {'porygon_internal', 'porygon_ingress'}
-assert '@sha256:' in gateway['image'], 'gateway image must be digest pinned'
 assert not gateway.get('env_file') and not gateway.get('environment')
 assert falco_events_init['network_mode'] == 'none'
-assert '@sha256:' in falco_events_init['image']
 assert falco_events_init['cap_add'] == ['CHOWN']
 assert services['falco']['depends_on']['falco-events-init']['condition'] == 'service_completed_successfully'
 assert services['telemetry']['depends_on']['falco-events-init']['condition'] == 'service_completed_successfully'
@@ -177,6 +175,85 @@ assert networks['porygon_internal']['internal'] is True
 assert not networks['porygon_ingress'].get('internal', False)
 assert '\n' not in rules[0]['output'], 'Falco output template must be one line'
 assert '%proc.vpid' in rules[0]['output']
+
+# Every pulled (non-locally-built) compose service must be digest pinned, not just
+# gateway/falco-events-init — iterate the whole service table instead of naming two.
+pinned_services = 0
+for service_name, service_cfg in services.items():
+    image_ref = service_cfg.get('image')
+    if image_ref is None:
+        continue
+    assert '@sha256:' in image_ref, f'{service_name} image must be digest pinned: {image_ref!r}'
+    pinned_services += 1
+assert pinned_services >= 4, f'expected at least 4 digest-pinned compose images, found {pinned_services}'
+
+# `docker run` invocations outside compose (dashboard demo scenario runner, etc.) must
+# also reference digest-pinned images, not mutable tags. Resolve simple string/name-const
+# arguments statically; anything dynamic is left unverified rather than guessed at.
+ALLOWED_UNPINNED_IMAGES: set[str] = set()
+FLAGS_WITH_VALUE = {
+    '--name', '-p', '--filter', '-e', '--env', '-v', '--volume', '-w',
+    '--workdir', '--entrypoint', '--network', '-u', '--user', '-l',
+    '--label', '-m', '--memory', '--cpus', '--restart', '--format',
+}
+
+
+def literal_str(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    return None
+
+
+def image_arg(elts: list[ast.expr], image_constants: dict[str, str]) -> str | None:
+    resolved: list[str | None] = []
+    for elt in elts[2:]:
+        value = literal_str(elt)
+        if value is None and isinstance(elt, ast.Name):
+            value = image_constants.get(elt.id)
+        resolved.append(value)
+    i = 0
+    while i < len(resolved):
+        value = resolved[i]
+        if value is None:
+            i += 1
+            continue
+        if value in FLAGS_WITH_VALUE:
+            i += 2
+            continue
+        if value.startswith('-'):
+            i += 1
+            continue
+        return value
+    return None
+
+
+for path in sorted(Path('scripts').glob('*.py')):
+    tree = ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
+    image_constants = {}
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and 'IMAGE' in node.targets[0].id.upper()
+        ):
+            value = literal_str(node.value)
+            if value is not None:
+                image_constants[node.targets[0].id] = value
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.List, ast.Tuple)):
+            continue
+        elts = node.elts
+        if len(elts) < 3:
+            continue
+        if literal_str(elts[0]) != 'docker' or literal_str(elts[1]) != 'run':
+            continue
+        image_ref = image_arg(elts, image_constants)
+        if image_ref is None:
+            continue
+        assert '@sha256:' in image_ref or image_ref in ALLOWED_UNPINNED_IMAGES, (
+            f'{path}: docker run image {image_ref!r} is not digest-pinned'
+        )
 print(f'parsed {len(python_files)} Python files, service TOML, and YAML with unique keys')
 PY
   for script_path in scripts/*.sh backend/entrypoint.sh; do
