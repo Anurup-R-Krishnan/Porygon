@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
+import types
 from pathlib import Path
 
 import pytest
 
-from experiments import real, run
+from experiments import real, run, sample_size
 from experiments.artifacts import (
     ArtifactError,
     assign_split,
@@ -259,18 +260,40 @@ def test_pilot_replay_is_deterministic(tmp_path):
         run.replay(run_dir)
 
 
-def test_confirmatory_stays_refused_while_the_protocol_is_review_pending(tmp_path):
+def test_confirmatory_stays_refused_while_the_review_gate_is_not_satisfied(tmp_path, monkeypatch):
+    # confirmatory() consults scripts/review_gate.py:gate_state() rather than
+    # grepping the passed-in protocol path's raw text, so a real (unfrozen) protocol
+    # document is not what drives the refusal here -- an unsatisfied review gate is.
+    fake_module = types.SimpleNamespace(
+        gate_state=lambda: {
+            "confirmatory_permitted": False,
+            "protocol_status": "review_pending",
+            "approval_problems": {"security": [], "methodology": []},
+            "independence": {"independent": True, "reason": "reviewers are distinct"},
+        }
+    )
+    monkeypatch.setattr(sample_size, "_load_review_gate", lambda: fake_module)
     pending = tmp_path / "pending.md"
     pending.write_text("Status: **REVIEW PENDING — PROHIBITED**\n", encoding="utf-8")
     with pytest.raises(ArtifactError, match="frozen"):
         run.confirmatory(pending)
 
 
-def test_confirmatory_stays_refused_even_once_frozen_until_the_matrix_is_implemented(tmp_path):
-    """confirmatory() is a deliberate two-stage gate: freezing the protocol
-    document is necessary but not sufficient. It must also stay refused until
-    the approved workload matrix runner actually exists, so a frozen protocol
-    alone can never accidentally start collecting confirmatory data."""
+def test_confirmatory_stays_refused_even_once_frozen_until_the_matrix_is_implemented(tmp_path, monkeypatch):
+    """confirmatory() is a deliberate two-stage gate: the review gate reporting
+    confirmatory_permitted=true is necessary but not sufficient. It must also stay
+    refused until the approved workload matrix runner actually exists, so a fully
+    satisfied review gate alone can never accidentally start collecting confirmatory
+    data."""
+    fake_module = types.SimpleNamespace(
+        gate_state=lambda: {
+            "confirmatory_permitted": True,
+            "protocol_status": "frozen",
+            "approval_problems": {"security": [], "methodology": []},
+            "independence": {"independent": True, "reason": "reviewers are distinct"},
+        }
+    )
+    monkeypatch.setattr(sample_size, "_load_review_gate", lambda: fake_module)
     frozen = tmp_path / "frozen.md"
     frozen.write_text("Status: **FROZEN**\n", encoding="utf-8")
     with pytest.raises(ArtifactError, match="workload matrix"):

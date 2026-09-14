@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from experiments import real
+from experiments import conformance, real
 from experiments.artifacts import assign_split, check_split_isolation, write_versioned_json
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -267,6 +267,28 @@ def stage_splits(ctx: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Stage 6b: protocol conformance
+# ---------------------------------------------------------------------------
+
+
+def stage_conformance(ctx: dict) -> dict:
+    """Evaluate the collected run against every frozen-protocol conformance check.
+
+    Non-fatal and purely observational: this stage exists so every CONF-* check's
+    pass/fail and detail lands in the written study manifest -- showing its work --
+    rather than only the final `evidence_class` label. It does not itself gate
+    anything; `_run_evidence_class` independently re-derives (and narrows) the
+    evidence class from the run's own recorded facts, whether or not this stage ran
+    or its result was consulted.
+    """
+    run_dir = ctx.get("run_dir")
+    if run_dir is None:
+        raise RuntimeError("no run directory available; the collection stage did not run")
+    report = conformance.check_run_conformance(Path(run_dir))
+    return conformance.report_to_dict(report)
+
+
+# ---------------------------------------------------------------------------
 # Stage 7: profiles, scoring, detection on the collected data
 # ---------------------------------------------------------------------------
 
@@ -402,17 +424,25 @@ def _run_evidence_class(run_dir: Path | None) -> tuple[str, bool]:
 
     `stage_protocol` reports whether the *protocol document* currently permits
     confirmatory collection, but that is independent of what the *run actually is*.
-    A confirmatory label requires both: the protocol frozen AND the run itself having
-    gone through real confirmatory collection. No confirmatory collection path exists yet
-    -- `stage_collect` only ever calls `run_pilot`, whose run.json always records
-    `kind: "real_container_pilot"` / `research_eligible: false` -- so this must always
-    resolve to pilot/False for any run this pipeline produces, regardless of protocol
-    status, until a real confirmatory runner exists (see run.py's `confirmatory`, which is
-    an intentional stub).
+    A confirmatory label requires the run itself having gone through real confirmatory
+    collection (`run.json`'s own `research_eligible` flag) AND, as a second, stricter
+    gate, the run's own directory passing every frozen-protocol conformance check
+    (`experiments/conformance.py:check_run_conformance`). Either condition failing
+    narrows the label to pilot -- neither can ever widen it.
+
+    No confirmatory collection path exists yet -- `stage_collect` only ever calls
+    `run_pilot`, whose run.json always records `kind: "real_container_pilot"` /
+    `research_eligible: false` -- so in practice this always resolves to pilot/False for
+    any run this pipeline produces today, and the conformance check below is never even
+    reached, regardless of protocol status, until a real confirmatory runner exists (see
+    run.py's `confirmatory`, which is an intentional stub). The conformance gate is
+    defense-in-depth for whenever that changes: it cannot be observed to do anything
+    differently against any run this pipeline can currently produce.
     """
     if run_dir is None:
         return "pilot", False
-    run_path = Path(run_dir) / "run.json"
+    run_dir = Path(run_dir)
+    run_path = run_dir / "run.json"
     if not run_path.is_file():
         return "pilot", False
     try:
@@ -420,7 +450,20 @@ def _run_evidence_class(run_dir: Path | None) -> tuple[str, bool]:
     except (OSError, json.JSONDecodeError):
         return "pilot", False
     research_eligible = bool(run.get("research_eligible", False))
-    return ("confirmatory" if research_eligible else "pilot"), research_eligible
+    if not research_eligible:
+        # run.json itself disclaims confirmatory eligibility: nothing can widen that,
+        # so the (stricter, and more expensive) conformance check is never consulted.
+        return "pilot", False
+    try:
+        report = conformance.check_run_conformance(run_dir)
+        confirmatory_ok, _failing_check_ids = conformance.confirmatory_eligible(report)
+    except Exception:
+        # Any failure to even evaluate the stricter gate must narrow, never widen: an
+        # unevaluable conformance check is treated exactly like a failed one.
+        confirmatory_ok = False
+    if not confirmatory_ok:
+        return "pilot", False
+    return "confirmatory", True
 
 
 # ---------------------------------------------------------------------------
@@ -435,6 +478,7 @@ STAGES = [
     Stage("storage_before", stage_storage_before, required=False),
     Stage("collection", stage_collect),
     Stage("split_assignment", stage_splits),
+    Stage("conformance", stage_conformance, required=False),
     Stage("profile_score_detect", stage_analysis, required=False),
     Stage("storage_accounting", stage_storage_after, required=False),
     Stage("results", stage_results, required=False),

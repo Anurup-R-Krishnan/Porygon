@@ -71,13 +71,18 @@ def test_evidence_class_follows_the_runs_own_flag_not_protocol_status(tmp_path) 
     assert study._run_evidence_class(run_dir) == ("pilot", False)
 
 
-def test_evidence_class_would_follow_a_run_that_actually_declares_confirmatory(tmp_path) -> None:
+def test_evidence_class_would_follow_a_run_that_actually_declares_confirmatory(tmp_path, monkeypatch) -> None:
     # No such run exists yet (run.py's confirmatory() is an intentional stub), but the
-    # derivation itself should be driven by the run's own declaration, not hardcoded to
-    # always say pilot.
+    # derivation itself should be driven by the run's own declaration AND (see
+    # experiments/tests/test_study_conformance.py for the full narrowing contract) the
+    # run's own directory passing the full protocol-conformance gate. Mock that gate to
+    # report satisfied here so this test exercises only the "declared eligible + gate
+    # passes" combination, not every individual CONF-* requirement.
     run_dir = tmp_path / "confirmatory"
     run_dir.mkdir()
     atomic_write_json(run_dir / "run.json", {"run_id": "run-2", "research_eligible": True})
+    monkeypatch.setattr(study.conformance, "check_run_conformance", lambda run_dir: "fake-report")
+    monkeypatch.setattr(study.conformance, "confirmatory_eligible", lambda report: (True, []))
     assert study._run_evidence_class(run_dir) == ("confirmatory", True)
 
 
