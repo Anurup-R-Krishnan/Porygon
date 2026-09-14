@@ -134,6 +134,12 @@ def variant_available(variant: str, family: str) -> bool:
 RUNTIME_SCENARIOS = ("SCN-EXEC", "SCN-LOW", "SCN-FLOOD", "SCN-CONTEXT")
 ANALYSIS_ONLY_SCENARIOS = ("SCN-CROSS", "SCN-POISON")
 
+# The benign collection path: run the workload normally and take no scenario
+# action at all. Not a member of RUNTIME_SCENARIOS/ATTACK_LIKE_SCENARIOS/
+# ANALYSIS_ONLY_SCENARIOS -- it has its own dispatch branch in run_trial that
+# skips run_scenario entirely (no exec, no canary).
+BENIGN_SENTINEL = "SCN-NONE"
+
 # Exploratory only. These map well-known CVEs to harmless, observable process
 # shapes; they never reproduce the vulnerability or attempt a host action.
 ATTACK_LIKE_SCENARIOS: dict[str, dict[str, Any]] = {
@@ -156,6 +162,104 @@ ATTACK_LIKE_SCENARIOS: dict[str, dict[str, Any]] = {
         "reference": "https://nvd.nist.gov/vuln/detail/CVE-2019-5736",
         "observable_behavior": "root/process-runtime inspection resembling an escape precursor",
         "command_template": "id; cat /proc/self/status >/dev/null; cat /proc/self/exe >/dev/null; printf '%s\\n' {canary}",
+    },
+}
+
+
+# Mandatory hard-negative operations, per RESEARCH_PROTOCOL_V1.md's "Workloads
+# and run counts" table ("Required hard negatives" column). The keys below are
+# copied verbatim from that table's text (including backticks and slashes
+# where the protocol embeds them, e.g. "`BGSAVE`", "traffic spike/log
+# rotation") -- experiments/conformance.py:_parse_hard_negatives parses the
+# live document with the exact same regex and produces these same strings, so
+# a hard_negative_id recorded here can only satisfy CONF-HN-001 by matching
+# the protocol's own wording exactly, never an invented name.
+#
+# A hard negative is benign ground truth (attack_like=False) but still an
+# operator-shaped action -- run_hard_negative executes the real in-container
+# command below and never injects a canary (see run_trial / module docstring
+# on why: synthesizing one would contaminate the exact benign process
+# distribution the false-positive rate is measured against).
+#
+# "driver_only" hard negatives (the traffic-volume ones) take no container
+# exec at all: the action is a legitimate burst of ordinary driver-side
+# workload traffic, driven the same way experiments/real.py:drive_load always
+# drives load, just at a higher volume.
+HARD_NEGATIVES: dict[str, dict[str, dict[str, Any]]] = {
+    "WL-NGX": {
+        "config validation/reload": {
+            "command": "nginx -t && nginx -s reload",
+            "expected_outcome": "hard_negative_config_reload",
+            "description": "operator-style nginx configuration validation (`nginx -t`) followed by a reload (`nginx -s reload`)",
+        },
+        "maintenance shell": {
+            "command": "id; uname -a; ps aux 2>/dev/null | head -n 20",
+            "expected_outcome": "hard_negative_maintenance_shell",
+            "description": "read-only maintenance shell inspection of identity/kernel/process state, the kind an operator runs while looking around inside a running container",
+        },
+        "traffic spike": {
+            "driver_only": True,
+            "burst_operations": 200,
+            "expected_outcome": "hard_negative_traffic_spike",
+            "description": "driver-side burst of ordinary HTTP request volume with zero additional container exec",
+        },
+        "log rotation": {
+            "command": "nginx -s reopen",
+            "expected_outcome": "hard_negative_log_rotation",
+            "description": "log-rotation-style signal instructing nginx to reopen its log files",
+        },
+    },
+    "WL-RDS": {
+        "`BGSAVE`": {
+            "command": "redis-cli BGSAVE",
+            "expected_outcome": "hard_negative_bgsave",
+            "description": "Redis background-save (BGSAVE) admin operation",
+        },
+        "admin inspection": {
+            "command": "redis-cli INFO; redis-cli CLIENT LIST",
+            "expected_outcome": "hard_negative_admin_inspection",
+            "description": "read-only Redis admin inspection (INFO, CLIENT LIST)",
+        },
+        "maintenance shell": {
+            "command": "id; uname -a; redis-cli PING",
+            "expected_outcome": "hard_negative_maintenance_shell",
+            "description": "read-only maintenance shell inspection alongside a protocol-level liveness probe",
+        },
+        "traffic spike/log rotation": {
+            "driver_only": True,
+            "burst_operations": 200,
+            "expected_outcome": "hard_negative_traffic_spike",
+            "description": "driver-side burst of ordinary SET/GET request volume with zero additional container exec (Redis has no on-disk request log to rotate, so the protocol pairs these two into one hard negative)",
+        },
+    },
+    "WL-PG": {
+        "`pg_dump` backup": {
+            "command": "pg_dump -U postgres -d porygon_study -f /tmp/porygon-hard-negative-backup.sql",
+            "expected_outcome": "hard_negative_pg_dump",
+            "description": "pg_dump backup written to a disposable in-container scratch path",
+        },
+        "config reload": {
+            "command": "psql -U postgres -d porygon_study -tAc \"SELECT pg_reload_conf();\"",
+            "expected_outcome": "hard_negative_config_reload",
+            "description": "PostgreSQL configuration reload via pg_reload_conf()",
+        },
+        "admin query/debug": {
+            "command": (
+                "psql -U postgres -d porygon_study -tAc \"\\l\"; "
+                "psql -U postgres -d porygon_study -tAc \"SELECT count(*) FROM pg_stat_activity;\""
+            ),
+            "expected_outcome": "hard_negative_admin_query",
+            "description": "read-only admin query/debug surface (\\l, a pg_stat_activity count)",
+        },
+        "maintenance shell/log rotation": {
+            "command": "id; uname -a; psql -U postgres -d porygon_study -tAc \"SELECT pg_current_logfile();\"",
+            "expected_outcome": "hard_negative_maintenance_shell",
+            "description": (
+                "read-only maintenance shell inspection plus the active log-file target "
+                "(PostgreSQL log rotation is an external log-collector concern, not an in-session "
+                "SQL action, so the protocol pairs these two into one hard negative)"
+            ),
+        },
     },
 }
 
@@ -526,6 +630,108 @@ def run_scenario(
     return result
 
 
+def run_benign(
+    container: str, container_id: str, image_digest: str, run_id: str, trial_id: str
+) -> dict[str, Any]:
+    """The benign collection path (BENIGN_SENTINEL / "SCN-NONE"): the workload
+    runs normally and no scenario action is taken at all -- no exec beyond the
+    workload's own load driver, no canary. Ground truth is unambiguous: this
+    trial is benign by construction, not by absence of detection."""
+    timestamp = now_utc()
+    moment_ns = time.monotonic_ns()
+    return {
+        "schema_version": "porygon.experiment.ground-truth.v1",
+        "run_id": run_id,
+        "trial_id": trial_id,
+        "scenario_id": BENIGN_SENTINEL,
+        "expected_outcome": "benign_no_action",
+        "safety_classification": "safe_disposable_local_container",
+        "attack_like": False,
+        "simulation_only": True,
+        "exploit_executed": False,
+        "public_network_access": False,
+        "host_mutation_attempted": False,
+        "privileged_container": False,
+        "target_container_name": container,
+        "target_container_id": container_id,
+        "image_digest": image_digest,
+        "action_started_at_utc": timestamp,
+        "action_finished_at_utc": timestamp,
+        "action_started_monotonic_ns": moment_ns,
+        "action_finished_monotonic_ns": moment_ns,
+        "canary_sequences_planned": [],
+        "canary_sequences_executed": [],
+        "command_template": None,
+        "command_template_sha256": None,
+        "randomized_fields": [],
+    }
+
+
+def run_hard_negative(
+    container: str, container_id: str, image_digest: str, run_id: str, trial_id: str,
+    family: str, hard_negative_id: str, port: int,
+) -> dict[str, Any]:
+    """Execute one of the protocol's mandatory hard-negative operations
+    (HARD_NEGATIVES[family][hard_negative_id]) and record it as benign ground
+    truth. Mirrors run_scenario's record shape but never injects a canary --
+    see the module-level safety note in run_trial for why."""
+    family_negatives = HARD_NEGATIVES.get(family, {})
+    if hard_negative_id not in family_negatives:
+        raise PilotError(f"{hard_negative_id!r} is not a declared hard negative for {family}")
+    spec = family_negatives[hard_negative_id]
+    started_utc, started_ns = now_utc(), time.monotonic_ns()
+    if spec.get("driver_only"):
+        # A legitimate traffic-volume change, driven entirely from the host
+        # load driver: no container exec. The process distribution this hard
+        # negative probes is ordinary request handling, not an operator
+        # action taken inside the container.
+        execution: dict[str, Any] = {
+            "kind": "driver_burst",
+            "burst": drive_load(container, family, port, "hard_negative_burst", spec.get("burst_operations", 40), seed=0),
+        }
+    else:
+        command = spec["command"]
+        completed = subprocess.run(
+            ["docker", "exec", container, "/bin/sh", "-c", command],
+            capture_output=True,
+            timeout=60,
+        )
+        execution = {
+            "kind": "container_exec",
+            "command": command,
+            "command_sha256": sha256_bytes(command.encode("utf-8")),
+            "returncode": completed.returncode,
+        }
+    finished_utc, finished_ns = now_utc(), time.monotonic_ns()
+    return {
+        "schema_version": "porygon.experiment.ground-truth.v1",
+        "run_id": run_id,
+        "trial_id": trial_id,
+        "scenario_id": hard_negative_id,
+        "hard_negative_id": hard_negative_id,
+        "expected_outcome": spec["expected_outcome"],
+        "description": spec["description"],
+        "safety_classification": "safe_disposable_local_container",
+        "attack_like": False,
+        "simulation_only": True,
+        "exploit_executed": False,
+        "public_network_access": False,
+        "host_mutation_attempted": False,
+        "privileged_container": False,
+        "target_container_name": container,
+        "target_container_id": container_id,
+        "image_digest": image_digest,
+        "action_started_at_utc": started_utc,
+        "action_finished_at_utc": finished_utc,
+        "action_started_monotonic_ns": started_ns,
+        "action_finished_monotonic_ns": finished_ns,
+        "canary_sequences_planned": [],
+        "canary_sequences_executed": [],
+        "execution": execution,
+        "randomized_fields": [],
+    }
+
+
 # --------------------------------------------------------------------------
 # Boundary reconciliation against the live pipeline
 # --------------------------------------------------------------------------
@@ -632,13 +838,56 @@ def reconcile_trial(
     return {"generated": len(expected), "generated_sequences": sorted(expected), "boundaries": boundaries}
 
 
+def _no_canary_reconciliation(reason: str) -> dict[str, Any]:
+    """The reconciliation record for a trial that generated no canary at all
+    (benign / hard-negative). Every boundary is explicitly "unmeasured" with
+    `reason` -- the same not-measured shape reconcile_trial already uses for
+    the spool/api boundaries it can never observe -- rather than a fabricated
+    "0 expected, 0 missing, 0.0 loss_fraction" pass. That distinction matters:
+    a boundary never exercised must never read the same as a boundary that
+    was exercised and found perfect, or a true capture-loss regression on a
+    boundary this run never tests could hide behind trials that all report
+    it."""
+    boundary = {"status": "unmeasured", "reason": reason}
+    return {
+        "generated": 0,
+        "generated_sequences": [],
+        "boundaries": {
+            "generator": dict(boundary),
+            "spool": dict(boundary),
+            "api": dict(boundary),
+            "source": dict(boundary),
+            "database": dict(boundary),
+        },
+    }
+
+
 # --------------------------------------------------------------------------
 # Trial and run orchestration
 # --------------------------------------------------------------------------
 
 
+_UNSAFE_TRIAL_ID_CHARS = re.compile(r"[^a-z0-9_.-]+")
+
+
+def _docker_safe_token(value: str) -> str:
+    """Collapse anything outside Docker's container-name charset
+    (`[a-zA-Z0-9][a-zA-Z0-9_.-]+`) to a single '-'.
+
+    Every existing scenario/mode/variant identifier (SCN-EXEC, steady_http,
+    dropped_capabilities, ...) is already alnum/underscore/dash, so this is a
+    byte-for-byte no-op for them -- it only changes output for the new
+    hard-negative IDs pulled verbatim from the protocol table, which can
+    contain backticks, spaces, and slashes (e.g. "`BGSAVE`", "traffic
+    spike/log rotation") that a `docker run --name` would otherwise reject.
+    """
+    token = _UNSAFE_TRIAL_ID_CHARS.sub("-", value.lower()).strip("-")
+    return token or "x"
+
+
 def trial_id_for(workload_id: str, mode: str, scenario_id: str, variant: str, replica: int) -> str:
-    return f"{workload_id}-{mode}-{scenario_id}-{variant}-r{replica:02d}".lower()
+    parts = [_docker_safe_token(part) for part in (workload_id, mode, scenario_id, variant)]
+    return "-".join(parts) + f"-r{replica:02d}"
 
 
 def container_name_for(run_id: str, trial_id: str) -> str:
@@ -682,6 +931,7 @@ def run_trial(
 ) -> dict[str, Any]:
     family = family_of(workload_id)
     name = container_name_for(run_id, trial_id)
+    hard_negative_id = scenario_id if scenario_id in HARD_NEGATIVES.get(family, {}) else None
     record: dict[str, Any] = {
         "schema_version": "porygon.experiment.trial.v2",
         "run_id": run_id,
@@ -692,6 +942,10 @@ def run_trial(
         "image": image,
         "mode": mode,
         "scenario_id": scenario_id,
+        # CONF-HN-001 (experiments/conformance.py) reads this exact top-level
+        # field; None for every ordinary/benign-sentinel/scenario trial, and
+        # the protocol's own hard-negative wording for a hard-negative trial.
+        "hard_negative_id": hard_negative_id,
         "context_variant": variant,
         "context_variant_kind": CONTEXT_VARIANT_KIND.get(variant, "unclassified"),
         "replica_index": replica,
@@ -730,15 +984,39 @@ def run_trial(
         record["timeline"]["measurement_finished_at_utc"] = now_utc()
         record["measurement_duration_ns"] = time.monotonic_ns() - measurement_started_ns
 
-        record["ground_truth"] = run_scenario(
-            name, record["container_id"], image["reference"], run_id, trial_id, scenario_id
-        )
+        if scenario_id == BENIGN_SENTINEL:
+            record["ground_truth"] = run_benign(
+                name, record["container_id"], image["reference"], run_id, trial_id
+            )
+        elif hard_negative_id is not None:
+            record["ground_truth"] = run_hard_negative(
+                name, record["container_id"], image["reference"], run_id, trial_id,
+                family, hard_negative_id, port,
+            )
+        else:
+            record["ground_truth"] = run_scenario(
+                name, record["container_id"], image["reference"], run_id, trial_id, scenario_id
+            )
         record["timeline"]["settle_started_at_utc"] = now_utc()
         time.sleep(settle_seconds)
-        record["reconciliation"] = reconcile_trial(
-            base_url, record["container_id"], run_id, trial_id,
-            record["ground_truth"]["canary_sequences_executed"],
-        )
+        if scenario_id == BENIGN_SENTINEL:
+            record["reconciliation"] = _no_canary_reconciliation(
+                "benign trial (SCN-NONE): no scenario action was taken and no canary was "
+                "injected, so every boundary is not applicable rather than a fabricated "
+                "zero-loss measurement"
+            )
+        elif hard_negative_id is not None:
+            record["reconciliation"] = _no_canary_reconciliation(
+                f"hard-negative trial ({hard_negative_id!r}): no canary was injected by design "
+                "-- synthesizing one would contaminate the exact benign process distribution "
+                "this hard negative measures the false-positive rate against, so every boundary "
+                "is not applicable rather than a fabricated pass"
+            )
+        else:
+            record["reconciliation"] = reconcile_trial(
+                base_url, record["container_id"], run_id, trial_id,
+                record["ground_truth"]["canary_sequences_executed"],
+            )
         record["status"] = "completed"
     except (PilotError, OSError, subprocess.SubprocessError, ValueError) as error:
         record["status"] = "failed"
@@ -799,7 +1077,14 @@ def build_matrix(
                         f"{scenario_id} has no runtime action; it is evaluated at analysis time "
                         "from trials that were already collected"
                     )
-                if scenario_id not in RUNTIME_SCENARIOS and scenario_id not in ATTACK_LIKE_SCENARIOS:
+                is_benign_or_hard_negative = (
+                    scenario_id == BENIGN_SENTINEL or scenario_id in HARD_NEGATIVES.get(family, {})
+                )
+                if (
+                    not is_benign_or_hard_negative
+                    and scenario_id not in RUNTIME_SCENARIOS
+                    and scenario_id not in ATTACK_LIKE_SCENARIOS
+                ):
                     raise PilotError(f"{scenario_id} is not a frozen scenario")
                 for variant in variants:
                     if variant not in CONTEXT_VARIANTS:
