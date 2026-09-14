@@ -14,7 +14,13 @@ class ArtifactError(ValueError):
 
 
 def canonical_json(value: Any) -> str:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    # allow_nan=False: json.dumps's default (allow_nan=True) silently emits the bare
+    # tokens NaN/Infinity/-Infinity for non-finite floats, which are not valid JSON and
+    # which a conformant downstream parser (or a strict json.loads elsewhere in this
+    # same codebase) will reject. Raising here, at encode time, surfaces a non-finite
+    # value in an experiment artifact immediately instead of producing a file that
+    # looks like JSON but silently isn't.
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
 
 def sha256_bytes(value: bytes) -> str:

@@ -8,10 +8,32 @@ from experiments import run as run_module
 from experiments.artifacts import (
     ArtifactError,
     atomic_write_json,
+    canonical_json,
     reconcile_boundaries,
     versioned_artifact_paths,
     write_versioned_json,
 )
+
+
+def test_canonical_json_rejects_non_finite_floats() -> None:
+    """json.dumps's default (allow_nan=True) would silently emit the bare tokens
+    NaN/Infinity, which are not valid JSON; canonical_json must raise instead of
+    producing a file that looks like JSON but a conformant parser would reject."""
+    with pytest.raises(ValueError):
+        canonical_json({"x": float("nan")})
+    with pytest.raises(ValueError):
+        canonical_json({"x": float("inf")})
+    with pytest.raises(ValueError):
+        canonical_json({"x": float("-inf")})
+
+
+def test_canonical_json_still_encodes_ordinary_floats() -> None:
+    assert canonical_json({"x": 0.25}) == '{"x":0.25}'
+
+
+def test_atomic_write_json_rejects_non_finite_floats(tmp_path) -> None:
+    with pytest.raises(ValueError):
+        atomic_write_json(tmp_path / "bad.json", {"score": float("nan")})
 
 
 def test_atomic_json_is_immutable(tmp_path) -> None:
