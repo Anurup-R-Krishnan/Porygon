@@ -167,3 +167,140 @@ def test_score_trial_under_scope_uses_the_real_production_js_distance(fake_distr
     scored = scope.score_trial_under_scope("http://x", identity, "ARM-DIGEST", references, threshold=0.25)
     assert scored.js_distance == 1.0
     assert scored.positive is True
+
+
+# ---------------------------------------------------------------------------
+# Split-leak regression tests (calibration must never pool into the scored
+# test set) and MET-CAL-001 calibration-coverage tests.
+# ---------------------------------------------------------------------------
+
+
+def _write_three_split_run(trials_dir, fake_distributions):
+    """One fit, one calibration, one test trial, all sharing a digest so they
+    pool into the same ARM-DIGEST reference/coverage group."""
+    fake_distributions["c-fit"] = {"nginx": 1, "sh": 6, "head": 6}
+    fake_distributions["c-cal"] = {"nginx": 1, "sh": 6, "head": 6}
+    fake_distributions["c-test"] = {"nginx": 1, "sh": 6, "head": 6}
+
+    _write_trial(trials_dir, "fit-r01", container_id="c-fit", image_ref="nginx@sha256:aaa",
+                 human_tag="nginx:1.26", context_hash="h1", attack_like=False)
+    _write_trial(trials_dir, "cal-r01", container_id="c-cal", image_ref="nginx@sha256:aaa",
+                 human_tag="nginx:1.26", context_hash="h1", attack_like=False)
+    _write_trial(trials_dir, "test-r01", container_id="c-test", image_ref="nginx@sha256:aaa",
+                 human_tag="nginx:1.26", context_hash="h1", attack_like=False)
+
+
+def _force_split(monkeypatch, mapping):
+    import experiments.scope as scope_module
+
+    monkeypatch.setattr(scope_module, "assign_split", lambda trial_id: mapping[trial_id])
+
+
+def test_compare_scopes_never_scores_a_calibration_trial_as_test(tmp_path, fake_distributions, monkeypatch):
+    """Regression test for the calibration-into-test pooling bug: a
+    calibration-split trial_id must never appear among the test-scored trials
+    of any scope, and must be counted in calibration_trials instead."""
+    trials_dir = tmp_path / "trials"
+    trials_dir.mkdir()
+    _write_three_split_run(trials_dir, fake_distributions)
+    _force_split(monkeypatch, {"fit-r01": "fit", "cal-r01": "calibration", "test-r01": "test"})
+
+    result = scope.compare_scopes("http://x", tmp_path)
+
+    assert result["test_trials"] == 1
+    assert result["calibration_trials"] == 1
+    for scope_name in scope.SCOPES:
+        scored_ids = {t["trial_id"] for t in result["scopes"][scope_name]["trials"]}
+        assert "cal-r01" not in scored_ids
+        assert scored_ids == {"test-r01"}
+
+
+def test_calibration_coverage_returns_a_sane_interval(tmp_path, fake_distributions, monkeypatch):
+    trials_dir = tmp_path / "trials"
+    trials_dir.mkdir()
+    _write_three_split_run(trials_dir, fake_distributions)
+    _force_split(monkeypatch, {"fit-r01": "fit", "cal-r01": "calibration", "test-r01": "test"})
+
+    result = scope.compare_scopes("http://x", tmp_path)
+
+    coverage = result["scopes"]["ARM-DIGEST"]["calibration_coverage"]
+    assert coverage["calibration_trials"] == 1
+    assert coverage["alpha"] == scope.CALIBRATION_COVERAGE_ALPHA
+    interval = coverage["coverage"]
+    assert interval["trials"] == 1
+    assert 0.0 <= interval["lower"] <= interval["upper"] <= 1.0
+    # Identical distribution -> zero distance -> maximal p-value -> covered.
+    assert coverage["covered"] == 1
+    assert coverage["trials"][0]["status"] == "scored"
+    assert coverage["trials"][0]["covered"] is True
+
+
+def test_calibration_coverage_reports_drift_for_an_unseen_digest(tmp_path, fake_distributions, monkeypatch):
+    """A calibration trial whose (digest, context_hash) never trained the
+    scope's fit-split reference is drift, not an ordinary scored outcome, for
+    any scope whose key still resolves (e.g. ARM-GLOBAL/ARM-TAG pool
+    multiple digests into one reference key)."""
+    trials_dir = tmp_path / "trials"
+    trials_dir.mkdir()
+    fake_distributions["c-fit"] = {"nginx": 1, "sh": 6}
+    fake_distributions["c-cal-drift"] = {"nginx": 1, "sh": 6}
+    _write_trial(trials_dir, "fit-r01", container_id="c-fit", image_ref="nginx@sha256:aaa",
+                 human_tag="nginx:1.26", context_hash="h1", attack_like=False)
+    _write_trial(trials_dir, "cal-r01", container_id="c-cal-drift", image_ref="nginx@sha256:bbb",
+                 human_tag="nginx:1.26", context_hash="h2", attack_like=False)
+    _force_split(monkeypatch, {"fit-r01": "fit", "cal-r01": "calibration"})
+
+    result = scope.compare_scopes("http://x", tmp_path)
+
+    # ARM-GLOBAL pools every digest into one "global" key, so cal-r01's key
+    # resolves, but its own (digest, context_hash) never trained that key.
+    global_coverage = result["scopes"]["ARM-GLOBAL"]["calibration_coverage"]
+    assert global_coverage["drift_detected_runs"] == 1
+    assert global_coverage["calibration_trials"] == 1
+    row = global_coverage["trials"][0]
+    assert row["status"] == "drift_detected"
+    assert row["covered"] is False
+
+    # ARM-DIGEST never even resolves a reference for the unseen digest.
+    digest_coverage = result["scopes"]["ARM-DIGEST"]["calibration_coverage"]
+    assert digest_coverage["insufficient_profile_runs"] == 1
+
+
+def test_check_calibration_test_isolation_raises_on_container_id_collision():
+    """The isolation check must be capable of catching a real cross-split
+    leak: two records that share the same container_id (the real Docker
+    runtime identity) but disagree on split is exactly that, and must raise
+    -- unlike keying by trial_id, whose split is a pure function of itself
+    and can never disagree with itself."""
+    from experiments.artifacts import ArtifactError
+
+    calibration = [
+        scope.TrialIdentity(
+            trial_id="cal-r01", container_id="shared-container", image_digest="nginx@sha256:aaa",
+            human_tag="nginx:1.26", runtime_context_hash="h1", split="calibration", is_scenario=False,
+        )
+    ]
+    test = [
+        scope.TrialIdentity(
+            trial_id="test-r01", container_id="shared-container", image_digest="nginx@sha256:aaa",
+            human_tag="nginx:1.26", runtime_context_hash="h1", split="test", is_scenario=False,
+        )
+    ]
+    with pytest.raises(ArtifactError, match="split leakage"):
+        scope.check_calibration_test_isolation([], calibration, test)
+
+
+def test_check_calibration_test_isolation_passes_when_containers_are_distinct():
+    calibration = [
+        scope.TrialIdentity(
+            trial_id="cal-r01", container_id="c-cal", image_digest="nginx@sha256:aaa",
+            human_tag="nginx:1.26", runtime_context_hash="h1", split="calibration", is_scenario=False,
+        )
+    ]
+    test = [
+        scope.TrialIdentity(
+            trial_id="test-r01", container_id="c-test", image_digest="nginx@sha256:aaa",
+            human_tag="nginx:1.26", runtime_context_hash="h1", split="test", is_scenario=False,
+        )
+    ]
+    scope.check_calibration_test_isolation([], calibration, test)

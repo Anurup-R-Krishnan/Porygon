@@ -42,8 +42,10 @@ if str(BACKEND_SRC) not in sys.path:
     sys.path.insert(0, str(BACKEND_SRC))
 
 from porygon_api.scoring import jensen_shannon_distance  # noqa: E402
+from porygon_api.calibrated_rarity import empirical_upper_tail_pvalue  # noqa: E402
 
-from experiments.artifacts import assign_split  # noqa: E402
+from experiments.analysis import clopper_pearson_interval  # noqa: E402
+from experiments.artifacts import assign_split, check_split_isolation  # noqa: E402
 
 SCOPES = ("ARM-GLOBAL", "ARM-TAG", "ARM-DIGEST", "ARM-CONTEXT")
 
@@ -51,6 +53,13 @@ SCOPES = ("ARM-GLOBAL", "ARM-TAG", "ARM-DIGEST", "ARM-CONTEXT")
 # in backend/src/porygon_api/scoring.py: at or above this JS distance is
 # outside the "baseline_like" band the production scorer itself uses.
 DEFAULT_THRESHOLD = 0.25
+
+# One-sided rejection level for MET-CAL-001 ("run-level benign calibration
+# coverage at nominal 95%", RESEARCH_PROTOCOL_V1.md). A calibration-split run
+# is "covered" when its empirical upper-tail p-value against the fit-split
+# calibration values exceeds this alpha; H_1_002's acceptance band is a
+# 92%-98% run-level coverage fraction of runs clearing that bar.
+CALIBRATION_COVERAGE_ALPHA = 0.05
 
 
 @dataclass(frozen=True)
@@ -202,14 +211,183 @@ def score_trial_under_scope(
     )
 
 
+def _isolation_records(identities: list[TrialIdentity]) -> list[dict[str, Any]]:
+    """Build experiments/artifacts.py:check_split_isolation input keyed by
+    container_id, not trial_id.
+
+    trial_id's split is assign_split(trial_id): a pure function of the key
+    itself, so a records list built as {"run_id": trial_id, "split":
+    assign_split(trial_id)} can never disagree with itself -- the same
+    trial_id always hashes to the same split, by construction, so the check
+    can never actually trigger. container_id is the real Docker runtime
+    identity, assigned independently of trial_id; if the same physical
+    container were ever double-counted across two differently-split trial
+    records (a container-reuse bug in experiments/real.py, or two records
+    mistakenly sharing a container id), that is a genuine cross-split leak,
+    and keying by container_id lets check_split_isolation actually catch it.
+    """
+    return [{"run_id": identity.container_id, "split": identity.split} for identity in identities]
+
+
+def check_calibration_test_isolation(
+    fit: list[TrialIdentity], calibration: list[TrialIdentity], test: list[TrialIdentity]
+) -> None:
+    """Raise if any physical container is double-counted across the
+    fit/calibration/test partition this module scores. Guards specifically
+    against a regression of the calibration-into-test pooling bug this module
+    once had (a calibration-split trial silently scored as a test-split
+    trial), but checks all three splits pairwise for the same reason."""
+    check_split_isolation(_isolation_records(fit) + _isolation_records(calibration) + _isolation_records(test))
+
+
+@dataclass(frozen=True)
+class CalibrationScoredTrial:
+    trial_id: str
+    scope: str
+    reference_key: str
+    reference_key_present: bool
+    js_distance: float | None
+    p_value: float | None
+    covered: bool
+    drift_detected: bool
+    status: str  # "scored" | "insufficient_profile" | "drift_detected"
+
+
+def _fit_reference_distances(
+    base_url: str,
+    fit_identities: list[TrialIdentity],
+    scope: str,
+    references: dict[str, dict[str, float]],
+    threshold: float,
+) -> dict[str, list[float]]:
+    """The "fit-split calibration values" MET-CAL-001 requires: each
+    fit-split trial's own JS distance against its scope's fit-split
+    reference, forming the empirical null distribution a held-out
+    calibration-split run's distance is compared against. Reuses
+    score_trial_under_scope -- the exact function that scores test-split
+    trials -- so this can never silently drift from that scoring logic."""
+    values: dict[str, list[float]] = {}
+    for identity in fit_identities:
+        scored = score_trial_under_scope(base_url, identity, scope, references, threshold)
+        if scored.reference_key_present and scored.js_distance is not None:
+            values.setdefault(scored.reference_key, []).append(scored.js_distance)
+    return values
+
+
+def _training_fingerprints(fit_identities: list[TrialIdentity], scope: str) -> dict[str, set[tuple[str, str]]]:
+    """Every (image_digest, runtime_context_hash) identity that contributed to
+    each scope key's fit-split reference. A calibration run whose own identity
+    never appeared in training is drift, not an ordinary calibrated outcome:
+    MET-CAL-001's exchangeability assumption -- the held-out run's statistic
+    is exchangeable with the fit-split calibration values it is compared
+    against -- does not hold for it."""
+    fingerprints: dict[str, set[tuple[str, str]]] = {}
+    for identity in fit_identities:
+        key = scope_key(identity, scope)
+        fingerprints.setdefault(key, set()).add((identity.image_digest, identity.runtime_context_hash))
+    return fingerprints
+
+
+def score_calibration_trial(
+    base_url: str,
+    identity: TrialIdentity,
+    scope: str,
+    references: dict[str, dict[str, float]],
+    fit_reference_distances: dict[str, list[float]],
+    training_fingerprints: dict[str, set[tuple[str, str]]],
+    threshold: float = DEFAULT_THRESHOLD,
+    alpha: float = CALIBRATION_COVERAGE_ALPHA,
+) -> CalibrationScoredTrial:
+    scored = score_trial_under_scope(base_url, identity, scope, references, threshold)
+    if not scored.reference_key_present:
+        return CalibrationScoredTrial(
+            trial_id=identity.trial_id, scope=scope, reference_key=scored.reference_key,
+            reference_key_present=False, js_distance=None, p_value=None,
+            covered=False, drift_detected=False, status="insufficient_profile",
+        )
+    fingerprint = (identity.image_digest, identity.runtime_context_hash)
+    if fingerprint not in training_fingerprints.get(scored.reference_key, set()):
+        # Never scored against a reference this identity never trained --
+        # reported as drift rather than silently scored against a mismatched
+        # calibration set (RESEARCH_PROTOCOL_V1.md MET-CAL-001).
+        return CalibrationScoredTrial(
+            trial_id=identity.trial_id, scope=scope, reference_key=scored.reference_key,
+            reference_key_present=True, js_distance=scored.js_distance, p_value=None,
+            covered=False, drift_detected=True, status="drift_detected",
+        )
+    calibration_values = fit_reference_distances.get(scored.reference_key, [])
+    pvalue_result = empirical_upper_tail_pvalue(calibration_values, scored.js_distance)
+    p_value = pvalue_result.get("p_value")
+    covered = p_value is not None and p_value > alpha
+    return CalibrationScoredTrial(
+        trial_id=identity.trial_id, scope=scope, reference_key=scored.reference_key,
+        reference_key_present=True, js_distance=scored.js_distance, p_value=p_value,
+        covered=covered, drift_detected=False, status="scored",
+    )
+
+
+def compute_calibration_coverage(
+    base_url: str,
+    fit: list[TrialIdentity],
+    calibration: list[TrialIdentity],
+    scope: str,
+    references: dict[str, dict[str, float]],
+    threshold: float = DEFAULT_THRESHOLD,
+    alpha: float = CALIBRATION_COVERAGE_ALPHA,
+) -> dict[str, Any]:
+    """MET-CAL-001 for one scope: score every calibration-split benign trial's
+    JS distance against the scope's fit-split reference through
+    empirical_upper_tail_pvalue, using the fit-split trials' own distances
+    against that same reference as the calibration values. insufficient_profile
+    and drift_detected runs are retained in the denominator (never dropped);
+    only runs sharing calibration-set identity ("scored") can contribute to
+    the coverage numerator, per RESEARCH_PROTOCOL_V1.md."""
+    fit_reference_distances = _fit_reference_distances(base_url, fit, scope, references, threshold)
+    training_fingerprints = _training_fingerprints(fit, scope)
+    rows = [
+        score_calibration_trial(
+            base_url, identity, scope, references, fit_reference_distances, training_fingerprints, threshold, alpha
+        )
+        for identity in calibration
+    ]
+
+    covered = sum(1 for r in rows if r.status == "scored" and r.covered)
+    denominator = len(rows)
+    interval = clopper_pearson_interval(covered, denominator)
+
+    return {
+        "alpha": alpha,
+        "calibration_trials": denominator,
+        "covered": covered,
+        "drift_detected_runs": sum(1 for r in rows if r.status == "drift_detected"),
+        "insufficient_profile_runs": sum(1 for r in rows if r.status == "insufficient_profile"),
+        "coverage": {
+            "successes": interval.successes, "trials": interval.trials,
+            "point_estimate": interval.point_estimate, "lower": interval.lower,
+            "upper": interval.upper, "confidence": interval.confidence,
+        },
+        "trials": [
+            {
+                "trial_id": r.trial_id, "reference_key": r.reference_key,
+                "reference_key_present": r.reference_key_present, "js_distance": r.js_distance,
+                "p_value": r.p_value, "covered": r.covered, "drift_detected": r.drift_detected,
+                "status": r.status,
+            }
+            for r in rows
+        ],
+    }
+
+
 def compare_scopes(
     base_url: str,
     run_dir: Path,
     threshold: float = DEFAULT_THRESHOLD,
+    alpha: float = CALIBRATION_COVERAGE_ALPHA,
 ) -> dict[str, Any]:
     """Full comparison: build every scope's fit-split reference, score every
-    test-split trial under every scope, and return per-scope FPR/recall raw
-    counts ready for experiments/analysis.py."""
+    test-split trial under every scope, compute MET-CAL-001 calibration
+    coverage from the calibration split, and return per-scope FPR/recall/
+    coverage raw counts ready for experiments/analysis.py."""
     identities = load_trial_identities(run_dir)
     # A behavior-profile fit set must only ever contain benign evidence.
     # assign_split() assigns purely by trial_id hash and has no notion of
@@ -224,9 +402,25 @@ def compare_scopes(
     # trials are deliberately interleaved for scheduling reasons, filtering
     # is mandatory rather than implicit.
     fit = [i for i in identities if i.split == "fit" and not i.is_scenario]
-    test = [i for i in identities if i.split in ("test", "calibration")]
+    # The calibration split is disjoint from test: pooling it into the
+    # test-split evaluation set (i.split in ("test", "calibration")) silently
+    # skipped MET-CAL-001 entirely and violated this project's own no-data-
+    # crosses-split-boundaries rule. Calibration is scored separately, below,
+    # against its own metric (compute_calibration_coverage).
+    test = [i for i in identities if i.split == "test"]
+    # MET-CAL-001 is specified over benign runs only ("held-out benign
+    # calibration coverage"); mirror the fit filter for the same reason.
+    calibration = [i for i in identities if i.split == "calibration" and not i.is_scenario]
 
-    results: dict[str, Any] = {"threshold": threshold, "fit_trials": len(fit), "test_trials": len(test), "scopes": {}}
+    check_calibration_test_isolation(fit, calibration, test)
+
+    results: dict[str, Any] = {
+        "threshold": threshold,
+        "fit_trials": len(fit),
+        "test_trials": len(test),
+        "calibration_trials": len(calibration),
+        "scopes": {},
+    }
 
     for scope in SCOPES:
         references = build_scope_references(base_url, fit, scope)
@@ -239,6 +433,10 @@ def compare_scopes(
         false_positives = sum(1 for s in benign if s.positive)
         true_positives = sum(1 for s in scenario if s.positive)
 
+        calibration_coverage = compute_calibration_coverage(
+            base_url, fit, calibration, scope, references, threshold, alpha
+        )
+
         results["scopes"][scope] = {
             "reference_keys": sorted(references.keys()),
             "benign_runs": len(benign),
@@ -246,6 +444,7 @@ def compare_scopes(
             "scenario_runs": len(scenario),
             "true_positives": true_positives,
             "insufficient_profile_runs": len(insufficient),
+            "calibration_coverage": calibration_coverage,
             "trials": [
                 {
                     "trial_id": s.trial_id, "reference_key": s.reference_key,
