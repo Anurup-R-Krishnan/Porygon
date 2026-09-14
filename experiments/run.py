@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from experiments import real
+from experiments import environment, real
 from experiments.artifacts import (
     ArtifactError,
     atomic_write_json,
@@ -388,9 +388,14 @@ def run_pilot(
         images[workload_id] = image
 
     # run.json is written before the first trial so a resumed run keeps its original
-    # provenance instead of silently re-stamping the creation time.
+    # provenance instead of silently re-stamping the creation time. environment.json is
+    # captured in the same window so the run's actual runtime environment (kernel, Falco
+    # ruleset, service image digests, scoring-config version, code state) is pinned before
+    # any trial executes, not reconstructed later from whatever happens to still be true.
     run_path = run_dir / "run.json"
     if not run_path.exists():
+        environment_document = environment.run_environment()
+        atomic_write_json(run_dir / "environment.json", environment_document)
         atomic_write_json(
             run_path,
             {
@@ -415,6 +420,7 @@ def run_pilot(
                 "seed": seed,
                 "boundaries": ["generator", "source", "spool", "api", "database"],
                 "matrix": matrix,
+                "environment_hash": environment.environment_hash(environment_document),
             },
         )
     if not (run_dir / "images.json").exists():
@@ -455,10 +461,45 @@ def run_pilot(
 
 
 def confirmatory(protocol: Path) -> None:
-    text = protocol.read_text(encoding="utf-8")
-    if "Status: **FROZEN" not in text:
-        raise ArtifactError("confirmatory collection is refused until the protocol is frozen by human review")
-    raise ArtifactError("confirmatory runner is intentionally gated until the approved workload matrix is implemented")
+    """Always refuse. No confirmatory runner exists; this only reports exactly why
+    collection is not currently permitted.
+
+    The refusal reason comes from `scripts/review_gate.py:gate_state()` -- the single
+    source of truth for whether the protocol is frozen and both independent human
+    reviews are in -- rather than a generic string-grep against the protocol text, so
+    every specific blocking reason it names (per-role approval problems, reviewer
+    independence) is surfaced. `gate_state()` always reads the canonical protocol
+    document at its own fixed path; `protocol` is accepted for CLI/signature
+    compatibility but does not change what is checked.
+    """
+    from experiments.sample_size import _load_review_gate
+
+    review_gate = _load_review_gate()
+    state = review_gate.gate_state()
+
+    if state.get("confirmatory_permitted"):
+        # The review gate itself is satisfied, but this codebase still has no real
+        # confirmatory collection path -- that is a separate, deliberate gap, not
+        # something this function is implementing.
+        raise ArtifactError(
+            "confirmatory runner is intentionally gated until the approved workload matrix "
+            "is implemented; the review gate reports confirmatory_permitted=true, but no "
+            "real confirmatory collection path exists in this codebase yet"
+        )
+
+    reasons: list[str] = []
+    for role, problems in (state.get("approval_problems") or {}).items():
+        for problem in problems:
+            reasons.append(f"{role} review: {problem}")
+    independence = state.get("independence") or {}
+    if independence.get("independent") is False:
+        reasons.append(f"reviewer independence: {independence.get('reason')}")
+    if state.get("protocol_status") != "frozen":
+        reasons.append(f"protocol_status is {state.get('protocol_status')!r}, not 'frozen'")
+    if not reasons:
+        reasons.append("scripts/review_gate.py:gate_state() reports confirmatory_permitted=false")
+
+    raise ArtifactError("confirmatory collection is refused: " + "; ".join(reasons))
 
 
 def main(argv: list[str] | None = None) -> int:
