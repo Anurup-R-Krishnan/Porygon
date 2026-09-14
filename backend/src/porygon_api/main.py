@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from sqlalchemy import case, desc, func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -65,6 +65,8 @@ from porygon_api.models import (
     CalibratedRarityScore,
 )
 from porygon_api.schemas import (
+    AiAuditIn,
+    AiAuditOut,
     AnomalyScoreComputeIn,
     AnomalyScoreOut,
     BehaviorProfileBuildIn,
@@ -147,6 +149,7 @@ from porygon_api.vulnerability import (
     sha256_document,
     summarize_findings,
 )
+from porygon_api.ai_auditor import perform_container_audit
 
 settings = get_settings()
 logging.basicConfig(
@@ -2373,6 +2376,139 @@ def list_containers(
             select(ContainerIdentity).order_by(desc(ContainerIdentity.last_seen_at)).limit(limit)
         ).all()
     )
+
+
+@app.post("/api/v1/ai/audit", response_model=AiAuditOut, tags=["ai"])
+def audit_container(
+    payload: AiAuditIn,
+    x_porygon_ai_key: str | None = Header(default=None, alias="X-Porygon-AI-Key"),
+    x_porygon_ai_provider: str | None = Header(default=None, alias="X-Porygon-AI-Provider"),
+    db: Session = Depends(get_db),
+) -> AiAuditOut:
+    cid = payload.container_id.strip()
+    container = db.scalar(
+        select(ContainerIdentity).where(
+            or_(
+                ContainerIdentity.container_id == cid,
+                ContainerIdentity.container_id.startswith(cid),
+            )
+        )
+    )
+    if container is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Container {cid} not found in monitored inventory",
+        )
+
+    api_key = payload.api_key or x_porygon_ai_key
+    if not api_key and settings.ai_api_key:
+        api_key = settings.ai_api_key.get_secret_value()
+
+    if not api_key or not api_key.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing AI API key. Provide your key via the X-Porygon-AI-Key header, request payload, or PORYGON_AI_API_KEY in .env",
+        )
+
+    provider = (payload.provider or x_porygon_ai_provider or settings.ai_provider or "gemini").lower()
+
+    events = list(
+        db.scalars(
+            select(ProcessExecEvent)
+            .where(
+                or_(
+                    ProcessExecEvent.container_id == container.container_id,
+                    ProcessExecEvent.reported_container_id == container.container_id[:12],
+                )
+            )
+            .order_by(desc(ProcessExecEvent.occurred_at))
+            .limit(payload.event_limit)
+        ).all()
+    )
+
+    latest_score = None
+    if container.image_digest:
+        latest_score = db.scalar(
+            select(AnomalyScore)
+            .where(
+                AnomalyScore.image_digest == container.image_digest,
+                AnomalyScore.status == "scored",
+            )
+            .order_by(desc(AnomalyScore.created_at))
+            .limit(1)
+        )
+
+    drift_score = float(latest_score.score_value) if latest_score and latest_score.score_value is not None else None
+
+    cves: list[dict[str, Any]] = []
+    if container.image_digest:
+        findings = list(
+            db.scalars(
+                select(VulnerabilityFinding)
+                .where(VulnerabilityFinding.image_digest == container.image_digest)
+                .order_by(desc(VulnerabilityFinding.cvss_score))
+                .limit(15)
+            ).all()
+        )
+        for f in findings:
+            cves.append({
+                "cve_id": f.cve_id,
+                "severity": f.severity,
+                "cvss_score": f.cvss_score,
+                "title": f.title,
+                "package": f.package_name,
+            })
+
+    ports = []
+    if container.current_snapshot and isinstance(container.current_snapshot, dict):
+        network_settings = container.current_snapshot.get("NetworkSettings", {})
+        if isinstance(network_settings, dict):
+            ports = list(network_settings.get("Ports", {}).keys())
+
+    container_info = {
+        "container_id": container.container_id,
+        "container_name": container.container_name,
+        "image_ref": container.image_ref,
+        "image_digest": container.image_digest,
+        "ports": ports,
+    }
+
+    events_data = [
+        {
+            "occurred_at": e.occurred_at.isoformat() if e.occurred_at else None,
+            "process_name": e.process_name,
+            "executable": e.executable,
+            "command_line": e.command_line,
+            "user_uid": e.user_uid,
+            "parent_name": e.parent_name,
+            "parent_command_line": e.parent_command_line,
+        }
+        for e in events
+    ]
+
+    matched_rules = []
+    for e in events:
+        if e.rule_name and e.rule_name not in matched_rules:
+            matched_rules.append(e.rule_name)
+
+    try:
+        return perform_container_audit(
+            container_info=container_info,
+            events=events_data,
+            porygon_drift_score=drift_score,
+            matched_rules=matched_rules,
+            cves=cves,
+            provider=provider,
+            api_key=api_key.strip(),
+            model=payload.model or settings.ai_model,
+        )
+    except ValueError as exc:
+        logger.warning("AI audit failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+
 
 
 @app.get("/api/v1/system/info", response_model=SystemInfo, tags=["system"])

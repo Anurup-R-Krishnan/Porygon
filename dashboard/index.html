@@ -106,6 +106,9 @@
       <button @click="manageOperatorToken()" class="hidden sm:inline-flex group h-9 w-9 nav-icon-btn rounded-full ring-1 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]" :class="operatorToken ? 'bg-emerald-400 text-black ring-emerald-400' : 'bg-white/10 text-white/70 ring-white/10 hover:bg-white hover:text-black'" :title="operatorToken ? 'Operator token set — click to clear' : 'Set operator token for containment approval'">
         <i class="ph text-[14px] leading-none block" :class="operatorToken ? 'ph-key' : 'ph-lock-key'"></i>
       </button>
+      <button @click="openAiKeyModal()" class="hidden sm:inline-flex group h-9 w-9 nav-icon-btn rounded-full ring-1 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]" :class="aiConfig.apiKey ? 'bg-violet-500 text-white ring-violet-400 shadow-[0_0_12px_rgba(167,139,250,0.4)]' : 'bg-white/10 text-white/70 ring-white/10 hover:bg-white hover:text-black'" :title="aiConfig.apiKey ? 'AI Inspector active (' + aiConfig.provider + ') — click to configure' : 'Configure AI API Key (Gemini, OpenAI, Anthropic)'">
+        <i class="ph text-[15px] leading-none block" :class="aiConfig.apiKey ? 'ph-sparkle' : 'ph-brain'"></i>
+      </button>
       <button @click="showDocsModal = true" class="hidden sm:inline-flex group h-9 w-9 nav-icon-btn rounded-full bg-white/10 text-white/80 ring-1 ring-white/10 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] hover:bg-white hover:text-black active:scale-[0.98]" title="Porygon Architecture Blueprint & Guide">
         <i class="ph ph-book-open text-[15px] leading-none block"></i>
       </button>
@@ -366,7 +369,7 @@
             <div class="mt-6 overflow-x-auto rounded-2xl ring-1 ring-white/10 table-wrap">
               <table class="w-full min-w-[640px] text-left text-[13px]">
                 <thead class="bg-white/[0.04] text-[10px] font-bold uppercase tracking-[0.14em] text-white/40">
-                  <tr><th class="px-4 py-3">Container</th><th class="px-4 py-3">ID</th><th class="px-4 py-3">Image digest</th><th class="px-4 py-3">State</th><th class="px-4 py-3">PID</th><th class="px-4 py-3">Protection</th></tr>
+                  <tr><th class="px-4 py-3">Container</th><th class="px-4 py-3">ID</th><th class="px-4 py-3">Image digest</th><th class="px-4 py-3">State</th><th class="px-4 py-3">PID</th><th class="px-4 py-3">Protection</th><th class="px-4 py-3 text-right">AI Action</th></tr>
                 </thead>
                 <tbody class="divide-y divide-white/5">
                   <template x-for="c in containers" :key="c.container_id">
@@ -382,6 +385,12 @@
                       <td class="px-4 py-3"><span class="rounded-full px-2.5 py-1 text-[11px] font-bold uppercase" :class="c.current_snapshot?.state?.running ? 'bg-emerald-400 text-black' : 'bg-white/10 text-white/60'" x-text="c.current_snapshot?.state?.running ? 'Running' : 'Stopped'"></span></td>
                       <td class="px-4 py-3 font-mono text-[12px]" x-text="c.current_snapshot?.state?.pid || '—'"></td>
                       <td class="px-4 py-3"><span class="rounded-full px-2.5 py-1 text-[11px] font-bold uppercase" :class="c.container_name.includes('porygon') ? 'bg-violet-500 text-white' : 'bg-white text-black'" x-text="c.container_name.includes('porygon') ? 'Protected' : 'Monitored'"></span></td>
+                      <td class="px-4 py-3 text-right">
+                        <button @click.stop="auditContainerWithAi(c)" class="rounded-full bg-violet-500/10 text-violet-300 ring-1 ring-violet-500/30 hover:bg-violet-500 hover:text-white px-3 py-1 text-[11px] font-semibold tracking-tight transition-all flex items-center gap-1.5 ml-auto">
+                          <i class="ph ph-sparkle text-[12px]"></i>
+                          <span>Audit with AI</span>
+                        </button>
+                      </td>
                     </tr>
                   </template>
                 </tbody>
@@ -1533,6 +1542,249 @@
       <div class="mt-5 flex justify-end gap-2">
         <button @click="submitConfirmModal(false)" class="rounded-full bg-white/5 px-4 py-2 text-[12px] font-semibold text-white/60 hover:bg-white/10">Cancel</button>
         <button @click="submitConfirmModal(true)" class="rounded-full px-4 py-2 text-[12px] font-bold ring-1 transition-colors" :class="confirmModal.danger ? 'bg-red-500 text-white ring-red-400/30 hover:bg-red-600' : 'bg-black text-white ring-white/20 hover:bg-white hover:text-black'" x-text="confirmModal.confirmLabel"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI CONFIGURATION MODAL -->
+  <div x-show="aiModal.show" x-transition.opacity.duration.200 class="fixed inset-0 z-[70] grid place-items-center bg-black/70 p-4 backdrop-blur-sm" @keydown.escape.window="aiModal.show=false" style="display:none">
+    <div class="w-full max-w-md rounded-[1.5rem] bg-[#0A0A0F] p-6 text-white ring-1 ring-white/10" @click.outside="aiModal.show=false">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <span class="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full bg-violet-500 text-white shadow-[0_0_15px_rgba(167,139,250,0.5)]"><i class="ph ph-sparkle text-[18px]"></i></span>
+          <div>
+            <h3 class="font-display text-[16px] font-bold tracking-tight">AI Security Inspector</h3>
+            <p class="text-[11px] text-white/40">Powered by LLM Semantic Analysis</p>
+          </div>
+        </div>
+        <button @click="aiModal.show=false" class="text-white/40 hover:text-white"><i class="ph ph-x text-[16px]"></i></button>
+      </div>
+
+      <p class="mt-3 text-[13px] leading-relaxed text-white/60">
+        Connect your private API key to enable semantic inspection of container process trees and detect subtle living-off-the-land evasions that rule signatures miss.
+      </p>
+
+      <div class="mt-4 space-y-3.5">
+        <div>
+          <label class="block text-[11px] font-semibold uppercase tracking-[0.08em] text-white/40 mb-1.5">AI Provider</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button type="button" @click="aiModal.provider='gemini'" :class="aiModal.provider==='gemini' ? 'bg-violet-600 text-white ring-1 ring-violet-400 font-bold' : 'bg-white/5 text-white/60 hover:bg-white/10'" class="rounded-xl py-2 px-3 text-[12px] transition-all text-center">Google Gemini</button>
+            <button type="button" @click="aiModal.provider='openai'" :class="aiModal.provider==='openai' ? 'bg-violet-600 text-white ring-1 ring-violet-400 font-bold' : 'bg-white/5 text-white/60 hover:bg-white/10'" class="rounded-xl py-2 px-3 text-[12px] transition-all text-center">OpenAI</button>
+            <button type="button" @click="aiModal.provider='anthropic'" :class="aiModal.provider==='anthropic' ? 'bg-violet-600 text-white ring-1 ring-violet-400 font-bold' : 'bg-white/5 text-white/60 hover:bg-white/10'" class="rounded-xl py-2 px-3 text-[12px] transition-all text-center">Anthropic</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold uppercase tracking-[0.08em] text-white/40 mb-1.5">
+            <span x-text="aiModal.provider.toUpperCase()"></span> API Key
+          </label>
+          <input
+            type="password"
+            x-model="aiModal.apiKey"
+            @keydown.enter="saveAiKey()"
+            :placeholder="aiModal.provider === 'gemini' ? 'AIzaSy...' : (aiModal.provider === 'openai' ? 'sk-proj-...' : 'sk-ant-...')"
+            autocomplete="off"
+            class="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 font-mono text-[13px] text-white placeholder:text-white/20 focus:border-violet-500 focus:outline-none"
+          >
+          <span class="mt-1 text-[11px] text-white/30 block">Stored strictly in your local browser (never pushed to Git).</span>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold uppercase tracking-[0.08em] text-white/40 mb-1.5">
+            Model Override <span class="text-white/30 lowercase">(optional)</span>
+          </label>
+          <input
+            type="text"
+            x-model="aiModal.model"
+            :placeholder="aiModal.provider === 'gemini' ? 'gemini-1.5-flash' : (aiModal.provider === 'openai' ? 'gpt-4o-mini' : 'claude-3-5-haiku-20241022')"
+            class="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-mono text-[12px] text-white placeholder:text-white/20 focus:border-violet-500 focus:outline-none"
+          >
+        </div>
+      </div>
+
+      <div class="mt-6 flex items-center justify-between border-t border-white/10 pt-4">
+        <button type="button" @click="clearAiKey()" x-show="aiConfig.apiKey" class="text-[12px] font-medium text-red-400 hover:text-red-300">Remove Key</button>
+        <div class="flex gap-2 ml-auto">
+          <button @click="aiModal.show=false" class="rounded-full bg-white/5 px-4 py-2 text-[12px] font-semibold text-white/60 hover:bg-white/10">Cancel</button>
+          <button @click="saveAiKey()" class="rounded-full bg-violet-600 px-5 py-2 text-[12px] font-bold text-white shadow-[0_0_15px_rgba(167,139,250,0.4)] hover:bg-violet-500 transition-all">Save &amp; Activate</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI AUDIT RESULTS MODAL -->
+  <div x-show="aiAuditModal.show" x-transition.opacity.duration.200 class="fixed inset-0 z-[75] grid place-items-center bg-black/80 p-4 backdrop-blur-md overflow-y-auto" @keydown.escape.window="aiAuditModal.show=false" style="display:none">
+    <div class="w-full max-w-2xl rounded-[2rem] bg-[#0C0C14] p-6 sm:p-8 text-white ring-1 ring-white/15 my-8 shadow-[0_25px_70px_rgba(0,0,0,0.7)]" @click.outside="aiAuditModal.show=false">
+      
+      <!-- Modal Header -->
+      <div class="flex items-start justify-between border-b border-white/10 pb-4">
+        <div class="flex items-center gap-3">
+          <div class="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-[0_0_20px_rgba(139,92,246,0.5)]">
+            <i class="ph ph-sparkle text-[20px]"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="font-display text-[18px] font-bold tracking-tight">AI Runtime Security Audit</h3>
+              <span class="rounded-full bg-violet-400/10 px-2 py-0.5 text-[10px] font-mono uppercase text-violet-300 ring-1 ring-violet-400/20" x-text="aiAuditModal.result ? aiAuditModal.result.provider.toUpperCase() : aiConfig.provider.toUpperCase()"></span>
+            </div>
+            <p class="text-[12px] text-white/50" x-text="aiAuditModal.container ? (aiAuditModal.container.container_name + ' • ' + (aiAuditModal.container.container_id || '').substring(0,12)) : 'Container Analysis'"></p>
+          </div>
+        </div>
+        <button @click="aiAuditModal.show=false" class="rounded-full bg-white/5 p-2 text-white/50 hover:bg-white/10 hover:text-white transition-colors"><i class="ph ph-x text-[16px]"></i></button>
+      </div>
+
+      <!-- Loading State -->
+      <div x-show="aiAuditModal.loading" class="py-16 text-center">
+        <div class="inline-block h-10 w-10 animate-spin rounded-full border-2 border-violet-400 border-t-transparent"></div>
+        <p class="mt-4 font-display text-[15px] font-semibold text-white">Synthesizing Kernel eBPF Telemetry...</p>
+        <p class="mt-1 text-[12px] text-white/50">Analyzing process lineage, privilege changes, and comparing against deterministic rules.</p>
+      </div>
+
+      <!-- Error State -->
+      <div x-show="!aiAuditModal.loading && aiAuditModal.error" class="py-8">
+        <div class="rounded-2xl bg-red-500/10 p-5 ring-1 ring-red-500/20">
+          <div class="flex items-center gap-2 text-red-400 font-bold text-[14px]">
+            <i class="ph ph-warning-circle text-[18px]"></i>
+            <span>AI Audit Failed</span>
+          </div>
+          <p class="mt-2 text-[13px] text-red-200/80" x-text="aiAuditModal.error"></p>
+          <div class="mt-4 flex gap-2">
+            <button @click="openAiKeyModal()" class="rounded-full bg-white/10 px-4 py-1.5 text-[12px] font-semibold text-white hover:bg-white/20">Check API Key</button>
+            <button @click="auditContainerWithAi(aiAuditModal.container)" class="rounded-full bg-red-500 px-4 py-1.5 text-[12px] font-semibold text-white hover:bg-red-600">Retry Audit</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Success Result -->
+      <div x-show="!aiAuditModal.loading && aiAuditModal.result" class="mt-6 space-y-6">
+        
+        <!-- Score Bar: AI Risk vs Porygon JSD -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <!-- AI Risk Score -->
+          <div class="rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-semibold uppercase tracking-wider text-white/40">AI Risk Score</span>
+              <span class="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase"
+                :class="{
+                  'bg-emerald-400/20 text-emerald-300 ring-1 ring-emerald-400/30': aiAuditModal.result?.threat_level === 'clean',
+                  'bg-cyan-400/20 text-cyan-300 ring-1 ring-cyan-400/30': aiAuditModal.result?.threat_level === 'low',
+                  'bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/30': aiAuditModal.result?.threat_level === 'medium',
+                  'bg-orange-500/20 text-orange-300 ring-1 ring-orange-500/30': aiAuditModal.result?.threat_level === 'high',
+                  'bg-red-500/20 text-red-300 ring-1 ring-red-500/30': aiAuditModal.result?.threat_level === 'critical'
+                }"
+                x-text="aiAuditModal.result?.threat_level">
+              </span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+              <span class="font-display text-[28px] font-bold tracking-tight"
+                :class="{
+                  'text-emerald-400': (aiAuditModal.result?.ai_risk_score || 0) < 0.25,
+                  'text-amber-400': (aiAuditModal.result?.ai_risk_score || 0) >= 0.25 && (aiAuditModal.result?.ai_risk_score || 0) < 0.6,
+                  'text-red-400': (aiAuditModal.result?.ai_risk_score || 0) >= 0.6
+                }"
+                x-text="aiAuditModal.result?.ai_risk_score.toFixed(2)">
+              </span>
+              <span class="text-[12px] text-white/40">/ 1.00</span>
+            </div>
+            <span class="text-[11px] text-white/40" x-text="'Confidence: ' + Math.round((aiAuditModal.result?.confidence || 0) * 100) + '%'"></span>
+          </div>
+
+          <!-- Porygon JSD Drift -->
+          <div class="rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10">
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-white/40">Porygon D_JS Drift</span>
+            <div class="mt-2 flex items-baseline gap-2">
+              <span class="font-display text-[28px] font-bold tracking-tight text-white" x-text="aiAuditModal.result?.porygon_drift_score != null ? aiAuditModal.result.porygon_drift_score.toFixed(2) : 'N/A'"></span>
+              <span class="text-[12px] text-white/40" x-show="aiAuditModal.result?.porygon_drift_score != null">/ 1.00</span>
+            </div>
+            <span class="text-[11px] text-white/40">Statistical Divergence</span>
+          </div>
+
+          <!-- Rules Evaluated -->
+          <div class="rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10">
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-white/40">Deterministic Rules</span>
+            <div class="mt-2">
+              <template x-if="aiAuditModal.result?.matched_rules && aiAuditModal.result.matched_rules.length > 0">
+                <div class="flex flex-wrap gap-1 mt-1">
+                  <template x-for="r in aiAuditModal.result.matched_rules" :key="r">
+                    <span class="rounded bg-red-500/20 text-red-300 font-mono text-[10px] px-1.5 py-0.5" x-text="r"></span>
+                  </template>
+                </div>
+              </template>
+              <template x-if="!aiAuditModal.result?.matched_rules || aiAuditModal.result.matched_rules.length === 0">
+                <div>
+                  <span class="text-[16px] font-bold text-emerald-400 block">No Violations</span>
+                  <span class="text-[11px] text-white/40">Rules satisfied</span>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <!-- Executive Summary -->
+        <div class="rounded-2xl bg-violet-500/5 p-4 ring-1 ring-violet-500/20">
+          <div class="flex items-center gap-2 text-[12px] font-bold text-violet-300 uppercase tracking-wider">
+            <i class="ph ph-chat-centered-text"></i>
+            <span>Executive Threat Brief</span>
+          </div>
+          <p class="mt-2 text-[13px] leading-relaxed text-white/90" x-text="aiAuditModal.result?.summary"></p>
+        </div>
+
+        <!-- Semantic Analysis -->
+        <div>
+          <h4 class="text-[12px] font-bold text-white/60 uppercase tracking-wider mb-2">Behavioral Narrative</h4>
+          <div class="rounded-2xl bg-white/[0.02] p-4 ring-1 ring-white/5 text-[13px] leading-relaxed text-white/70" x-text="aiAuditModal.result?.semantic_analysis"></div>
+        </div>
+
+        <!-- Flagged Commands -->
+        <div x-show="aiAuditModal.result?.flagged_commands && aiAuditModal.result.flagged_commands.length > 0">
+          <h4 class="text-[12px] font-bold text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <i class="ph ph-warning"></i>
+            <span>Flagged Suspicious Commands (<span x-text="aiAuditModal.result?.flagged_commands?.length"></span>)</span>
+          </h4>
+          <div class="space-y-2">
+            <template x-for="cmd in aiAuditModal.result?.flagged_commands || []" :key="cmd.command">
+              <div class="rounded-xl bg-red-500/5 p-3 ring-1 ring-red-500/20">
+                <div class="flex items-center justify-between gap-2">
+                  <code class="font-mono text-[12px] text-red-300 break-all" x-text="cmd.command"></code>
+                  <span class="rounded px-2 py-0.5 text-[9px] font-bold uppercase bg-red-500/20 text-red-300 flex-shrink-0" x-text="cmd.severity"></span>
+                </div>
+                <div class="mt-2 flex items-center gap-3 text-[11px] text-white/40">
+                  <span x-text="'UID: ' + cmd.user_uid"></span>
+                  <span x-show="cmd.executable" x-text="'Bin: ' + cmd.executable"></span>
+                </div>
+                <p class="mt-1.5 text-[12px] text-white/70" x-text="cmd.reason"></p>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Containment Recommendations -->
+        <div x-show="aiAuditModal.result?.containment_suggestions && aiAuditModal.result.containment_suggestions.length > 0">
+          <h4 class="text-[12px] font-bold text-amber-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <i class="ph ph-shield-check"></i>
+            <span>Actionable Containment Suggestions</span>
+          </h4>
+          <ul class="space-y-1.5">
+            <template x-for="sug in aiAuditModal.result?.containment_suggestions || []" :key="sug">
+              <li class="flex items-start gap-2 text-[13px] text-white/80 bg-white/[0.02] p-2.5 rounded-xl ring-1 ring-white/5">
+                <span class="text-amber-400 mt-0.5">•</span>
+                <span x-text="sug"></span>
+              </li>
+            </template>
+          </ul>
+        </div>
+
+        <!-- Rule Gap Analysis -->
+        <div x-show="aiAuditModal.result?.rule_gap_analysis" class="border-t border-white/10 pt-4 text-[12px] text-white/50">
+          <span class="font-semibold text-white/70">Porygon Integration Note: </span>
+          <span x-text="aiAuditModal.result?.rule_gap_analysis"></span>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex items-center justify-between border-t border-white/10 pt-4">
+          <span class="text-[11px] font-mono text-white/30" x-text="'Audited: ' + new Date(aiAuditModal.result?.audited_at).toLocaleTimeString()"></span>
+          <button @click="aiAuditModal.show=false" class="rounded-full bg-white px-5 py-2 text-[12px] font-bold text-black hover:bg-white/90 transition-colors">Close</button>
+        </div>
       </div>
     </div>
   </div>

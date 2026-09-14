@@ -1061,3 +1061,40 @@ class ImageScanDetailOut(BaseModel):
     report: VulnerabilityReportArtifactSummaryOut | None
     vulnerabilities: list[VulnerabilityFindingOut]
     intel: list[VulnerabilityIntelOut]
+
+
+class AiFlaggedCommand(BaseModel):
+    command: str
+    executable: str
+    user_uid: int
+    occurred_at: str | None = None
+    reason: str
+    severity: Literal["low", "medium", "high", "critical"]
+
+
+class AiAuditIn(BaseModel):
+    container_id: str = Field(min_length=1, max_length=128)
+    provider: Literal["gemini", "openai", "anthropic"] | None = None
+    api_key: str | None = Field(default=None, max_length=512)
+    model: str | None = Field(default=None, max_length=128)
+    event_limit: int = Field(default=40, ge=1, le=100)
+
+
+class AiAuditOut(BaseModel):
+    container_id: str
+    container_name: str | None = None
+    image_ref: str | None = None
+    provider: str
+    model: str
+    ai_risk_score: float = Field(ge=0.0, le=1.0)
+    threat_level: Literal["clean", "low", "medium", "high", "critical"]
+    confidence: float = Field(ge=0.0, le=1.0)
+    porygon_drift_score: float | None = None
+    matched_rules: list[str] = Field(default_factory=list)
+    summary: str
+    semantic_analysis: str
+    flagged_commands: list[AiFlaggedCommand] = Field(default_factory=list)
+    containment_suggestions: list[str] = Field(default_factory=list)
+    rule_gap_analysis: str | None = None
+    audited_at: datetime
+

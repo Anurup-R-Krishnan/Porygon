@@ -51,6 +51,15 @@ document.addEventListener('alpine:init', () => {
     scoreContributors: [],
     unseenTokens: [],
 
+    // AI Security Inspector State
+    aiConfig: {
+      apiKey: (typeof localStorage !== 'undefined' && localStorage.getItem('porygon_ai_api_key')) || '',
+      provider: (typeof localStorage !== 'undefined' && localStorage.getItem('porygon_ai_provider')) || 'gemini',
+      model: (typeof localStorage !== 'undefined' && localStorage.getItem('porygon_ai_model')) || '',
+    },
+    aiModal: { show: false, apiKey: '', provider: 'gemini', model: '' },
+    aiAuditModal: { show: false, loading: false, error: null, result: null, container: null },
+
     // Rules & Incidents
     rules: [],
     rulesMeta: {},
@@ -445,6 +454,81 @@ document.addEventListener('alpine:init', () => {
       this.confirmModal.show = false;
       this.confirmModal.resolve = null;
       if (resolve) resolve(result);
+    },
+
+    // AI Security Inspector Methods
+    openAiKeyModal() {
+      this.aiModal.apiKey = this.aiConfig.apiKey || '';
+      this.aiModal.provider = this.aiConfig.provider || 'gemini';
+      this.aiModal.model = this.aiConfig.model || '';
+      this.aiModal.show = true;
+    },
+
+    saveAiKey() {
+      this.aiConfig.apiKey = (this.aiModal.apiKey || '').trim();
+      this.aiConfig.provider = this.aiModal.provider || 'gemini';
+      this.aiConfig.model = (this.aiModal.model || '').trim();
+      try {
+        if (this.aiConfig.apiKey) {
+          localStorage.setItem('porygon_ai_api_key', this.aiConfig.apiKey);
+        } else {
+          localStorage.removeItem('porygon_ai_api_key');
+        }
+        localStorage.setItem('porygon_ai_provider', this.aiConfig.provider);
+        localStorage.setItem('porygon_ai_model', this.aiConfig.model);
+      } catch(e){}
+      this.aiModal.show = false;
+    },
+
+    clearAiKey() {
+      this.aiConfig.apiKey = '';
+      try {
+        localStorage.removeItem('porygon_ai_api_key');
+      } catch(e){}
+      this.aiModal.apiKey = '';
+      this.aiModal.show = false;
+    },
+
+    async auditContainerWithAi(container) {
+      if (!this.aiConfig.apiKey) {
+        this.openAiKeyModal();
+        return;
+      }
+      this.aiAuditModal.container = container;
+      this.aiAuditModal.loading = true;
+      this.aiAuditModal.error = null;
+      this.aiAuditModal.result = null;
+      this.aiAuditModal.show = true;
+
+      try {
+        const resp = await fetch('/api/v1/ai/audit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Porygon-AI-Key': this.aiConfig.apiKey,
+            'X-Porygon-AI-Provider': this.aiConfig.provider,
+          },
+          body: JSON.stringify({
+            container_id: container.container_id || container.id,
+            provider: this.aiConfig.provider,
+            api_key: this.aiConfig.apiKey,
+            model: this.aiConfig.model || null,
+            event_limit: 40,
+          }),
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) {
+          const detail = data.detail;
+          this.aiAuditModal.error = typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail.map(d => d.msg || d).join(', ') : 'AI audit request failed');
+        } else {
+          this.aiAuditModal.result = data;
+        }
+      } catch (err) {
+        this.aiAuditModal.error = err.message || 'Network error communicating with AI audit API';
+      } finally {
+        this.aiAuditModal.loading = false;
+      }
     },
 
     // Chart.js instances are NOT kept as an Alpine component property at

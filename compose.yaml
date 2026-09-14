@@ -52,6 +52,7 @@ services:
         condition: service_healthy
     networks:
       - porygon_internal
+      - porygon_egress 
     healthcheck:
       test:
         [
