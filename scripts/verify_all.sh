@@ -115,6 +115,16 @@ static_checks() {
     printf '  make dev-setup\n\n' >&2
     return 1
   }
+  # The invariant block below imports yaml. The Makefile prepends ./.venv/bin to
+  # PATH, so `python3` is the venv interpreter; a module missing there used to
+  # surface as a traceback that `set +e` discarded, letting the gate report a
+  # pass having checked nothing. Fail loudly and early instead.
+  python3 -c 'import ast, tomllib, yaml' 2>/dev/null || {
+    printf 'The static gate needs PyYAML in the interpreter on PATH.\n' >&2
+    printf 'python3 resolves to: %s\n' "$(command -v python3)" >&2
+    printf 'Install the pinned host toolchain with:\n\n  make dev-setup\n\n' >&2
+    return 1
+  }
   docker compose config --quiet || return $?
   ruff check --select E4,E7,E9,F backend collector telemetry responder scanner scripts experiments || return $?
   python3 - <<'PY'
@@ -259,6 +269,14 @@ for path in sorted(Path('scripts').glob('*.py')):
         )
 print(f'parsed {len(python_files)} Python files, service TOML, and YAML with unique keys')
 PY
+  # main() runs under `set +e` so write_manifest still records a failed run,
+  # which means an unguarded command has its failure discarded and the gate
+  # reports the status of its LAST command instead. This block holds every
+  # security invariant in the project -- network isolation, digest pinning,
+  # Falco rule shape -- and was the only unguarded command in static_checks,
+  # so it could die on an import error and still be reported as passed.
+  invariant_status=$?
+  [[ "$invariant_status" -eq 0 ]] || return "$invariant_status"
   for script_path in scripts/*.sh backend/entrypoint.sh; do
     bash -n "$script_path" || return $?
   done

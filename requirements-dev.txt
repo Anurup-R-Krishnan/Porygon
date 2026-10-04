@@ -7,3 +7,7 @@
 #
 # Install with: make dev-setup
 ruff==0.16.10
+# The static gate's compose/Falco invariant checks parse YAML. Without this
+# pin the gate depended on PyYAML happening to be installed system-wide,
+# which it is not inside ./.venv -- the interpreter the Makefile puts on PATH.
+PyYAML==6.0.3
