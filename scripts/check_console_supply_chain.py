@@ -24,7 +24,7 @@ CONSOLE = ROOT / "dashboard"
 # Source files authored in this repository. `vendor/` is excluded: its CSS
 # legitimately records the upstream URL each file came from, and every one of
 # those sources is recorded in the integrity manifest.
-SOURCE_FILES = ("index.html", "app.js", "style.css")
+SOURCE_FILES = ("index.html", "app.js", "reveal.js", "style.css")
 
 # Hosts that may appear in source without being fetched.
 ALLOWED_HOSTS = frozenset({"www.w3.org"})  # SVG/XML namespace URIs
@@ -124,11 +124,23 @@ def main() -> int:
 
     # 4. Every local asset the markup loads must exist, so a rename cannot leave
     #    the console silently loading nothing.
-    for reference in re.findall(r'(?:src|href)="(vendor/[^"]+|app\.js|style\.css)"', markup):
+    local_reference = re.compile(r'(?:src|href)="(vendor/[^"]+|[A-Za-z0-9_-]+\.(?:js|css))"')
+    for reference in local_reference.findall(markup):
         if not (CONSOLE / reference).is_file():
             failures.append(f"dashboard/index.html loads {reference}, which does not exist")
 
-    # 5. The gateway and the dev proxy must present the same headers, or the
+    # 5. No inline script. The CSP sets script-src 'self' with no
+    #    'unsafe-inline', so the browser blocks inline script outright -- it
+    #    does not degrade, it silently does not run. An inline reveal handler
+    #    shipped this way and its transitions never fired in the browser.
+    for match in re.finditer(r"<script(?![^>]*\bsrc=)[^>]*>", markup):
+        number = markup[: match.start()].count("\n") + 1
+        failures.append(
+            f"dashboard/index.html:{number} has an inline <script>, which the CSP blocks; "
+            "move it to its own file and load it with src="
+        )
+
+    # 6. The gateway and the dev proxy must present the same headers, or the
     #    console is hardened on one path and bare on the other.
     nginx = (ROOT / "gateway" / "nginx.conf").read_text(encoding="utf-8")
     dev_proxy = (ROOT / "scripts" / "serve_dashboard.py").read_text(encoding="utf-8")
@@ -152,7 +164,7 @@ def main() -> int:
                     f"vs dev proxy {dev_csp.get(directive)!r}"
                 )
 
-    # 6. The CSP must actually constrain script loading. A policy that permits a
+    # 7. The CSP must actually constrain script loading. A policy that permits a
     #    wildcard or scheme source, or omits script-src and falls back to a
     #    permissive default-src, would satisfy every check above while allowing
     #    precisely what they exist to prevent.

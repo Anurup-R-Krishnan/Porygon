@@ -34,6 +34,7 @@
   <!-- app.js must define the Alpine component before the deferred Alpine
        bundle initialises, which is the ordering the CDN version relied on. -->
   <script src="app.js"></script>
+  <script defer src="reveal.js"></script>
   <script defer src="vendor/alpine.min.js"
           integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb" crossorigin="anonymous"></script>
   <style>
@@ -1788,20 +1789,5 @@
       </div>
     </div>
   </div>
-
-  <script>
-    // Scroll reveal — IntersectionObserver (GPU safe, no scroll listener)
-    function initReveal(){
-      const els = document.querySelectorAll('.reveal');
-      const io = new IntersectionObserver((entries)=>{
-        entries.forEach(e=>{
-          if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
-        });
-      },{ threshold: 0.12 });
-      els.forEach(el=> io.observe(el));
-    }
-    // Ensure Alpine app still exposes initCharts (called via x-init)
-    document.addEventListener('DOMContentLoaded', initReveal);
-  </script>
 </body>
 </html>
