@@ -44,9 +44,57 @@ JUICE_SHOP_IMAGE = (
 )
 
 
+# Response headers for the console. Kept here and in gateway/nginx.conf so the
+# posture is identical whether the console is reached through the dev proxy or
+# the gateway; scripts/verify_all.sh static asserts the two agree.
+#
+# script-src 'self' is the control that matters: it is what stops a compromised
+# CDN, a hijacked DNS answer, or a republished package tag from running code on
+# the console origin and reading the operator token out of storage. Every asset
+# is now local and hash-verified (dashboard/vendor/integrity-manifest.json).
+#
+# 'unsafe-eval' is required because Alpine compiles directive expressions such
+# as x-show="activeTab==='overview'" with new Function(). That is a deliberate,
+# bounded concession: it permits evaluating strings already present in the
+# served markup, which an attacker can only influence by first achieving HTML
+# injection -- a separate defect class. It does not re-admit third-party code,
+# which is the threat this plan closes. Alpine's CSP build would remove the
+# need but requires rewriting every directive in index.html.
+#
+# 'unsafe-inline' for style-src is required by Alpine's x-transition and the
+# :style bindings, which set element style attributes directly.
+SECURITY_HEADERS: tuple[tuple[str, str], ...] = (
+    (
+        "Content-Security-Policy",
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-eval'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "font-src 'self'; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "object-src 'none'; "
+        "base-uri 'none'; "
+        "frame-ancestors 'none'; "
+        "form-action 'none'",
+    ),
+    ("X-Content-Type-Options", "nosniff"),
+    ("X-Frame-Options", "DENY"),
+    ("Referrer-Policy", "no-referrer"),
+    ("Permissions-Policy", "camera=(), microphone=(), geolocation=()"),
+    # The console is an operator tool with no caching story; a stale bundle
+    # paired with a fresh integrity manifest fails SRI and renders nothing.
+    ("Cache-Control", "no-store"),
+)
+
+
 class DashboardHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, directory=str(DASHBOARD_DIR), **kwargs)
+
+    def end_headers(self) -> None:
+        for header, value in SECURITY_HEADERS:
+            self.send_header(header, value)
+        super().end_headers()
 
     def do_GET(self) -> None:
         if self._is_backend_path():

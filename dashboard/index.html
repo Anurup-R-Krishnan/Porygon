@@ -6,36 +6,36 @@
   <title>Porygon — Kernel Intelligence • Ethereal Glass</title>
   <!-- Inline shield mark: also stops the browser's default /favicon.ico probe 404ing. -->
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230A0A0F'/%3E%3Cpath d='M16 6l8 3v7c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V9l8-3z' fill='none' stroke='%23fff' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Premium: Satoshi + Plus Jakarta Sans + Space Grotesk + JetBrains Mono -->
-  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,300,400&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['"Satoshi"', '"Plus Jakarta Sans"','system-ui','sans-serif'],
-            display: ['"Satoshi"', '"Space Grotesk"','sans-serif'],
-            serif: ['"Satoshi"','sans-serif'],
-            mono: ['"JetBrains Mono"','ui-monospace','monospace'],
-          },
-          colors: {
-            ink: '#050505',
-            glass: 'rgba(255,255,255,0.06)',
-          }
-        }
-      }
-    }
-  </script>
+  <!--
+    Every asset below is local and hash-verified. The console holds the operator
+    token that authorises containment, so it must not execute code fetched from
+    a third party at load time.
+
+    This block previously pulled nine resources from four origins
+    (cdn.tailwindcss.com, cdn.jsdelivr.net, unpkg.com, api.fontshare.com,
+    fonts.googleapis.com) with no integrity attributes. See
+    plans/010-operator-console-hardening.md.
+
+    Regenerate with: make console-assets
+    Recorded hashes:  dashboard/vendor/integrity-manifest.json
+    Enforced by:      scripts/verify_all.sh static
+  -->
+  <link rel="stylesheet" href="vendor/tailwind.css"
+        integrity="sha384-7CyjN/C8S2ZE6KFODcZb/oa7n02ccctA+wFbHcpdH5t5qBCflz4S6u9srLlU+g8z" crossorigin="anonymous">
+  <link rel="stylesheet" href="vendor/satoshi.css"
+        integrity="sha384-3ro7LXWKnWg1LJQYZUmUql9aFf8YJT1+aAXoNZTSwDo4GKCmdxtrNaLNPwcgMmHH" crossorigin="anonymous">
+  <link rel="stylesheet" href="vendor/jetbrains-mono.css"
+        integrity="sha384-08uFOmE19QqYP3gyEg6NMkZaLuGj6g7whjg//gGwfFBXswVRBL178HT/HJVryza5" crossorigin="anonymous">
+  <link rel="stylesheet" href="vendor/phosphor/style.css"
+        integrity="sha384-B0WVv72TdHTMKv2EgQwTC8Hq4+5kRPxEAJfZFSncjgOovY7DUImi1ZzfUKRYkRdc" crossorigin="anonymous">
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
-  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+  <script src="vendor/chart.umd.min.js"
+          integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC" crossorigin="anonymous"></script>
+  <!-- app.js must define the Alpine component before the deferred Alpine
+       bundle initialises, which is the ordering the CDN version relied on. -->
   <script src="app.js"></script>
+  <script defer src="vendor/alpine.min.js"
+          integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb" crossorigin="anonymous"></script>
   <style>
     /* ensure phosphor light weight */
     .ph{ font-weight: 300; }

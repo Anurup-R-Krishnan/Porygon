@@ -107,6 +107,15 @@ if values.get('PORYGON_RESPONSE_EXECUTION_MODE', 'disabled') != 'disabled':
 PY
 }
 
+# The operator console holds the credential that authorises containment, so its
+# supply chain is held to the same standard as the container images: a fixed set
+# of hash-recorded artifacts with no third-party origin reachable at load time.
+# See plans/010-operator-console-hardening.md.
+console_supply_chain_checks() {
+  python3 scripts/vendor_console_assets.py --check || return $?
+  python3 scripts/check_console_supply_chain.py || return $?
+}
+
 static_checks() {
   command -v ruff >/dev/null 2>&1 || {
     printf 'ruff is required for verify-static but was not found on PATH.\n' >&2
@@ -280,6 +289,7 @@ PY
   for script_path in scripts/*.sh backend/entrypoint.sh; do
     bash -n "$script_path" || return $?
   done
+  console_supply_chain_checks || return $?
   docker compose build backend || return $?
   docker compose run --rm --no-deps --entrypoint python backend -c \
     'from porygon_api.main import app; schema=app.openapi(); assert len(schema["paths"]) >= 60; print("openapi_paths=" + str(len(schema["paths"])))' || return $?

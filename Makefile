@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: init dev-setup config build up down reset logs ps test verify verify-static verify-unit verify-live-safe verify-scanner-live verify-experiment-live verify-response-live experiment-smoke experiment-replay experiment-pilot experiment-validate experiment-confirmatory study review-package review-status review-apply
+.PHONY: init dev-setup console-assets console-css config build up down reset logs ps test verify verify-static verify-unit verify-live-safe verify-scanner-live verify-experiment-live verify-response-live experiment-smoke experiment-replay experiment-pilot experiment-validate experiment-confirmatory study review-package review-status review-apply
 
 init:
 	@test -f .env || (cp .env.example .env && \
@@ -16,6 +16,23 @@ dev-setup:
 	./.venv/bin/python -m pip install --quiet --upgrade pip
 	./.venv/bin/python -m pip install --quiet --requirement requirements-dev.txt
 	@printf 'Host toolchain ready: %s\n' "$$(./.venv/bin/ruff --version)"
+
+# Re-fetch, re-pin, and re-hash every third-party asset the operator console
+# loads. Needs network access. The console previously pulled nine resources from
+# four origins with no integrity checking; see
+# plans/010-operator-console-hardening.md.
+console-assets:
+	python3 scripts/vendor_console_assets.py
+	./scripts/build_console_css.sh
+	python3 scripts/vendor_console_assets.py --record-generated
+	python3 scripts/check_console_supply_chain.py
+
+# Recompile only the console stylesheet, after changing markup that introduces
+# or drops Tailwind utilities. Needs npx.
+console-css:
+	./scripts/build_console_css.sh
+	python3 scripts/vendor_console_assets.py --record-generated
+	python3 scripts/check_console_supply_chain.py
 
 config:
 	docker compose config --quiet

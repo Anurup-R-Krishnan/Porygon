@@ -1,0 +1,76 @@
+{
+  "assets": {
+    "alpine.min.js": {
+      "source": "https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js",
+      "integrity": "sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb"
+    },
+    "chart.umd.min.js": {
+      "source": "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js",
+      "integrity": "sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC"
+    },
+    "fonts/jetbrains-mono-6b5e37b52d26.woff2": {
+      "source": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwhsk.woff2",
+      "integrity": "sha384-n8V/X1dbgF5MQgoHcq9pM5WpLLD28OYQqDJ/bhi6lSgnkU7cz/e2QI+7EQR1SiTL"
+    },
+    "fonts/jetbrains-mono-99e400330f36.woff2": {
+      "source": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwhsk.woff2",
+      "integrity": "sha384-vR5cbM1qQK0waN6msRkGCWjQ7GQIF5cDHmqNrDdyLcWYxPjeNi6KHgS90KlTwxQ0"
+    },
+    "fonts/jetbrains-mono-b19c2080652a.woff2": {
+      "source": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwhsk.woff2",
+      "integrity": "sha384-md7lI+WpzcaSgfuu+hCajR6cBH9KQiGR2BEnokGhah1MOLT+PY8Tb5r5PUYGeiuQ"
+    },
+    "fonts/jetbrains-mono-c4064400db37.woff2": {
+      "source": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwhsk.woff2",
+      "integrity": "sha384-ZWZfojQTC8jA1q77FRMlg9ESbS8s8w3cNfHzSIgYnq9pipymhbxDMKH5q0vHioGn"
+    },
+    "fonts/jetbrains-mono-cc27b3047125.woff2": {
+      "source": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwg.woff2",
+      "integrity": "sha384-9wWypBPwJyfsOnJFplExHD+Wz+6/I6+rtL7ITgA/6wSPgpj+tnQovOLWM9j2rhOF"
+    },
+    "fonts/jetbrains-mono-eb83d8d40af4.woff2": {
+      "source": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwhsk.woff2",
+      "integrity": "sha384-hHQuxymYssvWq6zjEFy4bE2M60rWOhBm99VVSjkHkq5Zi85efaeUxP9U03Gopaib"
+    },
+    "fonts/satoshi-18dee30105e4.woff2": {
+      "source": "https://cdn.fontshare.com/wf/D7WD5OXZFWQ5T76HSPWAC7MNKAJXE2YG/LUGNSPO5YC34ABNB2O6K7AFDSOJZT56V/WNDVG7O66ENLOD43GS7FBUCC4KMT5OM2.woff2",
+      "integrity": "sha384-DKfZbyuHKYbavBmQAPrUD6C/RFreBwY6iIki/ousIHrteEfy2+JlCOHv0Y6H9Mqc"
+    },
+    "fonts/satoshi-2693a8bac045.woff2": {
+      "source": "https://cdn.fontshare.com/wf/LAFFD4SDUCDVQEXFPDC7C53EQ4ZELWQI/PXCT3G6LO6ICM5I3NTYENYPWJAECAWDD/GHM6WVH6MILNYOOCXHXB5GTSGNTMGXZR.woff2",
+      "integrity": "sha384-YUJoc4ASFboFzv21BAYw8YFajUB+TdbJOz6mM4GbFpkkRXTdcONEWwW23KI4ch4h"
+    },
+    "fonts/satoshi-30cb7506036f.woff2": {
+      "source": "https://cdn.fontshare.com/wf/P2LQKHE6KA6ZP4AAGN72KDWMHH6ZH3TA/ZC32TK2P7FPS5GFTL46EU6KQJA24ZYDB/7AHDUZ4A7LFLVFUIFSARGIWCRQJHISQP.woff2",
+      "integrity": "sha384-3SJcXnKSL6CZoWDylcbcUT6zvlrOM76BYx4YLCZVMS66dqkzEp+bt7WgrzA/Q4X/"
+    },
+    "fonts/satoshi-cd754a9a40ec.woff2": {
+      "source": "https://cdn.fontshare.com/wf/TTX2Z3BF3P6Y5BQT3IV2VNOK6FL22KUT/7QYRJOI3JIMYHGY6CH7SOIFRQLZOLNJ6/KFIAZD4RUMEZIYV6FQ3T3GP5PDBDB6JY.woff2",
+      "integrity": "sha384-EXdX76+Bab1ra2dNpDnK6HDNO1zhe0EpS5A2BC6NR8j1/bVM7FEQcVa3VBIclQxX"
+    },
+    "fonts/satoshi-d6405e668b16.woff2": {
+      "source": "https://cdn.fontshare.com/wf/NHPGVFYUXYXE33DZ75OIT4JFGHITX5PE/PSUTMASCDJTVPERDYJZPN23BVUFUCQIF/J64QX5IPOHK56I2KYUNBQ5M2XWZEYKYX.woff2",
+      "integrity": "sha384-EQjbkmMQhPVGI8IeXlw+AZ256ocRIItXly/VzybTEBH3WDcj85vJEXDSRy6W8YKX"
+    },
+    "jetbrains-mono.css": {
+      "source": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap",
+      "integrity": "sha384-08uFOmE19QqYP3gyEg6NMkZaLuGj6g7whjg//gGwfFBXswVRBL178HT/HJVryza5"
+    },
+    "phosphor/Phosphor.woff2": {
+      "source": "https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/Phosphor.woff2",
+      "integrity": "sha384-m+KpvLpX1Z9u15CUi7ufA3tQoODb7pNrYUWh5CDi1bej2N/yEq9p/GApOosSDfPQ"
+    },
+    "phosphor/style.css": {
+      "source": "https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css",
+      "integrity": "sha384-B0WVv72TdHTMKv2EgQwTC8Hq4+5kRPxEAJfZFSncjgOovY7DUImi1ZzfUKRYkRdc"
+    },
+    "satoshi.css": {
+      "source": "https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap",
+      "integrity": "sha384-3ro7LXWKnWg1LJQYZUmUql9aFf8YJT1+aAXoNZTSwDo4GKCmdxtrNaLNPwcgMmHH"
+    },
+    "tailwind.css": {
+      "source": "built by scripts/build_console_css.sh",
+      "integrity": "sha384-7CyjN/C8S2ZE6KFODcZb/oa7n02ccctA+wFbHcpdH5t5qBCflz4S6u9srLlU+g8z"
+    }
+  }
+}

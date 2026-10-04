@@ -4,11 +4,11 @@
     "artifacts/results.html": "34ba5f80f5d3ea3d28dbb740eea7fb5009a1ddc7c7faf699fffc28430235acf6",
     "artifacts/results.json": "67da6a44cc0664c90d07117d5f0ade9e071951550c63700afc1c8534df82e104"
   },
-  "finished_at_utc": "2026-09-14T07:19:33Z",
+  "finished_at_utc": "2026-10-04T13:14:22Z",
   "gates": [
     {
       "command": "make verify-static",
-      "duration_seconds": 4,
+      "duration_seconds": 5,
       "name": "static",
       "status": "passed"
     },
@@ -21,15 +21,15 @@
     }
   ],
   "git_dirty": true,
-  "git_sha": "097be24",
+  "git_sha": "0480453",
   "mode": "static",
   "schema_version": "porygon.verification.v1",
-  "started_at_utc": "2026-09-14T07:19:29Z",
+  "started_at_utc": "2026-10-04T13:14:17Z",
   "status": "passed",
   "tools": {
     "compose": "5.5.1",
-    "docker": "29.8.0/29.7.2",
+    "docker": "29.8.1/29.8.1",
     "python": "Python 3.14.7",
-    "ruff": "ruff 0.16.0"
+    "ruff": "ruff 0.16.10"
   }
 }
