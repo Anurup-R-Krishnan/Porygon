@@ -206,6 +206,43 @@ def record_generated() -> int:
     return 0
 
 
+def sync_markup() -> int:
+    """Rewrite index.html's integrity attributes from the manifest.
+
+    Rebuilding tailwind.css changes its hash, which leaves the integrity
+    attribute in the markup stale. The browser then refuses the stylesheet and
+    the console renders unstyled -- so the markup must be updated in the same
+    breath as the manifest, not left for a human to remember.
+    """
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))["assets"]
+    markup_path = VENDOR.parent / "index.html"
+    markup = markup_path.read_text(encoding="utf-8")
+
+    changed: list[str] = []
+
+    def rewrite(match: re.Match[str]) -> str:
+        asset, declared = match.group("asset"), match.group("declared")
+        recorded = manifest.get(asset, {}).get("integrity")
+        if recorded is None or recorded == declared:
+            return match.group(0)
+        changed.append(asset)
+        return match.group(0).replace(declared, recorded)
+
+    updated = re.sub(
+        r'(?:src|href)="vendor/(?P<asset>[^"]+)"[^>]*?integrity="(?P<declared>[^"]+)"',
+        rewrite,
+        markup,
+        flags=re.DOTALL,
+    )
+    if changed:
+        markup_path.write_text(updated, encoding="utf-8")
+        for asset in changed:
+            print(f"  {asset}: integrity attribute updated in index.html")
+    else:
+        print("  index.html integrity attributes already match the manifest")
+    return 0
+
+
 def check() -> int:
     if not MANIFEST.is_file():
         print(f"missing integrity manifest: {MANIFEST}", file=sys.stderr)
@@ -248,11 +285,19 @@ def main() -> int:
         action="store_true",
         help="re-hash locally built assets (tailwind.css) without refetching",
     )
+    parser.add_argument(
+        "--sync-markup",
+        action="store_true",
+        help="rewrite index.html's integrity attributes from the manifest",
+    )
     arguments = parser.parse_args()
     if arguments.check:
         return check()
+    if arguments.sync_markup:
+        return sync_markup()
     if arguments.record_generated:
-        return record_generated()
+        status = record_generated()
+        return status or sync_markup()
 
     VENDOR.mkdir(parents=True, exist_ok=True)
     manifest: dict[str, dict[str, str]] = {}

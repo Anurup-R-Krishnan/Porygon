@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import json
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -60,7 +59,7 @@ def test_extract_json_from_text() -> None:
 
 
 @patch("porygon_api.ai_auditor._call_gemini")
-def test_perform_container_audit_gemini(mock_call: Any) -> None:
+def test_perform_container_audit_gemini(mock_call: MagicMock) -> None:
     mock_call.return_value = {
         "ai_risk_score": 0.88,
         "threat_level": "high",
@@ -99,7 +98,7 @@ def test_perform_container_audit_gemini(mock_call: Any) -> None:
 
 
 @patch("porygon_api.ai_auditor._call_openai")
-def test_perform_container_audit_openai(mock_call: Any) -> None:
+def test_perform_container_audit_openai(mock_call: MagicMock) -> None:
     mock_call.return_value = {
         "ai_risk_score": 0.05,
         "threat_level": "clean",

@@ -4,7 +4,7 @@
     "artifacts/results.html": "34ba5f80f5d3ea3d28dbb740eea7fb5009a1ddc7c7faf699fffc28430235acf6",
     "artifacts/results.json": "67da6a44cc0664c90d07117d5f0ade9e071951550c63700afc1c8534df82e104"
   },
-  "finished_at_utc": "2026-10-04T13:15:37Z",
+  "finished_at_utc": "2026-10-04T13:26:52Z",
   "gates": [
     {
       "command": "make verify-static",
@@ -20,11 +20,11 @@
       "status": "skipped"
     }
   ],
-  "git_dirty": false,
-  "git_sha": "5450e7b",
+  "git_dirty": true,
+  "git_sha": "e03b31e",
   "mode": "static",
   "schema_version": "porygon.verification.v1",
-  "started_at_utc": "2026-10-04T13:15:32Z",
+  "started_at_utc": "2026-10-04T13:26:47Z",
   "status": "passed",
   "tools": {
     "compose": "5.5.1",
