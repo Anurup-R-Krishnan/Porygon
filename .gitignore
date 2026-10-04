@@ -25,6 +25,11 @@ build/
 
 artifacts/local/
 artifacts/experiments/local/
+# Console screenshots are regenerable build output: scripts/capture_console.py
+# rebuilds them from a running stack and records provenance in
+# capture-manifest.json. A full desktop+narrow set is ~70 MB, so the images stay
+# out of the tree; run `make console-capture` to produce them.
+artifacts/console-captures/
 
 .DS_Store
 

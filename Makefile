@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: init dev-setup console-assets console-css config build up down reset logs ps test verify verify-static verify-unit verify-live-safe verify-scanner-live verify-experiment-live verify-response-live experiment-smoke experiment-replay experiment-pilot experiment-validate experiment-confirmatory study review-package review-status review-apply
+.PHONY: init dev-setup console-assets console-css console-capture config build up down reset logs ps test verify verify-static verify-unit verify-live-safe verify-scanner-live verify-experiment-live verify-response-live experiment-smoke experiment-replay experiment-pilot experiment-validate experiment-confirmatory study review-package review-status review-apply
 
 init:
 	@test -f .env || (cp .env.example .env && \
@@ -33,6 +33,12 @@ console-css:
 	./scripts/build_console_css.sh
 	python3 scripts/vendor_console_assets.py --record-generated
 	python3 scripts/check_console_supply_chain.py
+
+# Capture every console tab against a running stack, at each tab's own full
+# height, with a manifest recording the commit, stack state, and a sha256 of
+# every API payload the views were rendered from. Needs `make up` and Chrome.
+console-capture:
+	python3 scripts/capture_console.py $(CAPTURE_ARGS)
 
 config:
 	docker compose config --quiet
