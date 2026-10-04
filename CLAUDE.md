@@ -34,9 +34,12 @@ a shared package and don't share a virtualenv. `pythonpath = ["src"]`, `testpath
 ## Setup
 
 ```bash
-make init   # copies .env.example -> .env, generates local secrets, chmod 0600
-make build  # docker compose build backend collector telemetry responder scanner
-make up     # docker compose up --detach --build --wait
+make init       # copies .env.example -> .env, generates local secrets, chmod 0600
+make dev-setup  # creates ./.venv and installs requirements-dev.txt (ruff) -- the
+                # static gate prepends ./.venv/bin to PATH and .venv/ is gitignored,
+                # so verify-static fails on a fresh clone without this
+make build      # docker compose build backend collector telemetry responder scanner
+make up         # docker compose up --detach --build --wait
 ```
 
 `.env` is git-ignored and holds real local credentials — never read, print, or commit it;

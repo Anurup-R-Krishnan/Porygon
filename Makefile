@@ -1,11 +1,21 @@
 SHELL := /bin/bash
 
-.PHONY: init config build up down reset logs ps test verify verify-static verify-unit verify-live-safe verify-scanner-live verify-experiment-live verify-response-live experiment-smoke experiment-replay experiment-pilot experiment-validate experiment-confirmatory study review-package review-status review-apply
+.PHONY: init dev-setup config build up down reset logs ps test verify verify-static verify-unit verify-live-safe verify-scanner-live verify-experiment-live verify-response-live experiment-smoke experiment-replay experiment-pilot experiment-validate experiment-confirmatory study review-package review-status review-apply
 
 init:
 	@test -f .env || (cp .env.example .env && \
 		python3 -c 'from functools import reduce; import os, secrets; from pathlib import Path; p=Path(".env"); replacements={"replace-with-a-long-local-development-password":secrets.token_urlsafe(32),"replace-with-at-least-32-random-characters":secrets.token_urlsafe(48),"replace-with-a-different-32-character-random-token":secrets.token_urlsafe(48),"replace-with-docker-socket-gid":str(os.stat("/var/run/docker.sock").st_gid)}; p.write_text(reduce(lambda value, item: value.replace(*item), replacements.items(), p.read_text(encoding="utf-8")), encoding="utf-8")' && \
 		chmod 0600 .env && echo "Created .env with separate local credentials and the Docker socket GID.")
+
+# Host-side toolchain for the static gate. `verify-static` prepends ./.venv/bin
+# to PATH, but .venv/ is gitignored and `init` does not create it, so a fresh
+# clone has no ruff and the static gate fails on its first check. Run this once
+# after cloning.
+dev-setup:
+	python3 -m venv .venv
+	./.venv/bin/python -m pip install --quiet --upgrade pip
+	./.venv/bin/python -m pip install --quiet --requirement requirements-dev.txt
+	@printf 'Host toolchain ready: %s\n' "$$(./.venv/bin/ruff --version)"
 
 config:
 	docker compose config --quiet

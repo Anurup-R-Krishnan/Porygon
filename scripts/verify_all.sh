@@ -109,7 +109,10 @@ PY
 
 static_checks() {
   command -v ruff >/dev/null 2>&1 || {
-    printf 'ruff is required for verify-static\n' >&2
+    printf 'ruff is required for verify-static but was not found on PATH.\n' >&2
+    printf 'The Makefile prepends ./.venv/bin, which nothing creates on a fresh\n' >&2
+    printf 'clone because .venv/ is gitignored. Create it with:\n\n' >&2
+    printf '  make dev-setup\n\n' >&2
     return 1
   }
   docker compose config --quiet || return $?

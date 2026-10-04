@@ -1,0 +1,9 @@
+# Host-side development toolchain for the verification gates.
+#
+# These are NOT service dependencies. Every service installs its own deps
+# inside its own container image from its own pyproject.toml; this file only
+# pins the tools `scripts/verify_all.sh static` runs on the host, which the
+# Makefile expects to find on PATH under ./.venv/bin.
+#
+# Install with: make dev-setup
+ruff==0.16.10

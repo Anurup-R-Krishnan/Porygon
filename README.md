@@ -497,7 +497,19 @@ make init
 
 *To configure manually, copy `.env.example` to `.env`, populate all placeholders, and retrieve your Docker GID with `stat -c '%g' /var/run/docker.sock`.*
 
-### 2. Verify Operational Safeguards
+### 2. Install the Host Verification Toolchain
+
+The static gate runs `ruff` on the host from `./.venv/bin`, which is gitignored
+and therefore absent on a fresh clone. Create it once:
+
+```bash
+make dev-setup
+```
+
+Versions are pinned in `requirements-dev.txt`. These are host tools only --
+every service installs its own dependencies inside its own container image.
+
+### 3. Verify Operational Safeguards
 
 Review key configuration variables in `.env`:
 
