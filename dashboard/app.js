@@ -40,6 +40,28 @@ let consolePoller = null;
 const fmt = window.PorygonFormat;
 
 document.addEventListener('alpine:init', () => {
+  // x-dialog="expr" on a modal's panel: while expr is truthy the panel is an
+  // ARIA modal dialog that traps Tab and, on close, returns focus to whatever
+  // opened it. See dashboard/src/a11y.js.
+  Alpine.directive('dialog', (el, { expression }, { effect, evaluateLater, cleanup }) => {
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    const isOpen = evaluateLater(expression);
+    const trap = window.PorygonA11y.createFocusTrap(el, document);
+    let open = false;
+    effect(() => isOpen((value) => {
+      if (value && !open) {
+        open = true;
+        // x-show reveals the panel on this tick; focus once it is rendered.
+        Alpine.nextTick(() => trap.activate());
+      } else if (!value && open) {
+        open = false;
+        trap.deactivate();
+      }
+    }));
+    cleanup(() => { if (open) trap.deactivate(); });
+  });
+
   Alpine.data('porygonApp', () => ({
     // Navigation
     activeTab: (typeof window !== 'undefined' && window.location.hash && ['overview', 'pathway', 'telemetry', 'anomalies', 'incidents', 'pipeline', 'vulnerabilities', 'simulator'].includes(window.location.hash.slice(1))) ? window.location.hash.slice(1) : 'overview',
@@ -1206,6 +1228,18 @@ document.addEventListener('alpine:init', () => {
 
     get filteredVulnerabilities() {
       return this.vulnerabilityFindings.filter(v => this.matchesReachabilityFilter(v, this.reachabilityFilter));
+    },
+
+    // ARIA tab pattern for the nav: Left/Right move and wrap, Home/End jump.
+    // Selection follows focus, since switching views is cheap.
+    onTabKeydown(event) {
+      const tabs = [...event.currentTarget.querySelectorAll('[role="tab"]')];
+      const current = tabs.indexOf(document.activeElement);
+      const target = window.PorygonA11y.tabKeyTarget(event.key, current < 0 ? 0 : current, tabs.length);
+      if (target === null) return;
+      event.preventDefault();
+      this.activeTab = tabs[target].dataset.tab;
+      tabs[target].focus();
     },
 
     // Manual sync. Routed through the scheduler rather than calling the

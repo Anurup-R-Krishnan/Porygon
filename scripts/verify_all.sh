@@ -116,6 +116,7 @@ PY
 console_supply_chain_checks() {
   python3 scripts/vendor_console_assets.py --check || return $?
   python3 scripts/check_console_supply_chain.py || return $?
+  python3 scripts/check_console_markup.py || return $?
 }
 
 static_checks() {
