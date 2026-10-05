@@ -317,6 +317,12 @@ PY
   docker compose build backend || return $?
   docker compose run --rm --no-deps --entrypoint python backend -c \
     'from porygon_api.main import app; schema=app.openapi(); assert len(schema["paths"]) >= 60; print("openapi_paths=" + str(len(schema["paths"])))' || return $?
+  # Every request the operator console makes must have a backend route, so a
+  # route rename or move fails here rather than as an empty console panel.
+  docker compose run --rm --no-deps --entrypoint python backend -c \
+    'import json; from porygon_api.main import app; print(json.dumps(app.openapi()))' \
+    > "$WORK_DIR/openapi.json" || return $?
+  python3 scripts/check_console_api_contract.py "$WORK_DIR/openapi.json" || return $?
   docker compose run --rm --no-deps --entrypoint alembic backend upgrade head --sql >/dev/null || return $?
   docker run --rm \
     --volume "$ROOT_DIR/falco/porygon_rules.yaml:/etc/falco/porygon_rules.yaml:ro" \
