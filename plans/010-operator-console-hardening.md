@@ -1,5 +1,12 @@
 # 010 — Operator console supply-chain and credential hardening
 
+**Status:** done. 010.1-010.3 landed with the vendored, hash-verified asset set,
+the CSP and response headers, and `scripts/check_console_supply_chain.py`.
+010.4 landed with `dashboard/src/credentials.js`: both console secrets (the
+operator token and the AI provider key) moved to sessionStorage, the operator
+token given a 30-minute sliding idle expiry, and existing localStorage copies
+migrated and deleted on first load.
+
 ## Problem
 
 `dashboard/` is the operator console. It holds the credential that authorises

@@ -39,8 +39,16 @@
       });
     }, { threshold: 0.12 });
 
-    elements.forEach(function (element) { observer.observe(element); });
+    elements.forEach(function (element) {
+      if (!element.classList.contains('in')) observer.observe(element);
+    });
   }
+
+  // app.js re-runs this after its charts render. When this was an inline
+  // script initReveal was a global; hoisting it into this closure turned those
+  // calls into silent no-ops, so it is exported explicitly. Already-revealed
+  // elements are skipped, which makes repeat calls idempotent.
+  window.initReveal = initReveal;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initReveal);

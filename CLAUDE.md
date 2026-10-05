@@ -54,7 +54,8 @@ for anything except the explicit disruptive gate below.
   rule validation. Fast, no live containers.
 - `make verify-unit` — runs `pytest -q` inside a built container per service
   (`docker compose run --rm --no-deps --build --entrypoint pytest <service> -q`), then the
-  stdlib-only `experiments/tests` on the host.
+  stdlib-only `experiments/tests` on the host, then the console's `node:test` suite
+  (`dashboard/tests/`) in a digest-pinned Node image with no network.
 - `make verify-live-safe` — `verify_phase2.sh` + `verify_phase6.sh`, needs the stack up.
 - `make verify-scanner-live` — `verify_phase8.sh`, needs network egress to threat feeds.
 - `make verify-experiment-live` — `verify_phase9.sh`, needs the stack up. Non-disruptive:

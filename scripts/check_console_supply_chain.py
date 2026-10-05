@@ -21,10 +21,24 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CONSOLE = ROOT / "dashboard"
 
-# Source files authored in this repository. `vendor/` is excluded: its CSS
-# legitimately records the upstream URL each file came from, and every one of
-# those sources is recorded in the integrity manifest.
-SOURCE_FILES = ("index.html", "app.js", "reveal.js", "style.css")
+# Every file authored in this repository that the browser can load. vendor/ is
+# excluded: its CSS legitimately records the upstream URL each file came from,
+# and every one of those sources is in the integrity manifest. build/ and
+# tests/ are excluded because the browser never loads them. Globbed rather
+# than listed, so a new module under src/ is scanned without anyone
+# remembering to add it here.
+SOURCE_SUFFIXES = (".html", ".js", ".css")
+EXCLUDED_DIRS = ("vendor", "build", "tests")
+
+
+def source_files() -> list[Path]:
+    return sorted(
+        path
+        for path in CONSOLE.rglob("*")
+        if path.is_file()
+        and path.suffix in SOURCE_SUFFIXES
+        and path.relative_to(CONSOLE).parts[0] not in EXCLUDED_DIRS
+    )
 
 # Hosts that may appear in source without being fetched.
 ALLOWED_HOSTS = frozenset({"www.w3.org"})  # SVG/XML namespace URIs
@@ -77,11 +91,11 @@ def main() -> int:
     failures: list[str] = []
 
     # 1. No console source file may reference a third-party origin.
-    for name in SOURCE_FILES:
-        path = CONSOLE / name
-        if not path.is_file():
-            failures.append(f"dashboard/{name} is missing")
-            continue
+    scanned = source_files()
+    if not any(path.name == "index.html" for path in scanned):
+        failures.append("dashboard/index.html is missing")
+    for path in scanned:
+        name = path.relative_to(CONSOLE).as_posix()
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             for match in EXTERNAL_ORIGIN.finditer(line):
                 host = match.group("absolute") or match.group("relative")
@@ -124,7 +138,7 @@ def main() -> int:
 
     # 4. Every local asset the markup loads must exist, so a rename cannot leave
     #    the console silently loading nothing.
-    local_reference = re.compile(r'(?:src|href)="(vendor/[^"]+|[A-Za-z0-9_-]+\.(?:js|css))"')
+    local_reference = re.compile(r'(?:src|href)="((?!https?:|//|data:|#)[^"]+\.(?:js|css))"')
     for reference in local_reference.findall(markup):
         if not (CONSOLE / reference).is_file():
             failures.append(f"dashboard/index.html loads {reference}, which does not exist")
@@ -194,7 +208,8 @@ def main() -> int:
         return 1
     print(
         f"console supply chain: {len(tags)} hash-verified assets, "
-        "no external origins, gateway and dev proxy headers agree"
+        f"{len(scanned)} source files with no external origins, "
+        "gateway and dev proxy headers agree"
     )
     return 0
 

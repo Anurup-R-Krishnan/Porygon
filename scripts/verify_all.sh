@@ -14,6 +14,8 @@ case "$MODE" in
 esac
 
 ARTIFACT_DIR="$ROOT_DIR/artifacts"
+# Pinned like every compose image: node:22.20.0-alpine3.22.
+CONSOLE_TEST_IMAGE="node:22.20.0-alpine3.22@sha256:dbcedd8aeab47fbc0f4dd4bffa55b7c3c729a707875968d467aaaea42d6225af"
 MANIFEST_PATH="$ARTIFACT_DIR/verification-manifest.json"
 WORK_DIR="$(mktemp -d)"
 RESULTS_PATH="$WORK_DIR/results.tsv"
@@ -330,6 +332,13 @@ unit_checks() {
   done
   # The experiment harness is stdlib-only and runs on the host rather than in a service image.
   python3 -m pytest experiments/tests -q || return $?
+  # Operator console modules, under node:test in a digest-pinned Node image so
+  # the gate adds no host dependency. Read-only mount, no network: the suite
+  # imports nothing beyond node: builtins and the modules under test.
+  docker run --rm --network none --read-only \
+    --volume "$ROOT_DIR/dashboard:/console:ro" \
+    --workdir /console \
+    "$CONSOLE_TEST_IMAGE" node --test 'tests/*.test.js' || return $?
 }
 
 live_safe_checks() {

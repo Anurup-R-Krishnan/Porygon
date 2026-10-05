@@ -33,6 +33,7 @@
           integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC" crossorigin="anonymous"></script>
   <!-- app.js must define the Alpine component before the deferred Alpine
        bundle initialises, which is the ordering the CDN version relied on. -->
+  <script src="src/credentials.js"></script>
   <script src="app.js"></script>
   <script defer src="reveal.js"></script>
   <script defer src="vendor/alpine.min.js"
@@ -1587,7 +1588,7 @@
             autocomplete="off"
             class="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 font-mono text-[13px] text-white placeholder:text-white/20 focus:border-violet-500 focus:outline-none"
           >
-          <span class="mt-1 text-[11px] text-white/30 block">Stored strictly in your local browser (never pushed to Git).</span>
+          <span class="mt-1 text-[11px] text-white/30 block">Kept for this browser tab only and cleared when it closes. Sent to the backend in a header for each audit.</span>
         </div>
 
         <div>

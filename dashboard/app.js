@@ -14,6 +14,25 @@
 // of the many `chartRegistry.X` call sites throughout this file.
 const chartRegistry = {};
 
+// Secrets live in sessionStorage with an idle expiry rather than in
+// localStorage indefinitely; see dashboard/src/credentials.js. Any copy an
+// earlier version of the console left in localStorage is moved into the
+// session and deleted from disk on first load.
+const credentialStore = (function () {
+  function storage(name) {
+    try { return window[name]; } catch (error) { return null; }
+  }
+  const credentials = window.PorygonCredentials;
+  const store = credentials.createCredentialStore({
+    session: storage('sessionStorage'),
+    persistent: storage('localStorage'),
+  });
+  store.migrateLegacy('operator', credentials.LEGACY_KEYS.operator, credentials.OPERATOR_TOKEN_TTL_MS);
+  store.migrateLegacy('aiKey', credentials.LEGACY_KEYS.aiKey, null);
+  return store;
+})();
+const OPERATOR_TOKEN_TTL_MS = window.PorygonCredentials.OPERATOR_TOKEN_TTL_MS;
+
 document.addEventListener('alpine:init', () => {
   Alpine.data('porygonApp', () => ({
     // Navigation
@@ -53,7 +72,9 @@ document.addEventListener('alpine:init', () => {
 
     // AI Security Inspector State
     aiConfig: {
-      apiKey: (typeof localStorage !== 'undefined' && localStorage.getItem('porygon_ai_api_key')) || '',
+      // The provider key is a secret and lives in the session credential
+      // store. Provider and model are preferences and stay in localStorage.
+      apiKey: credentialStore.get('aiKey'),
       provider: (typeof localStorage !== 'undefined' && localStorage.getItem('porygon_ai_provider')) || 'gemini',
       model: (typeof localStorage !== 'undefined' && localStorage.getItem('porygon_ai_model')) || '',
     },
@@ -378,7 +399,9 @@ document.addEventListener('alpine:init', () => {
         case 'reachability':
           return (this.evidenceCounts?.runtime_observed ?? 0) + ' CVEs heuristic runtime-observed (package ∩ process)';
         case 'containment':
-          return this.operatorToken ? 'AUTHORIZED (Token Set)' : 'LOCKED (Token Required)';
+          return this.operatorToken
+            ? `AUTHORIZED (locks after ${OPERATOR_TOKEN_TTL_MS / 60000} min idle)`
+            : 'LOCKED (Token Required)';
         default:
           return 'Active';
       }
@@ -391,15 +414,34 @@ document.addEventListener('alpine:init', () => {
     showDocsModal: false,
     docsTab: 'mental_model',
 
-    // Operator token (stored in localStorage)
+    // Operator token. `_operatorToken` is a reactive mirror of the session
+    // credential store. The getter used to read localStorage directly, which
+    // Alpine cannot observe, so the nav key icon and the AUTHORIZED/LOCKED
+    // label did not update when the token was set or cleared until some
+    // unrelated state change happened to re-render them.
+    _operatorToken: credentialStore.get('operator'),
+    operatorTokenExpiresAt: credentialStore.expiresAt('operator'),
     get operatorToken() {
-      try { return localStorage.getItem('porygon_operator_token') || ''; } catch(e){ return ''; }
+      return this._operatorToken;
     },
-    set operatorToken(v) {
-      try {
-        if (v) localStorage.setItem('porygon_operator_token', v);
-        else localStorage.removeItem('porygon_operator_token');
-      } catch(e){}
+    set operatorToken(value) {
+      credentialStore.set('operator', value || '', OPERATOR_TOKEN_TTL_MS);
+      this._operatorToken = credentialStore.get('operator');
+      this.operatorTokenExpiresAt = credentialStore.expiresAt('operator');
+    },
+
+    // The store expires an idle token lazily, on read. This turns that into a
+    // visible state change, so the console never shows AUTHORIZED for a token
+    // it would no longer send.
+    _enforceCredentialExpiry() {
+      if (this._operatorToken && !credentialStore.get('operator')) {
+        this._operatorToken = '';
+        this.operatorTokenExpiresAt = null;
+        this.showToast(
+          `Operator token locked after ${OPERATOR_TOKEN_TTL_MS / 60000} minutes idle. Set it again to approve actions.`,
+          'info',
+        );
+      }
     },
 
     // Styled operator-token entry modal — replaces window.prompt() everywhere a
@@ -468,12 +510,8 @@ document.addEventListener('alpine:init', () => {
       this.aiConfig.apiKey = (this.aiModal.apiKey || '').trim();
       this.aiConfig.provider = this.aiModal.provider || 'gemini';
       this.aiConfig.model = (this.aiModal.model || '').trim();
+      credentialStore.set('aiKey', this.aiConfig.apiKey, null);
       try {
-        if (this.aiConfig.apiKey) {
-          localStorage.setItem('porygon_ai_api_key', this.aiConfig.apiKey);
-        } else {
-          localStorage.removeItem('porygon_ai_api_key');
-        }
         localStorage.setItem('porygon_ai_provider', this.aiConfig.provider);
         localStorage.setItem('porygon_ai_model', this.aiConfig.model);
       } catch(e){}
@@ -482,9 +520,7 @@ document.addEventListener('alpine:init', () => {
 
     clearAiKey() {
       this.aiConfig.apiKey = '';
-      try {
-        localStorage.removeItem('porygon_ai_api_key');
-      } catch(e){}
+      credentialStore.clear('aiKey');
       this.aiModal.apiKey = '';
       this.aiModal.show = false;
     },
@@ -598,6 +634,7 @@ document.addEventListener('alpine:init', () => {
       }, 3000);
       // heavier refresh for system info every 10s
       setInterval(() => { this.fetchSystemInfo(); this.fetchAnomalyScores(); }, 10000);
+      setInterval(() => this._enforceCredentialExpiry(), 15000);
     },
 
     // helpers
@@ -607,6 +644,9 @@ document.addEventListener('alpine:init', () => {
       const token = this.operatorToken;
       if (token && path.includes('/operator/')) {
         headers['X-Porygon-Operator-Token'] = token;
+        // Using the token is activity: slide its idle expiry forward.
+        credentialStore.touch('operator');
+        this.operatorTokenExpiresAt = credentialStore.expiresAt('operator');
       }
       // for demo route via dashboard server, keep same host
       return fetch(path, Object.assign({}, opts, { headers }));
