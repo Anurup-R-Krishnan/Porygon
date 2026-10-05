@@ -6,11 +6,11 @@ before editing related code.
 
 | # | Plan | Scope | Status |
 |---|------|-------|--------|
-| 010 | [010-operator-console-hardening.md](010-operator-console-hardening.md) | Remove the unverified third-party supply chain from the operator console; add SRI, CSP, and a real credential boundary | in progress |
+| 010 | [010-operator-console-hardening.md](010-operator-console-hardening.md) | Remove the unverified third-party supply chain from the operator console; add SRI, CSP, and a real credential boundary | 010.1-010.3 done; 010.4 in progress |
 | 020 | [020-console-quality-gates.md](020-console-quality-gates.md) | Bring `dashboard/` inside lint, test, and verification gates | planned |
-| 030 | [030-clean-clone-reproducibility.md](030-clean-clone-reproducibility.md) | Make `make verify-static` and the presentation decks build from a fresh clone | planned |
+| 030 | [030-clean-clone-reproducibility.md](030-clean-clone-reproducibility.md) | Make `make verify-static` and the presentation decks build from a fresh clone | done; deck-PDF policy awaits owner |
 | 040 | [040-console-feature-depth.md](040-console-feature-depth.md) | Polling discipline, accessibility, and operator-workflow depth | planned |
-| 050 | [050-evidence-capture.md](050-evidence-capture.md) | Reproducible console screenshot capture wired to the deck build inputs | planned |
+| 050 | [050-evidence-capture.md](050-evidence-capture.md) | Reproducible console screenshot capture wired to the deck build inputs | capture tooling done; deck wiring pending |
 
 ## Conventions
 
