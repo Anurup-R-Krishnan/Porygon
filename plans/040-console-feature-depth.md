@@ -1,10 +1,35 @@
 # 040 — Operator console feature depth
 
+**Status:** 040.1, 040.2 and the truthfulness half of 040.3 done; 040.4 open.
+
+**Corrections recorded after measuring.** Three claims below were wrong and
+are kept, struck through, beside what was actually found:
+
+- 040.1 estimated "nine-plus requests every three seconds". Measured against
+  the live stack it was 46 per 30 s (~4.6 per 3 s), with anomaly scores
+  double-scheduled. The defects were real -- polling while hidden, overlap,
+  no backoff, a toast per failure, service health never refreshed -- but the
+  load figure was an overestimate read off `refreshAllData`, which is not
+  what the timers called.
+- 040.2 said there was "no `prefers-reduced-motion` media query anywhere in
+  `style.css`". There is one, at `style.css:133`, disabling transitions and
+  animations globally. It also said the tabs were "not keyboard-operable";
+  they were reachable with Tab and Enter. What was missing was the tab
+  semantics and arrow-key movement.
+- 040.4 said the active tab was "not reflected in the URL". The `activeTab`
+  watcher already wrote `location.hash`, and init already read it.
+
+**Found while doing this plan, and fixed:** the nav's hardcoded, pulsing
+"eBPF Active" stayed green while Falco crashlooped and the newest kernel event
+was 10 days 23 hours old, and every data timestamp dropped its date, so that
+eleven-day-old stream read as live. See the commit "Schedule console polling
+properly and stop it claiming eBPF is live".
+
 ## Problem
 
 ### 040.1 — Polling has no discipline
 
-`dashboard/app.js:490-500` installs unconditional timers:
+~~`dashboard/app.js:490-500` installs unconditional timers~~ (see corrections above):
 
 ```js
 setInterval(() => { this.pollLiveTelemetry(); }, 3000);
@@ -31,9 +56,9 @@ forever, with:
   invisible to assistive technology and not keyboard-operable.
 - The add-rule modal (`index.html:900`) and the token/confirm modals have no
   focus trap and no focus restoration; only `@keydown.escape.window` is wired.
-- The console is built on heavy transitions
-  (`x-transition:enter="transition duration-700 ..."`) with no
-  `prefers-reduced-motion` media query anywhere in `style.css`.
+- ~~The console is built on heavy transitions with no
+  `prefers-reduced-motion` media query anywhere in `style.css`.~~ Wrong; see
+  corrections above.
 - Status is encoded by colour alone in several panels (severity pills,
   reachability funnel) with no text or shape redundancy.
 
@@ -49,8 +74,8 @@ which, for a detection console, is the one distinction that matters most.
 Gaps that a reviewer of a runtime-security console would expect:
 
 - No way to export an incident's evidence timeline for an external report.
-- No deep-linking: tab, selected container, selected incident, and filters are
-  not reflected in the URL, so no view can be shared or bookmarked.
+- No deep-linking ~~: tab,~~ for selected container, selected incident, and
+  filters. (The tab itself was already in `location.hash`.)
 - No relative/absolute timestamp toggle; everything is `toLocaleTimeString()`,
   which loses the date entirely on anything older than today.
 - The terminal log is capped at 120 entries with no filter, search, or

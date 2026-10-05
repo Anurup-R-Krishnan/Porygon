@@ -7,9 +7,9 @@ before editing related code.
 | # | Plan | Scope | Status |
 |---|------|-------|--------|
 | 010 | [010-operator-console-hardening.md](010-operator-console-hardening.md) | Remove the unverified third-party supply chain from the operator console; add SRI, CSP, and a real credential boundary | done |
-| 020 | [020-console-quality-gates.md](020-console-quality-gates.md) | Bring `dashboard/` inside lint, test, and verification gates | in progress: node:test suite wired into verify-unit; console served by gateway |
+| 020 | [020-console-quality-gates.md](020-console-quality-gates.md) | Bring `dashboard/` inside lint, test, and verification gates | largely done: node:test suite (60 tests) in verify-unit; markup, supply-chain and API-contract gates in verify-static; served by gateway. Monolith split ongoing via src/ modules |
 | 030 | [030-clean-clone-reproducibility.md](030-clean-clone-reproducibility.md) | Make `make verify-static` and the presentation decks build from a fresh clone | done; deck-PDF policy awaits owner |
-| 040 | [040-console-feature-depth.md](040-console-feature-depth.md) | Polling discipline, accessibility, and operator-workflow depth | planned |
+| 040 | [040-console-feature-depth.md](040-console-feature-depth.md) | Polling discipline, accessibility, and operator-workflow depth | 040.1-040.2 done, truthfulness fixes landed; 040.4 open |
 | 050 | [050-evidence-capture.md](050-evidence-capture.md) | Reproducible console screenshot capture wired to the deck build inputs | capture tooling done; deck wiring pending |
 
 ## Conventions
