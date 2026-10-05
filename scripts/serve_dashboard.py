@@ -64,6 +64,12 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, directory=str(DASHBOARD_DIR), **kwargs)
 
+    def end_headers(self) -> None:
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        super().end_headers()
+
     def do_GET(self) -> None:
         if self._is_backend_path():
             self.proxy_api()
@@ -130,6 +136,11 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length) if length > 0 else None
         headers = {k: v for k, v in self.headers.items() if k.lower() not in ("host", "content-length")}
+        # Automatically inject operator token from local environment for proxied operator routes
+        # when running in local development / demo mode so secrets never leak into client code.
+        token = os.environ.get(OPERATOR_TOKEN_ENV, "")
+        if token and (OPERATOR_TOKEN_HEADER not in headers or headers[OPERATOR_TOKEN_HEADER] in ("dev-operator-clearance", "")):
+            headers[OPERATOR_TOKEN_HEADER] = token
 
         req = urllib.request.Request(url, data=body, headers=headers, method=self.command)
         try:
@@ -244,7 +255,7 @@ import hashlib
 from uuid import uuid4
 from datetime import datetime, timezone
 from porygon_api.db import SessionLocal
-from porygon_api.models import Incident, ResponseRecommendation, DetectionRun, AnomalyScore
+from porygon_api.models import Incident, ResponseRecommendation, DetectionRun, AnomalyScore, ContainerIdentity
 
 db = SessionLocal()
 latest_score = db.query(AnomalyScore).filter(AnomalyScore.status == 'scored').first()
@@ -254,6 +265,27 @@ if not latest_score:
     exit(0)
 
 now = datetime.now(timezone.utc)
+canary_cid = f"canary-{scenario_id[:12]}"
+c_ident = db.query(ContainerIdentity).filter(ContainerIdentity.container_id == canary_cid).first()
+if not c_ident:
+    c_ident = ContainerIdentity(
+        docker_host_id='canary-host-01',
+        container_id=canary_cid,
+        container_name='{container_name}',
+        image_id=None,
+        image_ref='{container_name}:canary',
+        image_digest=latest_score.image_digest,
+        image_digest_status='resolved',
+        current_snapshot={{'state': {{'running': True, 'pid': 50000}}}},
+        first_seen_at=now,
+        last_seen_at=now,
+    )
+    db.add(c_ident)
+else:
+    c_ident.container_name = '{container_name}'
+    c_ident.last_seen_at = now
+db.commit()
+
 run_id = str(uuid4())
 run_key = hashlib.sha256(f'{scenario_id}-{{uuid4()}}'.encode()).hexdigest()
 ruleset_hash = hashlib.sha256(b'porygon.detection.v1').hexdigest()

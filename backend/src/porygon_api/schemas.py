@@ -1098,3 +1098,53 @@ class AiAuditOut(BaseModel):
     rule_gap_analysis: str | None = None
     audited_at: datetime
 
+
+class MLFeatureContributionOut(BaseModel):
+    feature: str
+    value: float
+    contribution: float
+    direction: Literal["increases_threat", "decreases_threat", "neutral"]
+    explanation: str
+
+
+class MLThreatClassificationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    predicted_class: Literal[
+        "benign",
+        "reconnaissance",
+        "privilege_escalation",
+        "shell_escape",
+        "suspicious_tooling",
+    ]
+    confidence: float = Field(ge=0.0, le=1.0)
+    risk_level: Literal["clean", "low", "medium", "high", "critical"]
+    class_probabilities: dict[str, float]
+    feature_vector: dict[str, float]
+    top_contributing_features: list[MLFeatureContributionOut]
+    summary: str
+    model_version: str
+    classified_at: datetime
+
+
+class MLClassifyEventsIn(BaseModel):
+    events: list[dict[str, Any]] = Field(default_factory=list)
+    image_digest: str | None = None
+    drift_score: float | None = Field(default=None, ge=0.0, le=1.0)
+
+
+class MLClassifyFeaturesIn(BaseModel):
+    observation_features: dict[str, Any]
+    baseline_features: dict[str, Any] | None = None
+    drift_score: float | None = Field(default=None, ge=0.0, le=1.0)
+
+
+class MLModelInfoOut(BaseModel):
+    model_name: str
+    model_version: str
+    algorithm: str
+    classes: list[str]
+    features: list[str]
+    num_trees: int
+    explainability_method: str
+

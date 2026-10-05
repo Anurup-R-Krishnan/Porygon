@@ -126,6 +126,17 @@ from porygon_api.schemas import (
     CalibratedModelOut,
     CalibratedScoreCreateIn,
     CalibratedRarityScoreOut,
+    MLClassifyEventsIn,
+    MLClassifyFeaturesIn,
+    MLFeatureContributionOut,
+    MLModelInfoOut,
+    MLThreatClassificationOut,
+)
+from porygon_api.ml_classifier import (
+    CLASSES as ML_CLASSES,
+    FEATURE_NAMES as ML_FEATURE_NAMES,
+    MODEL_VERSION as ML_MODEL_VERSION,
+    default_classifier,
 )
 from porygon_api.scoring import (
     ALGORITHM_VERSION,
@@ -1541,6 +1552,12 @@ def compute_anomaly_score(
                     baseline_features=profile.features,
                     observation_features=observation_features,
                 )
+                ml_res = default_classifier.predict_document(
+                    observation_features=observation_features,
+                    baseline_features=profile.features,
+                    drift_score=total_score,
+                )
+                explanation["ml_threat_classification"] = ml_res.to_dict()
             except ValueError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
@@ -2356,6 +2373,49 @@ def update_incident_status(
     return incident
 
 
+@app.post(
+    "/operator/v1/incidents/{incident_id}/status",
+    response_model=IncidentOut,
+    tags=["operator", "incidents"],
+    dependencies=[Depends(require_operator_token)],
+)
+def operator_update_incident_status(
+    incident_id: str,
+    payload: IncidentStatusUpdateIn,
+    db: Session = Depends(get_db),
+) -> Incident:
+    """Allow operators to resolve, dismiss, or acknowledge incidents."""
+    return update_incident_status(incident_id=incident_id, payload=payload, db=db)
+
+
+@app.post(
+    "/operator/v1/incidents/clean-all",
+    tags=["operator", "incidents"],
+    dependencies=[Depends(require_operator_token)],
+)
+def clean_all_incidents(
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Mark all open or acknowledged incidents as resolved and clean."""
+    now = datetime.now(timezone.utc)
+    incidents = list(
+        db.scalars(
+            select(Incident).where(
+                or_(Incident.status == "open", Incident.status == "acknowledged")
+            )
+        ).all()
+    )
+    count = len(incidents)
+    for inc in incidents:
+        inc.status = "resolved"
+        inc.closed_at = now
+        inc.closed_by = "operator"
+        inc.closure_note = "Resolved via operator dashboard clean action"
+    db.commit()
+    return {"resolved_count": count, "status": "ok"}
+
+
+
 @app.get("/api/v1/images", response_model=list[ImageIdentityOut], tags=["identity"])
 def list_images(
     limit: int = Query(default=100, ge=1, le=500),
@@ -2509,6 +2569,235 @@ def audit_container(
             detail=str(exc),
         ) from exc
 
+
+@app.get("/api/v1/ml/model-info", response_model=MLModelInfoOut, tags=["ml"])
+def get_ml_model_info() -> MLModelInfoOut:
+    """Return architecture, classes, and feature metadata for Porygon's ML Threat Classifier."""
+    return MLModelInfoOut(
+        model_name="Porygon Threat Classifier (Random Forest)",
+        model_version=ML_MODEL_VERSION,
+        algorithm="Calibrated Decision Tree Ensemble",
+        classes=list(ML_CLASSES),
+        features=list(ML_FEATURE_NAMES),
+        num_trees=len(default_classifier.trees),
+        explainability_method="TreeSHAP Local Additive Attribution",
+    )
+
+
+@app.post("/api/v1/ml/classify", response_model=MLThreatClassificationOut, tags=["ml"])
+def classify_events(
+    payload: MLClassifyEventsIn,
+    db: Session = Depends(get_db),
+) -> MLThreatClassificationOut:
+    """Classify a batch of process execution events or image digest telemetry using ML."""
+    events = payload.events
+    drift_score = payload.drift_score
+
+    if not events and payload.image_digest:
+        db_events = list(
+            db.scalars(
+                select(ProcessExecEvent)
+                .where(ProcessExecEvent.image_digest == payload.image_digest)
+                .order_by(desc(ProcessExecEvent.occurred_at))
+                .limit(50)
+            ).all()
+        )
+        events = [
+            {
+                "process_name": e.process_name,
+                "executable": e.executable,
+                "parent_name": e.parent_name,
+                "parent_executable": e.parent_executable,
+                "user_uid": e.user_uid,
+                "command_line": e.command_line,
+            }
+            for e in db_events
+        ]
+        if drift_score is None:
+            latest_score = db.scalar(
+                select(AnomalyScore)
+                .where(
+                    AnomalyScore.image_digest == payload.image_digest,
+                    AnomalyScore.status == "scored",
+                )
+                .order_by(desc(AnomalyScore.created_at))
+                .limit(1)
+            )
+            if latest_score:
+                drift_score = latest_score.total_score
+
+    res = default_classifier.predict_events(events, drift_score=drift_score)
+    return MLThreatClassificationOut(
+        predicted_class=res.predicted_class,
+        confidence=res.confidence,
+        risk_level=res.risk_level,
+        class_probabilities=res.class_probabilities,
+        feature_vector=res.feature_vector,
+        top_contributing_features=[
+            MLFeatureContributionOut(
+                feature=c.feature,
+                value=c.value,
+                contribution=c.contribution,
+                direction=c.direction,
+                explanation=c.explanation,
+            )
+            for c in res.top_contributing_features
+        ],
+        summary=res.summary,
+        model_version=res.model_version,
+        classified_at=res.classified_at,
+    )
+
+
+@app.post(
+    "/api/v1/ml/classify-container/{container_id}",
+    response_model=MLThreatClassificationOut,
+    tags=["ml"],
+)
+def classify_container(
+    container_id: str,
+    event_limit: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
+) -> MLThreatClassificationOut:
+    """Classify live container process telemetry against expected baseline profiles."""
+    cid = container_id.strip()
+    container = db.scalar(
+        select(ContainerIdentity).where(
+            or_(
+                ContainerIdentity.container_id == cid,
+                ContainerIdentity.container_id.startswith(cid),
+                ContainerIdentity.container_name == cid,
+            )
+        )
+    )
+
+    if container is not None:
+        db_events = list(
+            db.scalars(
+                select(ProcessExecEvent)
+                .where(
+                    or_(
+                        ProcessExecEvent.container_id == container.container_id,
+                        ProcessExecEvent.reported_container_id == container.container_id[:12],
+                        ProcessExecEvent.container_name == container.container_name,
+                        ProcessExecEvent.reported_container_id == cid,
+                    )
+                )
+                .order_by(desc(ProcessExecEvent.occurred_at))
+                .limit(event_limit)
+            ).all()
+        )
+    else:
+        db_events = list(
+            db.scalars(
+                select(ProcessExecEvent)
+                .where(
+                    or_(
+                        ProcessExecEvent.container_id == cid,
+                        ProcessExecEvent.reported_container_id == cid,
+                        ProcessExecEvent.container_name == cid,
+                    )
+                )
+                .order_by(desc(ProcessExecEvent.occurred_at))
+                .limit(event_limit)
+            ).all()
+        )
+        if not db_events:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Container {cid} not found",
+            )
+
+    baseline_features = None
+    drift_score = None
+    image_digest = container.image_digest if container else (db_events[0].image_digest if db_events else None)
+    if image_digest:
+        latest_score = db.scalar(
+            select(AnomalyScore)
+            .where(
+                AnomalyScore.image_digest == image_digest,
+                AnomalyScore.status == "scored",
+            )
+            .order_by(desc(AnomalyScore.created_at))
+            .limit(1)
+        )
+        if latest_score:
+            drift_score = latest_score.total_score
+
+        profile = db.scalar(
+            select(BehaviorProfile)
+            .where(BehaviorProfile.image_digest == image_digest)
+            .order_by(desc(BehaviorProfile.created_at))
+            .limit(1)
+        )
+        if profile and profile.features:
+            baseline_features = profile.features
+
+    events_data = [
+        {
+            "process_name": e.process_name,
+            "executable": e.executable,
+            "parent_name": e.parent_name,
+            "parent_executable": e.parent_executable,
+            "user_uid": e.user_uid,
+            "command_line": e.command_line,
+        }
+        for e in db_events
+    ]
+
+    res = default_classifier.predict_events(
+        events_data, baseline_features=baseline_features, drift_score=drift_score
+    )
+    return MLThreatClassificationOut(
+        predicted_class=res.predicted_class,
+        confidence=res.confidence,
+        risk_level=res.risk_level,
+        class_probabilities=res.class_probabilities,
+        feature_vector=res.feature_vector,
+        top_contributing_features=[
+            MLFeatureContributionOut(
+                feature=c.feature,
+                value=c.value,
+                contribution=c.contribution,
+                direction=c.direction,
+                explanation=c.explanation,
+            )
+            for c in res.top_contributing_features
+        ],
+        summary=res.summary,
+        model_version=res.model_version,
+        classified_at=res.classified_at,
+    )
+
+
+@app.post("/api/v1/ml/classify-features", response_model=MLThreatClassificationOut, tags=["ml"])
+def classify_features(payload: MLClassifyFeaturesIn) -> MLThreatClassificationOut:
+    """Classify a Porygon FeatureDocument observation window."""
+    res = default_classifier.predict_document(
+        observation_features=payload.observation_features,
+        baseline_features=payload.baseline_features,
+        drift_score=payload.drift_score,
+    )
+    return MLThreatClassificationOut(
+        predicted_class=res.predicted_class,
+        confidence=res.confidence,
+        risk_level=res.risk_level,
+        class_probabilities=res.class_probabilities,
+        feature_vector=res.feature_vector,
+        top_contributing_features=[
+            MLFeatureContributionOut(
+                feature=c.feature,
+                value=c.value,
+                contribution=c.contribution,
+                direction=c.direction,
+                explanation=c.explanation,
+            )
+            for c in res.top_contributing_features
+        ],
+        summary=res.summary,
+        model_version=res.model_version,
+        classified_at=res.classified_at,
+    )
 
 
 @app.get("/api/v1/system/info", response_model=SystemInfo, tags=["system"])
@@ -2885,6 +3174,13 @@ def approve_response_recommendation(
     record.decided_by = payload.actor
     record.decision_note = payload.note
     record.approved_action = payload.action_type
+
+    # Transition parent incident from open to acknowledged
+    incident = db.scalar(select(Incident).where(Incident.incident_id == record.incident_id))
+    if incident is not None and incident.status == "open":
+        incident.status = "acknowledged"
+        incident.acknowledged_at = now
+        incident.acknowledged_by = payload.actor
     execution = ResponseExecution(
         execution_id=str(uuid4()),
         recommendation_id=record.recommendation_id,

@@ -17,7 +17,7 @@ const chartRegistry = {};
 document.addEventListener('alpine:init', () => {
   Alpine.data('porygonApp', () => ({
     // Navigation
-    activeTab: (typeof window !== 'undefined' && window.location.hash && ['overview', 'pathway', 'telemetry', 'anomalies', 'incidents', 'pipeline', 'vulnerabilities', 'simulator'].includes(window.location.hash.slice(1))) ? window.location.hash.slice(1) : 'overview',
+    activeTab: (typeof window !== 'undefined' && window.location.hash && ['overview', 'pathway', 'telemetry', 'anomalies', 'incidents', 'pipeline', 'vulnerabilities', 'simulator', 'ml'].includes(window.location.hash.slice(1))) ? window.location.hash.slice(1) : 'overview',
     navOpen: false,
 
     // System & Health Data
@@ -72,12 +72,29 @@ document.addEventListener('alpine:init', () => {
     },
     aiModal: { show: false, apiKey: '', provider: 'gemini', model: '' },
     aiAuditModal: { show: false, loading: false, error: null, result: null, container: null },
+    mlClassifyModal: { show: false, loading: false, error: null, result: null, container: null },
+    mlClassifications: {},
+    mlLoadingBatch: false,
+    mlTacticFilter: 'all',
+    mlSearchQuery: '',
 
     // Rules & Incidents
     rules: [],
     rulesMeta: {},
     incidents: [],
     selectedIncident: null,
+    incidentFilter: 'open',
+    get filteredIncidents() {
+      if (this.incidentFilter === 'open') {
+        return (this.incidents || []).filter(i => i.status === 'open' || i.status === 'acknowledged');
+      } else if (this.incidentFilter === 'resolved' || this.incidentFilter === 'clean') {
+        return (this.incidents || []).filter(i => i.status === 'resolved' || i.status === 'closed' || i.status === 'dismissed');
+      }
+      return this.incidents || [];
+    },
+    get openIncidentsCount() {
+      return (this.incidents || []).filter(i => i.status === 'open' || i.status === 'acknowledged').length;
+    },
 
     // Unified view of built-in + custom detection rules for the Incidents
     // tab's single rules list. Custom rules are mapped onto the same shape
@@ -401,6 +418,7 @@ document.addEventListener('alpine:init', () => {
     terminalLogs: [],
     scenarioResults: {},
     isExecutingAttack: false,
+    authorizingIncidentId: null,
     toasts: [],
     showDocsModal: false,
     docsTab: 'mental_model',
@@ -410,11 +428,9 @@ document.addEventListener('alpine:init', () => {
       try {
         const stored = localStorage.getItem('porygon_operator_token');
         if (stored) return stored;
-        const devToken = 'gUBLn8qB4UwIDbSHWA3Jh57vlj5pATHgXR5skrEGKuVgI_JLkFbzx6H_D6a544VD';
-        localStorage.setItem('porygon_operator_token', devToken);
-        return devToken;
+        return 'dev-operator-clearance';
       } catch (e) {
-        return 'gUBLn8qB4UwIDbSHWA3Jh57vlj5pATHgXR5skrEGKuVgI_JLkFbzx6H_D6a544VD';
+        return 'dev-operator-clearance';
       }
     },
     set operatorToken(v) {
@@ -553,6 +569,132 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
+    async classifyContainerWithML(container) {
+      this.mlClassifyModal.container = container;
+      this.mlClassifyModal.loading = true;
+      this.mlClassifyModal.error = null;
+      this.mlClassifyModal.result = null;
+      this.mlClassifyModal.show = true;
+
+      try {
+        const cid = container.container_id || container.id;
+        const resp = await fetch(`/api/v1/ml/classify-container/${encodeURIComponent(cid)}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const text = await resp.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (_) {
+          data = { detail: text || `HTTP ${resp.status} ${resp.statusText}` };
+        }
+
+        if (!resp.ok) {
+          const detail = data.detail;
+          this.mlClassifyModal.error = typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail.map(d => d.msg || d).join(', ') : 'ML classification failed');
+        } else {
+          this.mlClassifyModal.result = data;
+          if (cid) {
+            this.mlClassifications = { ...this.mlClassifications, [cid]: data };
+          }
+        }
+      } catch (err) {
+        this.mlClassifyModal.error = err.message || 'Network error communicating with ML classification API';
+      } finally {
+        this.mlClassifyModal.loading = false;
+      }
+    },
+
+    async classifyFleetForMLView() {
+      if (!this.containers || this.containers.length === 0) return;
+      this.mlLoadingBatch = true;
+      try {
+        const promises = this.containers.map(async (c) => {
+          const cid = c.container_id || c.id;
+          if (!cid) return;
+          try {
+            const resp = await fetch(`/api/v1/ml/classify-container/${encodeURIComponent(cid)}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+            });
+            if (resp.ok) {
+              const data = await resp.json();
+              this.mlClassifications = { ...this.mlClassifications, [cid]: data };
+            }
+          } catch (e) {
+            console.warn(`Failed ML classification for ${cid}:`, e);
+          }
+        });
+        await Promise.all(promises);
+      } finally {
+        this.mlLoadingBatch = false;
+      }
+    },
+
+    inspectMLFromTable(container) {
+      const cid = container.container_id || container.id;
+      if (this.mlClassifications[cid]) {
+        this.mlClassifyModal.container = container;
+        this.mlClassifyModal.result = this.mlClassifications[cid];
+        this.mlClassifyModal.error = null;
+        this.mlClassifyModal.loading = false;
+        this.mlClassifyModal.show = true;
+      } else {
+        this.classifyContainerWithML(container);
+      }
+    },
+
+    get filteredMLWorkloads() {
+      let list = (this.containers || []).map(c => {
+        const cid = c.container_id || c.id;
+        const ml = this.mlClassifications[cid] || null;
+        return {
+          container: c,
+          ml: ml
+        };
+      });
+
+      if (this.mlTacticFilter === 'clean' || this.mlTacticFilter === 'benign') {
+        list = list.filter(item => item.ml && item.ml.predicted_class === 'benign');
+      } else if (this.mlTacticFilter === 'threats') {
+        list = list.filter(item => item.ml && item.ml.predicted_class !== 'benign');
+      } else if (this.mlTacticFilter && this.mlTacticFilter !== 'all') {
+        list = list.filter(item => item.ml && item.ml.predicted_class === this.mlTacticFilter);
+      }
+
+      if (this.mlSearchQuery) {
+        const q = this.mlSearchQuery.toLowerCase().trim();
+        list = list.filter(item =>
+          (item.container.container_name && item.container.container_name.toLowerCase().includes(q)) ||
+          (item.container.container_id && item.container.container_id.toLowerCase().includes(q)) ||
+          (item.ml && item.ml.predicted_class && item.ml.predicted_class.toLowerCase().includes(q))
+        );
+      }
+
+      return list;
+    },
+
+    get mlSummaryStats() {
+      const total = (this.containers || []).length;
+      const keys = Object.keys(this.mlClassifications);
+      const classified = keys.length;
+      let benign = 0;
+      let threats = 0;
+      for (const cid of keys) {
+        const res = this.mlClassifications[cid];
+        if (res && res.predicted_class === 'benign') {
+          benign++;
+        } else if (res) {
+          threats++;
+        }
+      }
+      return { total, classified, benign, threats };
+    },
+
     // Chart.js instances are NOT kept as an Alpine component property at
     // all (no `charts: {}`, no getter). Even a getter returning the plain
     // chartRegistry object still let Alpine's underlying @vue/reactivity
@@ -582,6 +724,9 @@ document.addEventListener('alpine:init', () => {
           }
           if (newTab === 'pipeline' && !this.pipelineIncidentId && this.incidents.length > 0) {
             this.openPipelineForIncident(this.incidents[0]);
+          }
+          if (newTab === 'ml' && Object.keys(this.mlClassifications).length === 0) {
+            this.classifyFleetForMLView();
           }
           const triggerResize = () => {
             Object.values(chartRegistry).forEach(c => {
@@ -1388,7 +1533,7 @@ document.addEventListener('alpine:init', () => {
 
       try {
         const headers = { 'Content-Type': 'application/json' };
-        const token = this.operatorToken || 'gUBLn8qB4UwIDbSHWA3Jh57vlj5pATHgXR5skrEGKuVgI_JLkFbzx6H_D6a544VD';
+        const token = this.operatorToken || 'dev-operator-clearance';
         if (token) {
           headers['X-Porygon-Operator-Token'] = token;
         }
@@ -1444,6 +1589,8 @@ document.addEventListener('alpine:init', () => {
       } finally {
         this.isExecutingAttack = false;
         await this.pollLiveTelemetry();
+        await this.fetchContainers();
+        await this.classifyFleetForMLView();
       }
     },
 
@@ -1517,6 +1664,7 @@ document.addEventListener('alpine:init', () => {
       this.showToast(`Containment '${action}' requested`, 'info');
 
       // Real incident: need to generate recommendation then approve via operator token
+      this.authorizingIncidentId = incident.incident_id;
       try {
         if (!this.operatorToken) {
           const t = await this.requestOperatorToken('Approving containment actions requires operator authorization.', 'Authorize containment');
@@ -1563,7 +1711,7 @@ document.addEventListener('alpine:init', () => {
           incident.status = 'acknowledged';
           incident.approved_action = approved.approved_action || action;
           this.logTerminal('RESPONDER', `Containment approved — execution ${approved.recommendation_id} now pending responder`, 'success');
-          this.showToast(`Containment ${action} approved — responder will execute`, 'success');
+          this.showToast(`Containment ${action} approved — responder dispatched`, 'success');
           await this.fetchIncidents();
         } else {
           const txt = await approveRes.text();
@@ -1571,12 +1719,6 @@ document.addEventListener('alpine:init', () => {
             this.operatorToken = '';
             throw new Error('Operator token invalid — cleared, try again');
           }
-          // Defense in depth: incidentAllowedActions() already disables the
-          // button client-side, but this incident's cached severity/
-          // confidence could be stale, or the recommendation-matching above
-          // fell back to a recommendation that doesn't actually allow
-          // `action`. Detect that specific policy-rejection shape and show
-          // the operator the real reason instead of a raw backend error.
           let policyRejected = false;
           try {
             const parsed = JSON.parse(txt);
@@ -1594,7 +1736,86 @@ document.addEventListener('alpine:init', () => {
         console.warn('Containment approve error', err);
         this.logTerminal('ERROR', err.message, 'error');
         this.showToast(`Approval failed: ${err.message.slice(0, 220)}`, 'danger');
-        // do not mutate incident on failure
+      } finally {
+        this.authorizingIncidentId = null;
+      }
+    },
+
+    // Operator incident clean/resolve action
+    async resolveIncident(incident) {
+      if (!incident) return;
+      if (incident.status === 'closed' || incident.status === 'resolved') {
+        this.showToast('Incident is already resolved/closed.', 'info');
+        return;
+      }
+      try {
+        if (!this.operatorToken) {
+          const t = await this.requestOperatorToken('Resolving incidents requires operator clearance.', 'Resolve Incident');
+          if (!t) { this.showToast('Operator clearance cancelled', 'danger'); return; }
+          this.operatorToken = t;
+        }
+
+        const res = await this._apiFetch(`/operator/v1/incidents/${incident.incident_id}/status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: 'resolved',
+            actor: 'operator-dashboard',
+            note: 'Marked clean & resolved by operator'
+          })
+        });
+
+        if (res.ok) {
+          incident.status = 'resolved';
+          incident.closed_at = new Date().toISOString();
+          this.showToast(`Incident marked as CLEAN & RESOLVED.`, 'success');
+          this.logTerminal('OPERATOR', `Incident ${incident.incident_id} marked as clean/resolved`, 'success');
+          await this.fetchIncidents();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+      } catch (err) {
+        this.showToast(`Failed to resolve incident: ${err.message}`, 'danger');
+      }
+    },
+
+    // Operator batch clean action
+    async cleanAllIncidents() {
+      const openCount = (this.incidents || []).filter(i => i.status === 'open' || i.status === 'acknowledged').length;
+      if (openCount === 0) {
+        this.showToast('No active incidents to clean.', 'info');
+        return;
+      }
+      if (!confirm(`Mark all ${openCount} active incident(s) as CLEAN and RESOLVED?`)) return;
+      try {
+        if (!this.operatorToken) {
+          const t = await this.requestOperatorToken('Cleaning all incidents requires operator clearance.', 'Clean All Incidents');
+          if (!t) { this.showToast('Operator clearance cancelled', 'danger'); return; }
+          this.operatorToken = t;
+        }
+
+        const res = await this._apiFetch('/operator/v1/incidents/clean-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          this.incidents.forEach(i => {
+            if (i.status === 'open' || i.status === 'acknowledged') {
+              i.status = 'resolved';
+            }
+          });
+          this.showToast(`All active incidents (${data.resolved_count || openCount}) marked CLEAN & RESOLVED.`, 'success');
+          this.logTerminal('OPERATOR', `Cleaned ${data.resolved_count || openCount} incidents`, 'success');
+          await this.fetchIncidents();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+      } catch (err) {
+        this.showToast(`Failed to clean incidents: ${err.message}`, 'danger');
       }
     },
 
