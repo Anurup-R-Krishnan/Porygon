@@ -1,0 +1,1018 @@
+\documentclass[aspectratio=169, 11pt]{beamer}
+
+% --- Packages & Setup ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usetikzlibrary{calc, positioning, arrows.meta, shapes.geometric, fit, backgrounds}
+
+\graphicspath{{../}{./}}
+
+% Try loading Open Sans; fallback if missing
+\IfFileExists{opensans.sty}{\usepackage[default,scale=0.95]{opensans}}{}
+
+% --- Branding Colors ---
+\definecolor{amritaMaroon}{HTML}{A4123F}
+\definecolor{inkGrey}{HTML}{3C3C3C}
+\definecolor{softGrey}{HTML}{EFEFEF}
+\definecolor{lineGrey}{HTML}{B9B9B9}
+\definecolor{goodGreen}{HTML}{1A7F43}
+\definecolor{warnAmber}{HTML}{9A6700}
+\definecolor{coolBlue}{HTML}{2D5BD7}
+
+% --- Theme Setup ---
+\usetheme{Madrid}
+\usecolortheme[named=amritaMaroon]{structure}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+\setbeamertemplate{itemize items}[circle]
+\setbeamerfont{frametitle}{size=\large}
+\setbeamerfont{framesubtitle}{size=\scriptsize}
+
+% --- Diagram shorthands ---
+\tikzset{
+  box/.style   = {draw=lineGrey, fill=white, rounded corners=2pt, align=center,
+                  font=\scriptsize, inner sep=4pt, minimum height=8mm},
+  accent/.style= {draw=amritaMaroon, very thick, fill=amritaMaroon!8},
+  blue/.style  = {draw=coolBlue, very thick, fill=coolBlue!8},
+  green/.style = {draw=goodGreen, very thick, fill=goodGreen!8},
+  amber/.style = {draw=warnAmber, very thick, fill=warnAmber!10},
+  zone/.style  = {draw=lineGrey, dashed, rounded corners=4pt, inner sep=7pt},
+  fl/.style    = {-{Stealth[length=2mm]}, draw=inkGrey, thick},
+  fld/.style   = {-{Stealth[length=2mm]}, draw=lineGrey, thick, dashed},
+  lbl/.style   = {font=\tiny\itshape, text=inkGrey, inner sep=1.5pt}
+}
+
+% Small helper for status words in tables
+\newcommand{\ok}[1]{\textcolor{goodGreen}{\textbf{#1}}}
+\newcommand{\pend}[1]{\textcolor{warnAmber}{\textbf{#1}}}
+\newcommand{\nope}[1]{\textcolor{amritaMaroon}{\textbf{#1}}}
+
+\begin{document}
+
+% ============================================================
+% TITLE
+% ============================================================
+\begin{frame}
+    \begin{tikzpicture}[remember picture,overlay]
+        \node[fill=amritaMaroon, text=white, font=\bfseries\footnotesize, anchor=north east,
+              rounded corners=2pt, inner sep=5pt]
+        at ($(current page.north east) + (-0.2cm,-0.2cm)$)
+        {Type 1: Research Project};
+    \end{tikzpicture}
+
+    \centering
+    \IfFileExists{logo.png}{\includegraphics[width=2.8cm]{logo.png}\vspace{0.1cm}}{\vspace{0.4cm}}
+
+    {\large \textbf{\textcolor{amritaMaroon}{Porygon: Learning Normal Behaviour\\ Inside Running Containers}}} \\
+    \vspace{0.08cm}
+    {\scriptsize\itshape Does conditioning a process-execution behavioural baseline on deployment context, in addition to image digest, reduce the false-positive rate without degrading recall?} \\
+    \vspace{0.12cm}
+    {\footnotesize \textbf{23CSE498 -- Project Phase 2 (Panel Review 1)} \quad | \quad \textbf{Team Number: [XX]}} \\
+    \vspace{0.15cm}
+
+    \begin{table}
+        \centering
+        \footnotesize
+        \renewcommand{\arraystretch}{1.05}
+        \begin{tabular}{|c|c|l|}
+            \hline
+            \textbf{S.No} & \textbf{Register Number} & \textbf{Student Name} \\
+            \hline
+            1 & CB.EN.U4CSE23XXX & Anurup R Krishnan \\
+            \hline
+            2 & CB.EN.U4CSE23XXX & Student Name 2 \\
+            \hline
+            3 & CB.EN.U4CSE23XXX & Student Name 3 \\
+            \hline
+            4 & CB.EN.U4CSE23XXX & Student Name 4 \\
+            \hline
+        \end{tabular}
+    \end{table}
+    \vspace{0.1cm}
+
+    {\footnotesize Guide: \textbf{Guide Name}, Designation, Department of CSE} \\
+    \vspace{0.1cm}
+    {\scriptsize \today}
+\end{frame}
+
+% ============================================================
+% THE PROBLEM
+% ============================================================
+\section{The Problem}
+\begin{frame}{The Problem}
+\framesubtitle{Behavioural profile scoping is an unresolved design parameter, not a solved problem}
+
+\begin{columns}[T]
+\column{0.52\textwidth}
+\small
+Container process-execution anomaly detection observes the syscalls a
+containerized process issues (via eBPF/Falco), builds a baseline of
+``normal'' process-name activity, and flags deviating execution events.
+Falco, Sysdig Secure, Aqua, and academic work since Forrest et al.\ (1996)
+already do this; the sensor and scoring primitive are established, not novel.
+
+\medskip
+What every implementation must still decide, without a published answer, is:
+\emph{at what identity granularity is the baseline scoped?} Per fleet
+(global), per mutable tag, per exact image digest, or per digest plus
+runtime security configuration? Vendors pick one by engineering judgement.
+
+\medskip
+\textbf{The unresolved question.} No published, reproducible, statistically
+powered comparison of these four scoping strategies exists.
+
+\column{0.46\textwidth}
+\centering
+\begin{tikzpicture}[node distance=4mm]
+  \node[box, accent, minimum width=34mm] (app) {Container process\\ \tiny execve/execveat stream (Falco)};
+  \node[box, below=6mm of app, minimum width=34mm] (norm) {Baseline distribution\\ \tiny process-name counts, fit split};
+  \node[box, below=6mm of norm, minimum width=34mm, amber] (odd) {Jensen-Shannon distance $\geq$ threshold};
+  \node[box, below=6mm of odd, minimum width=38mm, blue] (q) {Which baseline scope minimizes\\ false positives without losing recall?};
+  \draw[fl] (app) -- (norm);
+  \draw[fl] (norm) -- (odd);
+  \draw[fl] (odd) -- (q);
+\end{tikzpicture}
+
+\smallskip
+{\scriptsize A stratum with too few independent fit-split runs returns
+\texttt{insufficient\_profile} explicitly, never a guessed score.}
+\end{columns}
+\end{frame}
+
+% ============================================================
+% RESEARCH QUESTION
+% ============================================================
+\begin{frame}{The Research Question}
+\framesubtitle{Four scoping arms, one frozen protocol, pre-registered statistics}
+
+\begin{columns}[T]
+\column{0.45\textwidth}
+\footnotesize
+An OCI image digest (\texttt{repository@sha256:<64 hex>}) is an immutable,
+content-addressed identity: the exact same bytes always resolve to the same
+digest, unlike a mutable tag such as \texttt{nginx:latest}, which can be
+silently repointed to a different image.
+
+\medskip
+\textbf{H1 (primary):} does scoping the baseline by digest + runtime security
+context (\texttt{ARM-CONTEXT}) reduce the benign false-positive rate versus
+digest-only scoping (\texttt{ARM-DIGEST}), without a material loss of
+detection recall on planted attack scenarios?
+
+\medskip
+\textbf{Runtime context} is a canonical SHA-256 hash over: entrypoint/command
+shape, effective user, \texttt{privileged}, \texttt{read\_only\_rootfs},
+network mode, Linux capabilities added/dropped, devices, published ports, and
+mounts -- security-relevant configuration \texttt{docker inspect} exposes,
+excluding secrets and literal argument values.
+
+\column{0.53\textwidth}
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[node distance=3mm]
+  \node[box, accent, minimum width=48mm] (img) {\texttt{repository@sha256:<digest>}};
+
+  \node[box, below left=9mm and 6mm of img, minimum width=26mm] (d1) {\texttt{ARM-GLOBAL}\\ \tiny pooled across all images};
+  \node[box, below=9mm of img, minimum width=26mm] (d2) {\texttt{ARM-TAG} / \texttt{ARM-DIGEST}\\ \tiny mutable alias / exact digest};
+  \node[box, below right=9mm and 6mm of img, minimum width=26mm] (d3) {\texttt{ARM-CONTEXT}\\ \tiny digest + config hash};
+
+  \draw[fl] (img) -- (d1);
+  \draw[fl] (img) -- (d2);
+  \draw[fl] (img) -- (d3);
+
+  \node[box, blue, below=9mm of d2, minimum width=60mm] (q)
+    {Exact McNemar test on paired trial outcomes,\\ \tiny Holm-corrected, Clopper-Pearson CIs, frozen $\alpha=0.05$};
+  \draw[fl] (d1) -- (q);
+  \draw[fl] (d2) -- (q);
+  \draw[fl] (d3) -- (q);
+\end{tikzpicture}}
+
+\smallskip
+{\scriptsize No fallback between arms during primary analysis. A null result
+for H1 is reported as a null result, not concealed by a weaker contrast.}
+\end{columns}
+\end{frame}
+
+% ============================================================
+% NOVELTY / DIFFERENTIATION
+% ============================================================
+\begin{frame}{What Makes Porygon Different}
+\framesubtitle{A measured answer to a question every commercial runtime-security product answers by guesswork}
+
+\begin{columns}[T]
+\column{0.5\textwidth}
+\footnotesize
+\textbf{Built on established, production-grade components:}
+\begin{itemize}\setlength\itemsep{2pt}
+  \item Falco 0.44.1 eBPF kernel telemetry -- the same sensor engine
+        deployed in production by Sysdig, Aqua, and CNCF-graduated
+        security stacks
+  \item Jensen-Shannon information-theoretic divergence -- the same
+        distance measure used in published network-traffic anomaly
+        detection (Salem \& Naït-Abdesselam, IEEE ICC 2012)
+  \item SHA-256 content-addressed image identity -- the OCI-standard
+        supply-chain integrity mechanism
+  \item Live EPSS (FIRST.org) and CISA KEV feed correlation on every
+        scanned CVE
+\end{itemize}
+
+\medskip
+\textbf{The unanswered industry question:} every one of these products
+ships a behavioral baseline. None of them publish a controlled measurement
+of \emph{how tightly that baseline should be scoped} -- one profile per
+fleet, per tag, per exact image, or per image-plus-configuration. Vendors
+ship a default and move on. Porygon measures it.
+
+\column{0.5\textwidth}
+\footnotesize
+\textbf{What Porygon adds:}
+\begin{enumerate}\setlength\itemsep{2pt}
+  \item A frozen, pre-registered protocol running the same telemetry and
+        rules through four baseline-scoping strategies, measured with
+        exact statistics (McNemar, Holm-Bonferroni, Clopper-Pearson) --
+        not a single reported accuracy number.
+  \item A decisive result: per-image scoping eliminates false alarms
+        entirely versus a pooled baseline (100\%~$\to$~0\%,
+        $p=6.7\times10^{-16}$) with zero loss of detection recall.
+  \item A new feature built directly from that result: scoring the
+        container's security configuration (privileges, capabilities,
+        mounts) as its own signal -- 0 false alarms, 100\% detection
+        of every tested configuration change, $n=53$.
+  \item Live-fire validation against a real, published malware sample
+        (next slide), not a synthetic test script.
+\end{enumerate}
+\end{columns}
+\end{frame}
+
+% ============================================================
+% LIVE ATTACK EVIDENCE
+% ============================================================
+\begin{frame}{Live-Fire Validation: Real Malware, Real Detection}
+\framesubtitle{quay.io/petr\_ruzicka/malware-cryptominer-container -- a published, real malware-sample image, not a synthetic stand-in}
+
+\begin{columns}[T]
+\column{0.48\textwidth}
+\footnotesize
+\textbf{Setup}
+\begin{itemize}\setlength\itemsep{2pt}
+  \item Real container run from a public image staging genuine malware
+        samples: Mirai, WannaCry, Kaiji, and a fully functional, statically
+        linked XMRig cryptominer binary
+  \item Porygon baseline built from 243 real Falco-captured \texttt{execve}
+        events during normal container startup and shell activity --
+        \emph{zero} knowledge of xmrig, mining, or malware given to the
+        system at any point
+  \item The real XMRig binary was then executed inside the container
+\end{itemize}
+
+\medskip
+\textbf{Static inventory (on disk)}
+\begin{itemize}\setlength\itemsep{2pt}
+  \item 20+ real malware/trojan binaries, x86/ARM/MIPS/PowerPC/SPARC
+\end{itemize}
+
+\column{0.48\textwidth}
+\footnotesize
+\textbf{Runtime result: caught, with zero prior knowledge}
+
+\begin{tabular}{@{}p{3.4cm}p{3.6cm}@{}}
+\toprule
+\textbf{Signal} & \textbf{Result} \\
+\midrule
+Anomaly score & \textbf{0.2696 (elevated)} \\
+\texttt{xmrig} in baseline? & Never seen -- flagged as novel \\
+Unseen executable & \texttt{.../xmrig/xmrig} flagged \\
+Unseen call edge & \texttt{nginx} $\to$ \texttt{xmrig} flagged \\
+Largest score contributor & process-name distance (0.63) \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\textbf{Why this matters:} no signature, no name list, no prior sample of
+XMRig anywhere in its training data. It flagged the binary purely because
+it deviated from this specific container's own, independently-learned
+normal behavior -- zero-day-capable detection, demonstrated live.
+
+\smallskip
+{\scriptsize Full record with API calls and timestamps:
+\texttt{docs/LIVE\_DEMO\_RECORD\_V1.md}.}
+\end{columns}
+\end{frame}
+
+% ============================================================
+% RUBRIC 1a: WORKFLOW
+% ============================================================
+\section{Methodology \& Solution Design}
+\begin{frame}{1. Methodology --- Pipeline}
+\framesubtitle{Rubric: Workflow \& Algorithmic Pipeline (5 Marks)}
+
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[node distance=3.5mm]
+  \node[box, accent, minimum width=20mm] (w) {Container\\syscalls};
+  \node[box, right=of w, minimum width=21mm] (k) {Falco eBPF\\sensor};
+  \node[box, right=of k, minimum width=21mm] (n) {Normalize,\\dedupe (SQLite outbox)};
+  \node[box, blue, right=of n, minimum width=22mm] (i) {Select baseline\\scope};
+  \node[box, right=of i, minimum width=20mm] (p) {JS-distance\\score};
+  \node[box, right=of p, minimum width=20mm] (r) {POR-DET-001..007\\rule match};
+  \node[box, green, right=of r, minimum width=20mm] (h) {Incident record,\\human review};
+
+  \foreach \a/\b in {w/k, k/n, n/i, i/p, p/r, r/h} \draw[fl] (\a) -- (\b);
+
+  \node[lbl, below=1.5mm of w, text width=20mm, align=center] {execve/\\execveat only};
+  \node[lbl, below=1.5mm of k, text width=21mm, align=center] {no host\\kernel module};
+  \node[lbl, below=1.5mm of n, text width=21mm, align=center] {deterministic\\event IDs};
+  \node[lbl, below=1.5mm of i, text width=22mm, align=center] {digest / tag /\\context hash};
+  \node[lbl, below=1.5mm of p, text width=20mm, align=center] {$D_{JS}\in[0,1]$};
+  \node[lbl, below=1.5mm of r, text width=20mm, align=center] {deterministic\\boolean checks};
+  \node[lbl, below=1.5mm of h, text width=20mm, align=center] {no automated\\response};
+\end{tikzpicture}}
+
+\vspace{4mm}
+\begin{columns}[T]
+\column{0.48\textwidth}
+\footnotesize
+\textbf{Two evidence classes, never merged into one verdict}
+\begin{itemize}\setlength\itemsep{1pt}
+  \item \textbf{Statistical:} Jensen-Shannon distance against baseline, a
+        rarity measure, not an attack probability
+  \item \textbf{Deterministic:} fixed boolean rules (POR-DET-001..007) on
+        shell/tool novelty, root execution, privileged flag, exec activity
+\end{itemize}
+A single merged score would conceal which evidence class fired.
+
+\column{0.48\textwidth}
+\footnotesize
+\textbf{Explicitly out of scope in v1}
+\begin{itemize}\setlength\itemsep{1pt}
+  \item No automated containment action without operator approval
+  \item No black-box/opaque model; every score is decomposable per feature
+  \item No network, DNS, socket, or file-access telemetry
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% ============================================================
+% RUBRIC 1b: ARCHITECTURE
+% ============================================================
+\begin{frame}{1. Methodology --- System Architecture}
+\framesubtitle{Rubric: Architecture \& Trust Boundaries (5 Marks)}
+
+\centering
+\resizebox{!}{0.62\textheight}{%
+\begin{tikzpicture}[node distance=4mm]
+
+  % --- server zone (top)
+  \node[box, minimum width=32mm] (kern) {Linux kernel + Falco 0.44.1\\ \tiny modern-eBPF, execve/execveat};
+  \node[box, right=14mm of kern, minimum width=32mm] (dock) {Docker Engine\\ \tiny /var/run/docker.sock event stream};
+  \begin{scope}[on background layer]
+    \node[zone, fill=softGrey, fit=(kern)(dock),
+          label={[font=\tiny, text=inkGrey]above:HOST}] {};
+  \end{scope}
+
+  % --- private zone (middle)
+  \node[box, below=10mm of kern, minimum width=32mm] (sensor) {telemetry adapter\\ \tiny SQLite outbox spool};
+  \node[box, below=10mm of dock, minimum width=32mm] (coll) {collector\\ \tiny SQLite outbox spool};
+  \node[box, accent, below=9mm of $(sensor)!0.5!(coll)$, minimum width=48mm]
+       (api) {backend (FastAPI + SQLAlchemy)\\ \tiny baseline, scoring, POR-DET-*, incidents};
+  \node[box, below=7mm of api, minimum width=48mm]
+       (db) {PostgreSQL 17\\ \tiny append-only event/incident store};
+  \begin{scope}[on background layer]
+    \node[zone, fill=coolBlue!4, fit=(sensor)(coll)(api)(db),
+          label={[font=\tiny, text=coolBlue]below:porygon\_internal --- no egress}] {};
+  \end{scope}
+
+  % --- right column, aligned row-for-row with the left
+  \node[box, right=22mm of dock, minimum width=28mm] (op) {Operator\\ \tiny a person};
+  \node[box, green, below=10mm of op, minimum width=28mm] (gate) {NGINX gateway\\ \tiny 127.0.0.1:8000 only};
+  \node[box, amber, below=9mm of gate, minimum width=28mm] (act) {responder\\ \tiny pause/stop, operator-token gated};
+  \node[box, below=7mm of act, minimum width=28mm] (scan) {scanner (Trivy 0.72.0)\\ \tiny porygon\_egress, only outbound service};
+
+  \draw[fl] (kern) -- (sensor);
+  \draw[fl] (dock) -- (coll);
+  \draw[fl] (sensor) -- (api);
+  \draw[fl] (coll) -- (api);
+  \draw[fl] (api) -- (db);
+  \draw[fl] (op) -- (gate);
+  \draw[fl] (gate) -- (api);
+  \draw[fl] (api) -- (act);
+  \draw[fld] (act.east) to[out=0, in=0, looseness=1.4] (op.east);
+  \draw[fl] (api) -- (scan);
+\end{tikzpicture}}
+
+\vspace{1mm}
+{\scriptsize Least-privilege per service. Only the collector, scanner, and
+responder hold Docker-socket-equivalent privilege, for distinct reasons; the
+backend and telemetry adapter hold neither. Compromise of a Docker-socket
+service may become host compromise -- stated explicitly in
+\texttt{docs/THREAT\_MODEL\_V1.md}, not implied away.}
+\end{frame}
+
+% ============================================================
+% RUBRIC 1c: MATHEMATICS
+% ============================================================
+\begin{frame}{1. Methodology --- The Scoring Mathematics}
+\framesubtitle{Rubric: Mathematical Model / Formulation (5 Marks)}
+
+\begin{columns}[T]
+\column{0.53\textwidth}
+\footnotesize
+\textbf{Production path (generates every reported number).}\\
+Base-2 Jensen-Shannon distance between baseline $p$ and observed-window $q$:
+\vspace{-1mm}
+\[ D_{JS}(p\Vert q)=\sqrt{\tfrac12 D_{KL}(p\Vert m)+\tfrac12 D_{KL}(q\Vert m)},\quad m=\tfrac{p+q}{2} \]
+\vspace{-2mm}
+
+Bounded $[0,1]$ (base-2 log); 0 = identical. Empty observed window returns
+\texttt{None} (excluded, not zero); empty baseline vs.\ non-empty observation
+returns 1.0.
+
+\medskip
+\textbf{Aggregation} (\texttt{scoring.py}, algorithm \texttt{porygon.distance.v1},
+fixed weights, versioned):
+\[ \text{score}=0.50\cdot\overline{D_{JS}}_{6\text{ families}}
+  +0.30\cdot\text{novelty}+0.20\cdot\overline{z}_{5\text{ numeric}} \]
+
+Categorical weights: process name 0.15, executable 0.25, parent-child 0.20,
+UID 0.10, runtime action 0.10, sequence bigram 0.20. Missing family excluded,
+remaining weights renormalized, never imputed as zero.
+
+\medskip
+\textbf{Study threshold:} $D_{JS}\geq 0.25$ = positive call
+(\texttt{DEFAULT\_THRESHOLD}).
+
+\column{0.45\textwidth}
+\footnotesize
+\textbf{Exploratory alternative, not used for any reported number:}
+\texttt{calibrated\_rarity.py} implements unweighted-mean fusion over 4
+components and a conformal-style exceedance p-value:
+\[ p=\frac{1+\#\{\text{calib.\ values}\geq\text{test}\}}{n+1} \]
+Feature-flagged (\texttt{calibrated\_enabled}, default \texttt{False}); the
+study used the production JS-distance path, not this module.
+
+\medskip
+\textbf{Not a probability.} A JS-distance or fused rarity value is a
+distributional-deviation measure. Neither module documents or claims a
+$P(\text{attack})$ field.
+
+\smallskip
+{\scriptsize\textcolor{warnAmber}{\textbf{Honest limitation:}} the
+0.50/0.30/0.20 weights are a fixed implementation decision, not fit to
+data -- disclosed, which is why the unweighted alternative exists.}
+\end{columns}
+\end{frame}
+
+% ============================================================
+% RUBRIC 1d: METRICS & DATA
+% ============================================================
+\begin{frame}{1. Methodology --- Dataset, Splits, and Evaluation Metrics}
+\framesubtitle{Rubric: Datasets, Preprocessing \& Evaluation Metrics (5 Marks)}
+
+\begin{columns}[T]
+\column{0.47\textwidth}
+\footnotesize
+\textbf{No public dataset answers this question}; data is generated from
+three real, pinned OCI images (frozen index digest, not a resolvable tag).
+
+\smallskip
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Workload} & \textbf{Pinned tag} \\
+\midrule
+nginx & \texttt{1.26.3-alpine} \\
+redis & \texttt{7.2.7-alpine} \\
+postgres & \texttt{16.6-alpine} \\
+\bottomrule
+\end{tabular}
+
+\smallskip
+Two simulated attack scenarios with planted ground truth
+(\texttt{SCN-LOG4SHELL-SIM}, harmless CVE-2021-44228-shaped spawn;
+\texttt{SCN-RUNC-ESCAPE-SIM}, harmless CVE-2019-5736-shaped write) plus a
+capture-integrity canary (\texttt{SCN-EXEC}, not ground truth).
+
+\smallskip
+\textbf{Independent unit: the workload run.} Splits assigned per-run by a
+deterministic trial-ID hash before outcomes are observed.
+
+\column{0.51\textwidth}
+\footnotesize
+\textbf{Primary metrics}
+
+\begin{tabular}{@{}p{2.5cm}p{4.4cm}@{}}
+\toprule
+\textbf{Metric ID} & \textbf{Definition} \\
+\midrule
+\texttt{MET-FPR-001} & benign runs with $\geq1$ positive call, Clopper-Pearson CI \\
+\texttt{MET-REC-001} & ground-truthed runs detected within horizon \\
+\texttt{MET-OTP-001} & occurrence-to-persistence latency (unmeasured) \\
+\texttt{MET-CPU-001} & CPU-seconds, RSS, disk writes per workload-minute \\
+\texttt{MET-CAL-001} & held-out coverage vs.\ calibrated threshold \\
+\bottomrule
+\end{tabular}
+
+\smallskip
+\textcolor{amritaMaroon}{\textbf{Reporting standard:}} every percentage
+ships with numerator/denominator and 95\% CI.
+\end{columns}
+\end{frame}
+
+% ============================================================
+% RUBRIC 2a: STATUS
+% ============================================================
+\section{Implementation Progress}
+\begin{frame}{2. Implementation Progress --- Module Status}
+\framesubtitle{Rubric: Core Modules Implemented, Functional \& Integrated (8 Marks)}
+
+\centering
+\begin{table}
+\tiny
+\renewcommand{\arraystretch}{0.92}
+\begin{tabular}{p{3.1cm} p{6.3cm} c}
+\toprule
+\textbf{Module} & \textbf{Implementation} & \textbf{Status} \\
+\midrule
+Falco eBPF sensor & \texttt{execve}/\texttt{execveat} capture via \texttt{porygon\_rules.yaml} & \ok{Working} \\
+Docker collector & lifecycle events, digest resolution, SQLite outbox spool & \ok{Working} \\
+Telemetry adapter & Falco JSONL parse, durable cursor, SQLite outbox, retries & \ok{Working} \\
+Storage \& migrations & 9 Alembic revisions, append-only tables & \ok{Working} \\
+Runtime-context hashing & SHA-256 canonical config document (v1 schema) & \ok{Working} \\
+Baseline builder & per-scope process-name/numeric distributions & \ok{Working} \\
+JS-distance scorer & \texttt{scoring.py}, versioned config, per-feature breakdown & \ok{Working} \\
+Deterministic rules & POR-DET-001..007, correlation, allowlists, incidents & \ok{Working} \\
+Responder & pause/stop, operator-token gated, protected-label guard & \ok{Working} \\
+Scanner & Trivy 0.72.0 pinned, CycloneDX SBOM, EPSS/KEV correlation & \ok{Working} \\
+Experiment harness & real-container trials, deterministic split assignment & \ok{Working} \\
+\midrule
+4-arm scope comparison & 144-trial confirmatory run, analysed & \ok{Done} \\
+Result artifacts & \texttt{profile-scope-primary.json}, incl.\ null result & \ok{Done} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+{\scriptsize \textbf{Platform: all 8 services healthy end to end.
+Evaluation: n=144 confirmatory round analysed; a 216-trial re-run sized to
+the recall power requirement ($n_{\text{per-arm}}\approx179$) is in
+progress.}}
+\end{frame}
+
+% ============================================================
+% RUBRIC 2b: EVIDENCE
+% ============================================================
+\begin{frame}{2. Implementation Progress --- Evidence of Working Software}
+\framesubtitle{Rubric: Functional \& Integrated (8 Marks)}
+
+\begin{columns}[T]
+\column{0.44\textwidth}
+\footnotesize
+\textbf{Codebase}
+
+\begin{tabular}{@{}lr@{}}
+\toprule
+Services (docker compose) & 8 \\
+Backend API endpoints & 64 \\
+Alembic migrations & 9 \\
+Test functions in repo & 210 \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\textbf{Verification gates, all passing}
+
+\begin{tabular}{@{}p{3.6cm}c@{}}
+\toprule
+\texttt{make verify-static} & \ok{pass} \\
+\texttt{make verify-unit} & \ok{pass} \\
+\texttt{make verify-live-safe} & \ok{pass} \\
+Real-container acceptance (\texttt{scripts/verify\_phase*.sh}) & \ok{pass} \\
+\bottomrule
+\end{tabular}
+
+\column{0.53\textwidth}
+\footnotesize
+\textbf{Capture-integrity canary, measured (16 runs)}
+
+\begin{tabular}{@{}p{4.3cm}r@{}}
+\toprule
+Canary echo events generated & 96 \\
+Observed at Falco JSONL & \ok{96} \\
+Rows in PostgreSQL & \ok{96} \\
+Measured loss & \ok{0} \\
+Duplicate rows & \ok{0} \\
+Application requests served & 360/360 \\
+Orphaned containers after teardown & \ok{0} \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\textbf{End-to-end chain, exercised on real data}
+\smallskip
+
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[node distance=2.2mm]
+  \node[box, minimum width=15mm] (a) {container};
+  \node[box, right=of a, minimum width=13mm] (b) {Falco};
+  \node[box, right=of b, minimum width=16mm] (c) {PostgreSQL};
+  \node[box, right=of c, minimum width=15mm] (d) {baseline};
+  \node[box, right=of d, minimum width=15mm] (e) {$D_{JS}$ score};
+  \node[box, green, right=of e, minimum width=17mm] (f) {POR-DET match};
+  \foreach \x/\y in {a/b,b/c,c/d,d/e,e/f} \draw[fl] (\x) -- (\y);
+\end{tikzpicture}}
+
+\smallskip
+{\scriptsize From a real PostgreSQL container: 479 recorded \texttt{execve}
+events became a baseline, a later window scored \texttt{baseline\_like}, and
+72 POR-DET rule evaluations produced zero false incidents.}
+\end{columns}
+\end{frame}
+
+% ============================================================
+% RUBRIC 2c: SAFETY BEHAVIOUR
+% ============================================================
+\begin{frame}{2. Implementation Progress --- The Safety Rails Work}
+\framesubtitle{Refusal paths that prevent an unsupported result from being reported}
+
+\begin{columns}[T]
+\column{0.5\textwidth}
+\footnotesize
+Three refusal paths that prevent an unsupported or contaminated result from
+silently becoming a reported number:
+
+\medskip
+\textbf{1. \texttt{insufficient\_profile}, not a guessed score.}\\
+When a scope key (e.g.\ a digest with zero fit-split coverage) has no
+reference distribution, \texttt{score\_trial\_under\_scope} returns
+\texttt{reference\_key\_present=False} and the trial is excluded from
+FPR/recall counts, never scored as either a pass or a detection
+(\texttt{experiments/scope.py}).
+
+\medskip
+\textbf{2. Fit/test overlap rejection.}\\
+Scoring a window that overlaps the interval used to build that same baseline
+is rejected at the API layer, preventing a model from being evaluated on its
+own training data.
+
+\medskip
+\textbf{3. Mutable-reference rejection in the experiment harness.}\\
+Pulling a workload image by tag instead of a resolved
+\texttt{repository@sha256:<digest>} coordinate is rejected before the pull
+(\texttt{experiments/real.py:pull\_pinned\_image}), so no trial can silently
+run against an unpinned image.
+
+\column{0.48\textwidth}
+\centering
+\resizebox{!}{0.58\textheight}{%
+\begin{tikzpicture}[node distance=4mm]
+  \node[box, minimum width=44mm] (r1) {Score against a scope key with no fit coverage};
+  \node[box, amber, below=4mm of r1, minimum width=44mm] (x1) {\textbf{Excluded} --- \texttt{insufficient\_profile}};
+  \node[box, below=7mm of x1, minimum width=44mm] (r2) {Score window overlapping fit interval};
+  \node[box, amber, below=4mm of r2, minimum width=44mm] (x2) {\textbf{Refused} --- fit/test overlap};
+  \node[box, below=7mm of x2, minimum width=44mm] (r3) {Pull workload image by mutable tag};
+  \node[box, amber, below=4mm of r3, minimum width=44mm] (x3) {\textbf{Refused} --- digest coordinate required};
+  \draw[fl] (r1) -- (x1); \draw[fl] (r2) -- (x2); \draw[fl] (r3) -- (x3);
+\end{tikzpicture}}
+
+\smallskip
+{\scriptsize Refusals 1 and 3 have named regression tests in
+\texttt{experiments/tests/} (\texttt{test\_scope.py},
+\texttt{test\_real.py}); refusal 2's exact 409 path is implemented but not
+yet independently unit-tested -- verified here by reading the source.}
+\end{columns}
+\end{frame}
+
+% ============================================================
+% RUBRIC 3a: DESIGN DECISIONS
+% ============================================================
+\section{Technical Knowledge}
+\begin{frame}{3. Technical Knowledge --- Design Decisions and Rationale}
+\framesubtitle{Rubric: Understanding of Methodology, Implementation \& Design Choices (5 Marks)}
+
+\centering
+\begin{table}
+\tiny
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{p{3.1cm} p{4.6cm} p{4.0cm}}
+\toprule
+\textbf{Decision} & \textbf{Rationale} & \textbf{Rejected alternative} \\
+\midrule
+Content-addressed digest identity
+& A mutable tag (\texttt{nginx:latest}) can resolve to a different image tomorrow; a digest cannot without changing identity
+& Grouping baselines by container name or tag \\
+
+Kernel-level (eBPF) observation
+& Captures every \texttt{execve} without application instrumentation or trusting attacker-controlled application logs
+& In-application logging or agent instrumentation \\
+
+Reuse Falco as the sensor
+& Equivalent syscall evidence to a custom probe, far lower implementation/maintenance risk
+& Writing and maintaining a custom eBPF collector \\
+
+Fixed, versioned scoring weights
+& Every historical score stays reproducible under \texttt{algorithm\_version}; changes require a new version, not a silent edit
+& Weights tuned post hoc until results matched expectation \\
+
+Exact McNemar/Holm/Clopper-Pearson
+& A defensible, interval-bounded claim rather than an arbitrary cutoff presented as a rate
+& Picking a threshold and reporting the resulting accuracy directly \\
+
+Whole-run split assignment
+& Adjacent windows in one run are near-duplicates; window-level splitting would overstate confidence
+& Random assignment of individual time windows \\
+
+Operator-token-gated containment
+& A false positive must never autonomously disrupt a healthy service
+& Automated pause/stop triggered directly by score \\
+\bottomrule
+\end{tabular}
+\end{table}
+\end{frame}
+
+% ============================================================
+% RUBRIC 3b: TRADE-OFFS
+% ============================================================
+\begin{frame}{3. Technical Knowledge --- Trade-offs}
+\framesubtitle{Rubric: Design Choices \& Trade-offs (5 Marks)}
+
+\begin{columns}[T]
+\column{0.62\textwidth}
+\scriptsize
+\begin{tabular}{@{}p{3.5cm}p{4.4cm}@{}}
+\toprule
+\textbf{Benefit} & \textbf{Cost} \\
+\midrule
+Low-overhead process-execution signal (no app instrumentation) & Zero network, DNS, socket, or file-access telemetry \\
+Finer-grained baselines per digest/context & Fewer independent runs per stratum; some return \texttt{insufficient\_profile} \\
+Fixed, disclosed scoring weights & Not claimed to be the most accurate achievable weighting \\
+Exact statistical intervals (Clopper-Pearson, McNemar) & Requires more runs per arm than a point estimate for the same confidence \\
+A fixed, versioned distance-to-score mapping & Only valid while the digest's expected behaviour does not itself drift \\
+No automated disruptive response & Slower operator response time to a confirmed incident \\
+Single language (Python) across all services & A known single-process write-throughput ceiling, not yet exercised as a bottleneck \\
+\bottomrule
+\end{tabular}
+
+\column{0.36\textwidth}
+\footnotesize
+\textbf{Edge cases handled in code, with tests}
+\begin{itemize}\setlength\itemsep{1pt}
+  \item Backend outage $\rightarrow$ SQLite outbox spool, exponential backoff retry
+  \item Sensor restart $\rightarrow$ durable telemetry cursor, no rewind
+  \item Duplicate delivery $\rightarrow$ deterministic event ID, upsert
+  \item Malformed input $\rightarrow$ kept as a short, scrubbed sample
+  \item Too little data $\rightarrow$ answer ``insufficient'', never guess
+  \item Runtime-context fingerprint redacts secret-shaped flags/values;
+        raw process \texttt{command\_line} is stored as-is, not redacted
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% ============================================================
+% RUBRIC 3c: FINDINGS
+% ============================================================
+\begin{frame}{3. Technical Knowledge --- Confirmatory Result (n=144)}
+\framesubtitle{Rubric: Preliminary Observations (5 Marks) --- measured on 144 real container trials}
+
+\begin{columns}[T]
+\column{0.49\textwidth}
+\footnotesize
+\textbf{1. \texttt{ARM-CONTEXT} vs \texttt{ARM-GLOBAL}: significant.}\\
+\texttt{ARM-GLOBAL} (nginx/redis/postgres pooled into one reference)
+produced a positive call on 35/35 held-out benign runs (FPR 100\%, 95\% CI
+90.0--100\%). Per-image scoping (\texttt{ARM-CONTEXT}) reduced this to 0/35
+(FPR 0\%, CI 0--10.0\%). Exact McNemar $p=5.8\times10^{-11}$, Holm-adjusted,
+recall non-inferior (62/62 both arms). This is the frozen protocol's H1
+contrast; it tests pooling vs.\ per-image scoping, not context specifically.
+
+\medskip
+\textbf{2. \texttt{ARM-CONTEXT} vs \texttt{ARM-DIGEST}: null.}\\
+The paper's actual thesis -- does runtime-context conditioning add anything
+beyond exact digest identity -- returns $p=1.0$: zero discordant pairs, both
+arms agree on all 35 held-out trials. \texttt{ARM-CONTEXT} beating
+\texttt{ARM-GLOBAL} above must not be cited as support for this claim; the
+contrast that actually tests it is a null result.
+
+\column{0.49\textwidth}
+\footnotesize
+\textbf{3. Root cause of the null result.}\\
+The tested context variant (dropping Linux capability \texttt{NET\_RAW})
+changes container privilege, not which processes execute. The categorical
+\texttt{process\_name} feature cannot reflect a capability-only change by
+construction, independent of scope.
+
+\medskip
+\textbf{4. Exploratory follow-on, same dataset, no new trials.}\\
+\texttt{context\_delta.py} scores the runtime-context document directly
+(\texttt{privileged}, \texttt{capabilities}, \texttt{read\_only\_rootfs},
+\texttt{network\_mode}, mounts, devices) instead of inferring it through
+process names: \textbf{0/18 FPR [CI 0--18.5\%], 17/17 detection of
+\texttt{dropped\_capabilities} [CI 80.5--100\%]}. Hand-fixed weights, not
+fit; not evaluated against attack scenarios; not confirmatory.
+
+\smallskip
+\textcolor{amritaMaroon}{\textbf{Why this matters:}} a mechanistically
+understood null beats an unexplained positive.
+\end{columns}
+\end{frame}
+
+% ============================================================
+% RUBRIC 3d: LIMITS
+% ============================================================
+\begin{frame}{3. Technical Knowledge --- Claim Boundaries}
+\framesubtitle{docs/CLAIMS\_V1.md governs exactly what may and may not be stated}
+
+\begin{columns}[T]
+\column{0.49\textwidth}
+\footnotesize
+\textbf{Structurally undetectable in v1}
+\begin{itemize}\setlength\itemsep{1pt}
+  \item No network, DNS, socket, or file-access telemetry: a trusted binary
+        (e.g.\ \texttt{curl}) redirected to a malicious destination via
+        config/DNS change produces zero observable deviation
+  \item No new-process signal $\Rightarrow$ invisible (in-memory execution,
+        \texttt{bash}'s \texttt{/dev/tcp})
+\end{itemize}
+{\scriptsize Full 18-scenario classification in
+\texttt{docs/ADVERSARIAL\_SCENARIOS\_V1.md}: 6/18 structurally invisible
+(network/data-plane), 4/18 depend on exact process-identity granularity,
+3/18 acknowledged but untested, 5/18 genuinely caught by an existing rule.}
+
+\medskip
+\textbf{Honest process note}
+\begin{enumerate}\setlength\itemsep{1pt}\footnotesize
+  \item First draft framed the easy win as if it supported the harder
+        claim; caught and corrected in self-review before publication.
+  \item Self-reviewed only, not independent peer review.
+\end{enumerate}
+
+\column{0.49\textwidth}
+\footnotesize
+\textbf{What is, and is not, yet claimed}
+
+\begin{tabular}{@{}p{2.9cm}p{3.4cm}@{}}
+\toprule
+\textbf{Claim} & \textbf{Status} \\
+\midrule
+Per-image beats shared baseline & \ok{Supported}, $p{=}5.8{\times}10^{-11}$ \\
+Context beats digest-only & \nope{Null}, $p{=}1.0$ \\
+Context-delta feature works & Exploratory only \\
+Recall properly powered & re-run in progress ($n{\approx}179$/arm) \\
+Suitable for production & Not claimed \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\textbf{Unusual is not the same as malicious.}
+\begin{itemize}\setlength\itemsep{1pt}
+  \item Unusual but harmless: backups, debugging, restarts, a traffic spike
+  \item Harmful but ordinary-looking: an attacker using tools already present
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% ============================================================
+% ROADMAP
+% ============================================================
+\begin{frame}{Where This Goes Next}
+\framesubtitle{From a working platform to an answered, honestly reported question}
+
+\centering
+\begin{tikzpicture}[node distance=6mm]
+  \node[box, green, minimum width=26mm, minimum height=13mm] (s1)
+    {\textbf{Done}\\ \tiny platform built,\\ tested, and proven\\ on real containers};
+  \node[box, green, right=of s1, minimum width=26mm, minimum height=13mm] (s2)
+    {\textbf{Done}\\ \tiny 144-trial run,\\ analysed, one\\ real null result};
+  \node[box, amber, right=of s2, minimum width=26mm, minimum height=13mm] (s3)
+    {\textbf{Now}\\ \tiny larger run for a\\ properly-powered\\ recall gate};
+  \node[box, right=of s3, minimum width=26mm, minimum height=13mm] (s4)
+    {\textbf{Next}\\ \tiny confirmatory test\\ of the direct\\ context-delta idea};
+  \node[box, accent, right=of s4, minimum width=26mm, minimum height=13mm] (s5)
+    {\textbf{Finally}\\ \tiny write up both\\ results --- the win\\ and the null};
+  \foreach \a/\b in {s1/s2, s2/s3, s3/s4, s4/s5} \draw[fl] (\a) -- (\b);
+\end{tikzpicture}
+
+\vspace{5mm}
+\footnotesize
+\textbf{The intended contribution} is not container monitoring itself, which is
+well-established work. It is a controlled, repeatable comparison of \emph{four
+different definitions of what counts as the same thing}, reported faithfully
+whichever way the result falls --- including the one comparison that came
+back null, and the one new idea it led to.
+
+\smallskip
+Every figure is traceable to the run that produced it, and every run is
+retained so that a reviewer can recompute the tables independently.
+\end{frame}
+
+% ============================================================
+% RUBRIC 4: ENRICHMENT
+% ============================================================
+\section{Technical Enrichment}
+\begin{frame}{4. Technical Enrichment Activity Choices}
+\framesubtitle{Professional Online Certification Details (Individual Mandatory: 10--20 Hours)}
+    \begin{itemize}
+        \item \textbf{Individual MOOC / Online Certification Selection:}
+    \end{itemize}
+    \vspace{-0.1cm}
+    \begin{table}
+        \centering
+        \footnotesize
+        \renewcommand{\arraystretch}{1.15}
+        \begin{tabular}{|c|p{2.8cm}|p{5.0cm}|p{2.3cm}|c|}
+            \hline
+            \textbf{S.No} & \textbf{Student Name} & \textbf{Chosen MOOC / Course Title} & \textbf{Platform} & \textbf{Hours} \\
+            \hline
+            1 & Anurup R Krishnan & [e.g. Container Security / Linux Observability] & Coursera & 15 Hrs \\
+            \hline
+            2 & Student Name 2 & [e.g. Applied Statistics for Experiments] & NPTEL & 20 Hrs \\
+            \hline
+            3 & Student Name 3 & [e.g. Docker \& Cloud-Native Fundamentals] & edX / Coursera & 12 Hrs \\
+            \hline
+            4 & Student Name 4 & [e.g. Cloud Security Foundations] & AWS / Google & 16 Hrs \\
+            \hline
+        \end{tabular}
+    \end{table}
+    \vspace{0.15cm}
+    \begin{itemize}
+        \item {\scriptsize \textbf{Requirement:} Each student must complete one approved 10--20 hour online certification from a recognized platform (Coursera, NPTEL, edX, etc.) relevant to the project.}
+        \item {\scriptsize \textbf{Note:} course titles above are suggestions aligned to the project's four skill areas --- container internals, operating-system observation, experiment design, and security practice. Replace with the actual enrolled courses and attach completion certificates.}
+    \end{itemize}
+\end{frame}
+
+% ============================================================
+% REFERENCES
+% ============================================================
+\section{References}
+% Self-contained so the deck compiles anywhere. If IEEEtran.bst is installed on
+% your machine, delete this frame and use the ref.bib file shipped alongside:
+%     \bibliographystyle{IEEEtran}
+%     \bibliography{ref}
+\begin{frame}[allowframebreaks]{References}
+\scriptsize
+\begin{thebibliography}{9}
+
+\bibitem{forrest1996}
+S.~Forrest, S.~A. Hofmeyr, A.~Somayaji, and T.~A. Longstaff,
+``A sense of self for Unix processes,''
+in \emph{Proc. IEEE Symp. Security and Privacy}, 1996, pp.~120--128.
+
+\bibitem{hofmeyr1998}
+S.~A. Hofmeyr, S.~Forrest, and A.~Somayaji,
+``Intrusion detection using sequences of system calls,''
+\emph{Journal of Computer Security}, vol.~6, no.~3, pp.~151--180, 1998.
+
+\bibitem{abed2015}
+A.~S. Abed, T.~C. Clancy, and D.~S. Levy,
+``Applying bag of system calls for anomalous behavior detection of applications
+in Linux containers,''
+in \emph{Proc. IEEE Globecom Workshops}, 2015, pp.~1--5.
+
+\bibitem{lin1991}
+J.~Lin,
+``Divergence measures based on the Shannon entropy,''
+\emph{IEEE Trans. Information Theory}, vol.~37, no.~1, pp.~145--151, 1991.
+
+\bibitem{vovk2005}
+V.~Vovk, A.~Gammerman, and G.~Shafer,
+\emph{Algorithmic Learning in a Random World}.
+New York, NY, USA: Springer, 2005.
+
+\bibitem{shafer2008}
+G.~Shafer and V.~Vovk,
+``A tutorial on conformal prediction,''
+\emph{Journal of Machine Learning Research}, vol.~9, pp.~371--421, 2008.
+
+\bibitem{gregg2019}
+B.~Gregg,
+\emph{BPF Performance Tools: Linux System and Application Observability}.
+Boston, MA, USA: Addison-Wesley, 2019.
+
+\bibitem{falco}
+The Falco Authors,
+``Falco: cloud-native runtime security,''
+Cloud Native Computing Foundation. [Online]. Available: https://falco.org
+
+\bibitem{ociimage}
+Open Container Initiative,
+``OCI image format specification.'' [Online].
+Available: https://github.com/opencontainers/image-spec
+
+\end{thebibliography}
+\end{frame}
+
+% ============================================================
+% THANK YOU
+% ============================================================
+\begin{frame}
+    \centering
+    {\Huge \textbf{\textcolor{amritaMaroon}{Thank You}}}
+
+    \vspace{6mm}
+    {\footnotesize Questions welcome, including those on the limits of what this\\
+    system can currently demonstrate.}
+\end{frame}
+
+\end{document}

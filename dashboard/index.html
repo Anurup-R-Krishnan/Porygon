@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Porygon — Runtime Security &amp; Anomaly Intelligence</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23111111'/%3E%3Cpath d='M8 6h16v20H8z' fill='%23F9F9F7'/%3E%3Cpath d='M11 10h10M11 14h10M11 18h6' stroke='%23111111' stroke-width='2'/%3E%3C/svg%3E">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            paper: '#F9F9F7',
+            ink: '#111111',
+            divider: '#E5E5E0',
+            editorial: '#CC0000',
+            neutral: {
+              100: '#F5F5F5',
+              200: '#E5E5E5',
+              400: '#A3A3A3',
+              500: '#737373',
+              600: '#525252',
+              700: '#404040',
+            }
+          },
+          fontFamily: {
+            serif: ['"Playfair Display"', '"Times New Roman"', 'serif'],
+            body: ['"Lora"', 'Georgia', 'serif'],
+            sans: ['"Inter"', '-apple-system', 'sans-serif'],
+            mono: ['"JetBrains Mono"', '"Courier New"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Newsprint Stylesheet -->
+  <link rel="stylesheet" href="style.css?v=2.3">
+
+  <!-- Core Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+  <script src="app.js?v=2.3"></script>
+</head>
+<body x-data="porygonApp" class="bg-[#F9F9F7] text-[#111111] antialiased min-h-screen selection:bg-[#111111] selection:text-[#F9F9F7]">
+
+  <!-- TOAST ALERTS -->
+  <div class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm">
+    <template x-for="toast in toasts" :key="toast.id">
+      <div class="pointer-events-auto border-2 border-[#111111] bg-white p-3 text-[12px] font-mono hard-shadow flex items-start gap-2"
+           :class="toast.type==='danger' ? 'border-[#CC0000] text-[#CC0000]' : 'text-[#111111]'">
+        <span class="font-bold uppercase text-[10px]" x-text="toast.type==='danger' ? '[ALERT]' : '[INFO]'"></span>
+        <span class="flex-1" x-text="toast.message"></span>
+      </div>
+    </template>
+  </div>
+
+  <!-- MAIN WRAPPER -->
+  <div class="max-w-[1400px] mx-auto px-4 sm:px-8 py-6">
+
+    <!-- ======================================================================
+         CLEAN SLIM HEADER & NAV BAR (NO CLUTTER)
+         ====================================================================== -->
+    <header class="border-b-2 border-[#111111] pb-4 mb-6">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        
+        <!-- Brand / Identity -->
+        <div class="flex items-center gap-3">
+          <div class="bg-[#111111] text-[#F9F9F7] w-8 h-8 flex items-center justify-center font-serif font-black text-lg">P</div>
+          <div>
+            <div class="font-serif font-black text-2xl tracking-tight text-[#111111] leading-none">PORYGON</div>
+            <div class="font-mono text-[10px] uppercase tracking-widest text-neutral-500 mt-0.5">eBPF Runtime Security</div>
+          </div>
+        </div>
+
+        <!-- 5 Clean Operational Tabs -->
+        <nav class="flex items-center border border-[#111111] bg-white divide-x divide-[#111111] text-xs font-sans font-bold uppercase tracking-wider">
+          <button @click="activeTab='overview'"
+                  :class="activeTab==='overview' ? 'bg-[#111111] text-white' : 'hover:bg-neutral-100 text-[#111111]'"
+                  class="px-3.5 py-2 transition-colors flex items-center gap-2">
+            <span>Overview</span>
+          </button>
+          
+          <button @click="activeTab='telemetry'"
+                  :class="activeTab==='telemetry' ? 'bg-[#111111] text-white' : 'hover:bg-neutral-100 text-[#111111]'"
+                  class="px-3.5 py-2 transition-colors flex items-center gap-1.5">
+            <span>Live Telemetry</span>
+            <span class="border border-current px-1 text-[10px] font-mono" x-text="formatCompactNumber(processSummary?.total_events || systemInfo.process_exec_events || events.length)">0</span>
+          </button>
+
+          <button @click="activeTab='incidents'"
+                  :class="activeTab==='incidents' ? 'bg-[#111111] text-white' : 'hover:bg-neutral-100 text-[#111111]'"
+                  class="px-3.5 py-2 transition-colors flex items-center gap-1.5">
+            <span>Incidents</span>
+            <span class="px-1 text-[10px] font-mono font-bold"
+                  :class="(incidents.length || systemInfo.incidents)>0 ? 'bg-[#CC0000] text-white' : 'border border-current'"
+                  x-text="incidents.length || systemInfo.incidents || 0">0</span>
+          </button>
+
+          <button @click="activeTab='vulnerabilities'"
+                  :class="activeTab==='vulnerabilities' ? 'bg-[#111111] text-white' : 'hover:bg-neutral-100 text-[#111111]'"
+                  class="px-3.5 py-2 transition-colors flex items-center gap-1.5">
+            <span>Vulnerabilities</span>
+            <span class="border border-current px-1 text-[10px] font-mono"
+                  x-text="evidenceCounts.runtime_observed + evidenceCounts.runtime_observed_and_port_published">0</span>
+          </button>
+
+          <button @click="activeTab='simulator'"
+                  :class="activeTab==='simulator' ? 'bg-[#CC0000] text-white' : 'hover:bg-neutral-100 text-[#CC0000] font-bold'"
+                  class="px-3.5 py-2 transition-colors flex items-center gap-1.5">
+            <i class="ph ph-lightning"></i>
+            <span>Attack Simulator</span>
+          </button>
+        </nav>
+
+        <!-- Right Quick Status & Actions -->
+        <div class="flex items-center gap-3 font-mono text-xs">
+          <!-- eBPF Status Indicator -->
+          <div class="border border-[#111111] px-2.5 py-1.5 bg-white flex items-center gap-1.5">
+            <span class="w-2 h-2 bg-[#111111] animate-pulse"></span>
+            <span class="text-[11px] font-bold text-[#111111]" x-text="(services.length > 0 || systemInfo.registered_services > 0 || systemInfo.runtime_events != null) ? 'eBPF ONLINE' : 'OFFLINE'">eBPF ONLINE</span>
+          </div>
+
+          <!-- Operator Token Key -->
+          <button @click="manageOperatorToken()"
+                  class="border border-[#111111] px-3 py-1.5 transition-colors flex items-center gap-1.5"
+                  :class="operatorToken ? 'bg-neutral-200 font-bold' : 'bg-white hover:bg-neutral-100'"
+                  :title="operatorToken ? 'Clearance active' : 'Click to set authorization key'">
+            <i class="ph" :class="operatorToken ? 'ph-key' : 'ph-lock-key'"></i>
+            <span x-text="operatorToken ? 'AUTH: OK' : 'AUTH KEY'"></span>
+          </button>
+
+          <!-- Refresh Button -->
+          <button @click="refreshAllData()" class="btn-news-secondary py-1.5 px-3" title="Sync live telemetry">
+            <i class="ph ph-arrows-clockwise text-sm"></i>
+            <span>SYNC</span>
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- ======================================================================
+         TAB 1: OVERVIEW (CLEAN METRICS & MONITORED FLEET)
+         ====================================================================== -->
+    <main x-show="activeTab==='overview'" class="space-y-6">
+      
+      <!-- Interactive Attack Simulator Banner -->
+      <div class="border-2 border-[#111111] bg-white p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hard-shadow">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="badge-breaking">VALIDATION LAB</span>
+            <h3 class="font-serif font-bold text-lg text-[#111111] m-0">Interactive Attack Simulator Ready</h3>
+          </div>
+          <p class="font-body text-xs text-neutral-600 mt-1 m-0">
+            Dispatch live container attack workloads (Shell Infiltration, Malware Cryptominer, Network Port Scans) to test real eBPF kernel detection.
+          </p>
+        </div>
+        <button @click="activeTab='simulator'" class="btn-news-alert py-2 px-4 text-xs font-bold whitespace-nowrap shrink-0">
+          <i class="ph ph-lightning"></i>
+          <span>LAUNCH ATTACK SIMULATOR &rarr;</span>
+        </button>
+      </div>
+
+      <!-- Top 4 Clean Metric Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- 1. Behavioral Divergence -->
+        <div class="border-2 border-[#111111] bg-white p-4">
+          <div class="text-[10px] font-mono uppercase font-bold text-neutral-500">BEHAVIORAL DISTANCE (D_JS)</div>
+          <div class="mt-1 flex items-baseline justify-between">
+            <span class="font-serif font-black text-3xl text-[#111111]" x-text="currentAnomalyScore.toFixed(3)">0.000</span>
+            <span class="font-mono text-[10px] font-bold uppercase px-1.5 py-0.5 border border-[#111111]"
+                  :class="currentAnomalyScore>=0.75 ? 'bg-[#CC0000] text-white' : currentAnomalyScore>=0.5 ? 'bg-amber-400 text-black' : 'bg-neutral-100 text-black'"
+                  x-text="currentScoreBand">BASELINE</span>
+          </div>
+          <!-- Progress Track -->
+          <div class="mt-2.5 h-1.5 w-full bg-neutral-200 border border-[#111111]">
+            <div class="h-full bg-[#111111] transition-all duration-300"
+                 :style="`width: ${Math.min(100, currentAnomalyScore * 100)}%`"
+                 :class="currentAnomalyScore>=0.75 ? 'bg-[#CC0000]' : ''"></div>
+          </div>
+          <div class="mt-1.5 text-[9px] font-mono text-neutral-400 flex justify-between">
+            <span>0.00 NOMINAL</span>
+            <span>0.50 BREACH</span>
+            <span>1.00 DIVERGENT</span>
+          </div>
+        </div>
+
+        <!-- 2. Active Containers -->
+        <div class="border-2 border-[#111111] bg-white p-4">
+          <div class="text-[10px] font-mono uppercase font-bold text-neutral-500">MONITORED WORKLOADS</div>
+          <div class="font-serif font-black text-3xl text-[#111111] mt-1" x-text="systemInfo.known_containers ?? containers.length">0</div>
+          <div class="text-[11px] font-mono text-neutral-600 mt-1">SHA-256 Digest Bound</div>
+        </div>
+
+        <!-- 3. Security Incidents -->
+        <div class="border-2 border-[#111111] p-4"
+             :class="(systemInfo.incidents ?? incidents.length) > 0 ? 'bg-[#CC0000] text-white' : 'bg-white text-[#111111]'">
+          <div class="text-[10px] font-mono uppercase font-bold" :class="(systemInfo.incidents ?? incidents.length) > 0 ? 'text-white' : 'text-neutral-500'">OPEN INCIDENTS</div>
+          <div class="font-serif font-black text-3xl mt-1" x-text="systemInfo.incidents ?? incidents.length">0</div>
+          <div class="text-[11px] font-mono mt-1" x-text="(systemInfo.incidents ?? incidents.length) > 0 ? 'ATTENTION REQUIRED' : 'ALL NOMINAL'">ALL NOMINAL</div>
+        </div>
+
+        <!-- 4. Reachable Vulnerabilities -->
+        <div class="border-2 border-[#111111] bg-white p-4">
+          <div class="text-[10px] font-mono uppercase font-bold text-neutral-500">RUNTIME REACHABLE CVES</div>
+          <div class="font-serif font-black text-3xl text-[#111111] mt-1" x-text="evidenceCounts.runtime_observed + evidenceCounts.runtime_observed_and_port_published">0</div>
+          <div class="text-[11px] font-mono text-neutral-600 mt-1">eBPF Executed Match</div>
+        </div>
+      </div>
+
+      <!-- Chart Row: Timeline & Attribution -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <!-- Anomaly Timeline Chart (8 Cols) -->
+        <div class="lg:col-span-8 border-2 border-[#111111] bg-white p-4">
+          <div class="flex items-center justify-between border-b border-[#111111] pb-2 mb-3">
+            <div>
+              <span class="font-serif font-bold text-lg text-[#111111]">Behavioral Distance History (D_JS)</span>
+              <div class="font-mono text-[10px] text-neutral-500">Empirical Jensen-Shannon divergence across 60s sliding windows</div>
+            </div>
+            <span class="font-mono text-xs font-bold text-[#111111]" x-text="'WINDOW: ' + (currentScoreWindowStart ? new Date(currentScoreWindowStart).toLocaleTimeString() : 'LIVE')">WINDOW: LIVE</span>
+          </div>
+
+          <div x-show="latestWindowInsufficientData" class="mb-3 border border-[#CC0000] bg-red-50 text-[#CC0000] p-2 text-xs font-mono">
+            Notice: Telemetry insufficient to score current window — showing last verified window.
+          </div>
+
+          <div class="h-60 sm:h-64 w-full relative">
+            <canvas id="anomalyTimelineChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Score Composition Breakdown (4 Cols) -->
+        <div class="lg:col-span-4 border-2 border-[#111111] bg-white p-4 flex flex-col justify-between">
+          <div>
+            <div class="border-b border-[#111111] pb-2 mb-3">
+              <span class="font-serif font-bold text-lg text-[#111111]">Score Composition</span>
+              <div class="font-mono text-[10px] text-neutral-500">Protocol v1 fixed empirical weights</div>
+            </div>
+            <div class="h-44 w-full relative">
+              <canvas id="anomalyCompositionChart"></canvas>
+            </div>
+          </div>
+          <div class="pt-3 border-t border-[#111111] text-[11px] font-mono text-neutral-600 space-y-1">
+            <div class="flex justify-between"><span>Categorical Divergence:</span> <b class="text-[#111111]">50%</b></div>
+            <div class="flex justify-between"><span>Novelty (Unseen Tokens):</span> <b class="text-[#111111]">30%</b></div>
+            <div class="flex justify-between"><span>Numeric Rate (Robust Z):</span> <b class="text-[#111111]">20%</b></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Container Fleet Ledger Table -->
+      <section class="border-2 border-[#111111] bg-white p-4">
+        <div class="flex flex-wrap items-center justify-between border-b border-[#111111] pb-2 mb-3 gap-2">
+          <div>
+            <h3 class="font-serif font-bold text-lg text-[#111111] m-0">Monitored Containers &amp; Image Lineage</h3>
+            <p class="font-body text-xs text-neutral-500 m-0">SHA-256 digest bound container namespaces tracked via Docker socket.</p>
+          </div>
+          <span class="border border-[#111111] px-2 py-0.5 text-xs font-mono font-bold" x-text="containers.length + ' CONTAINERS'">0 CONTAINERS</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="news-table">
+            <thead>
+              <tr>
+                <th>Container Name</th>
+                <th>Container ID</th>
+                <th>Image Digest (SHA-256)</th>
+                <th>Status</th>
+                <th>Host PID</th>
+                <th>Type</th>
+                <th class="text-right">Inspection</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="c in containers" :key="c.container_id">
+                <tr @click="selectContainer(c)" class="cursor-pointer hover:bg-neutral-100 transition-colors" :class="selectedContainer===c.container_id ? 'bg-[#F0F0EB] font-bold' : ''" :title="'Click to view kernel telemetry for ' + c.container_name">
+                  <td class="font-mono font-bold text-xs text-[#111111]">
+                    <span class="hover:underline inline-flex items-center gap-1">
+                      <span x-text="c.container_name"></span>
+                      <i class="ph ph-arrow-up-right text-[10px] text-neutral-400"></i>
+                    </span>
+                  </td>
+                  <td class="font-mono text-xs text-neutral-600" x-text="c.container_id.substring(0, 12)"></td>
+                  <td class="font-mono text-xs text-neutral-700 max-w-[260px] truncate" :title="c.image_digest" x-text="c.image_digest || c.image_ref"></td>
+                  <td>
+                    <span class="border border-[#111111] px-1.5 py-0.5 text-[10px] font-mono font-bold uppercase"
+                          :class="c.current_snapshot?.state?.running ? 'bg-[#111111] text-white' : 'bg-neutral-200 text-neutral-700'"
+                          x-text="c.current_snapshot?.state?.running ? 'RUNNING' : 'STOPPED'"></span>
+                  </td>
+                  <td class="font-mono text-xs" x-text="c.current_snapshot?.state?.pid || '—'"></td>
+                  <td class="font-mono text-xs uppercase" x-text="c.container_name.includes('porygon') ? 'CORE' : 'APP'"></td>
+                  <td class="text-right">
+                    <button @click.stop="auditContainerWithAi(c)" class="btn-news-secondary py-0.5 px-2 text-[10px]" title="Audit container security posture with AI">
+                      <i class="ph ph-sparkle text-xs"></i> AI AUDIT
+                    </button>
+                  </td>
+                </tr>
+              </template>
+              <tr x-show="containers.length === 0">
+                <td colspan="7" class="text-center py-6 font-mono text-neutral-500">NO CONTAINERS RECORDED IN FLEET</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ======================================================================
+         TAB 2: LIVE TELEMETRY (REAL-TIME KERNEL WIRE)
+         ====================================================================== -->
+    <main x-show="activeTab==='telemetry'" class="space-y-4">
+      <div class="border-2 border-[#111111] bg-white p-4">
+        
+        <!-- Header & Search Bar -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#111111] pb-3 mb-3 gap-3">
+          <div>
+            <h2 class="font-serif font-bold text-2xl text-[#111111] m-0">Kernel Telemetry Stream</h2>
+            <p class="font-body text-xs text-neutral-600 m-0">Continuous stream of execve syscall events captured by modern-eBPF tracepoints.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-xs border border-[#111111] px-2 py-1 font-bold"
+                  x-text="(selectedContainerName ? filteredEvents.length + ' EVENTS (' + selectedContainerName + ')' : filteredEvents.length + ' OF ' + formatCompactNumber(processSummary?.total_events || systemInfo.process_exec_events) + ' EVENTS')">
+              0 EVENTS
+            </span>
+            <button @click="fetchEvents()" class="btn-news-secondary py-1 px-3 text-xs" title="Refresh telemetry stream">
+              <i class="ph ph-arrows-clockwise"></i> REFRESH
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Input & Active Filters -->
+        <div class="mb-3 space-y-2">
+          <!-- Active Container Filter Pill -->
+          <div x-show="selectedContainerName || selectedContainer" class="flex flex-wrap items-center gap-2 bg-neutral-100 border border-[#111111] p-2">
+            <span class="text-[11px] font-mono font-bold uppercase text-neutral-600">Active Container Filter:</span>
+            <span class="inline-flex items-center gap-1.5 bg-[#111111] text-white px-2 py-0.5 text-xs font-mono">
+              <i class="ph ph-cube"></i>
+              <span x-text="selectedContainerName || (selectedContainer ? selectedContainer.substring(0, 12) : '')"></span>
+              <button @click="clearContainerFilter()" class="hover:text-red-300 font-bold ml-1 text-sm leading-none cursor-pointer" title="Remove container filter">&times;</button>
+            </span>
+            <button @click="clearContainerFilter()" class="btn-news-secondary py-0.5 px-2 text-[10px] font-mono">
+              CLEAR FILTER (SHOW ALL)
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input type="text" x-model="eventFilter" placeholder="Filter by executable, process name, command line, PID..."
+                   class="input-news font-mono text-xs flex-1">
+            <button x-show="eventFilter" @click="eventFilter=''" class="btn-news-secondary py-1.5 px-3 text-xs font-mono" title="Clear search text">
+              CLEAR
+            </button>
+          </div>
+        </div>
+
+        <!-- Telemetry Table -->
+        <div class="overflow-x-auto">
+          <table class="news-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Container</th>
+                <th>Process</th>
+                <th>Executable</th>
+                <th>Full Command Line</th>
+                <th>PID / PPID</th>
+                <th>User (UID)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr x-show="isLoadingEvents">
+                <td colspan="7" class="text-center py-8 font-mono text-neutral-600">
+                  <i class="ph ph-spinner animate-spin mr-1"></i> QUERYING KERNEL TELEMETRY FROM BACKEND...
+                </td>
+              </tr>
+              <template x-for="ev in (filteredEvents || events || [])" :key="ev.event_id || (ev.occurred_at + (ev.process_pid||''))">
+                <tr x-show="!isLoadingEvents">
+                  <td class="font-mono text-[11px] text-neutral-600 whitespace-nowrap" x-text="new Date(ev.occurred_at).toLocaleTimeString()"></td>
+                  <td class="font-mono font-bold text-xs" x-text="ev.container_name || 'host'"></td>
+                  <td class="font-mono font-bold text-xs text-[#111111]" x-text="ev.process_name"></td>
+                  <td class="font-mono text-xs text-neutral-700 truncate max-w-[200px]" :title="ev.executable" x-text="ev.executable"></td>
+                  <td class="font-mono text-xs text-neutral-900 max-w-[320px] truncate" :title="ev.command_line" x-text="ev.command_line || '—'"></td>
+                  <td class="font-mono text-xs text-neutral-600 whitespace-nowrap" x-text="ev.process_pid + ' / ' + (ev.process_ppid || '—')"></td>
+                  <td class="font-mono text-xs" x-text="(ev.user_name || 'uid') + ' (' + (ev.user_uid ?? '—') + ')'"></td>
+                </tr>
+              </template>
+              <tr x-show="!isLoadingEvents && (!filteredEvents || filteredEvents.length === 0)">
+                <td colspan="7" class="text-center py-8 font-mono text-neutral-500">
+                  <div class="font-bold text-sm text-[#111111]">NO TELEMETRY EVENTS MATCH THE FILTER</div>
+                  <div class="text-xs text-neutral-500 mt-1" x-show="selectedContainerName">
+                    No process executions recorded for container <code class="font-mono font-bold" x-text="selectedContainerName"></code>.
+                  </div>
+                  <button x-show="selectedContainerName || eventFilter" @click="clearContainerFilter()" class="btn-news-secondary mt-3 py-1 px-3 text-xs inline-block">
+                    RESET FILTERS
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- ======================================================================
+         TAB 3: INCIDENTS & CONTAINMENT LEASES
+         ====================================================================== -->
+    <main x-show="activeTab==='incidents'" class="space-y-6">
+      <div class="border-2 border-[#111111] bg-white p-5">
+        
+        <!-- Header & Action -->
+        <div class="flex items-center justify-between border-b border-[#111111] pb-3 mb-4">
+          <div>
+            <h2 class="font-serif font-bold text-2xl text-[#111111] m-0">Security Incidents &amp; Containment Leases</h2>
+            <p class="font-body text-xs text-neutral-600 m-0">Human-approved container containment gated behind cryptographic operator clearance.</p>
+          </div>
+          <button @click="openAddRuleModal()" class="btn-news-primary py-1.5 px-3 text-xs">
+            + CREATE CUSTOM RULE
+          </button>
+        </div>
+
+        <!-- Incidents List -->
+        <div class="space-y-4 mb-6">
+          <template x-for="inc in incidents" :key="inc.incident_id">
+            <div class="border-2 border-[#111111] bg-[#F9F9F7] p-4 hard-shadow">
+              <div class="flex flex-wrap items-center justify-between border-b border-[#111111] pb-2 mb-3 gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="badge-breaking" x-text="inc.severity_level ? inc.severity_level.toUpperCase() : 'ALERT'">CRITICAL</span>
+                  <span class="font-mono text-xs text-neutral-500" x-text="inc.incident_id.substring(0, 12)"></span>
+                </div>
+                <div class="font-mono text-xs text-neutral-600" x-text="new Date(inc.created_at).toLocaleString()"></div>
+              </div>
+
+              <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <div class="lg:col-span-8">
+                  <h3 class="font-serif font-bold text-xl text-[#111111] m-0" x-text="inc.title"></h3>
+                  <p class="font-body text-sm text-neutral-700 mt-1 leading-relaxed" x-text="inc.summary"></p>
+                  
+                  <div class="mt-2 font-mono text-xs text-neutral-600 flex flex-wrap gap-3">
+                    <span>CONTAINER: <b class="text-[#111111]" x-text="inc.container_name || 'target'"></b></span>
+                    <span>STATUS: <b class="uppercase" x-text="inc.status">OPEN</b></span>
+                  </div>
+                </div>
+
+                <!-- Containment Controls -->
+                <div class="lg:col-span-4 border-t lg:border-t-0 lg:border-l border-[#111111] pt-3 lg:pt-0 lg:pl-4 flex flex-col justify-between">
+                  <div>
+                    <span class="font-mono text-[10px] uppercase font-bold text-neutral-500">RECOMMENDED ACTION</span>
+                    <div class="font-mono text-xs font-bold uppercase mt-0.5 px-2 py-0.5 bg-neutral-200 border border-[#111111] inline-block"
+                         x-text="inc.recommended_action || 'pause_container'">PAUSE_CONTAINER</div>
+                  </div>
+
+                  <div class="mt-3">
+                    <template x-if="inc.status !== 'closed' && inc.status !== 'resolved'">
+                      <div class="flex gap-2">
+                        <button @click="approveContainment(inc, inc.recommended_action || 'pause_container')" class="btn-news-alert text-xs flex-1">
+                          AUTHORIZE LEASE
+                        </button>
+                        <button @click="approveContainment(inc, 'observe_only')" class="btn-news-secondary text-xs">
+                          OBSERVE
+                        </button>
+                      </div>
+                    </template>
+                    <template x-if="inc.status === 'closed' || inc.status === 'resolved'">
+                      <div class="py-1.5 px-2 bg-neutral-100 border border-[#111111] font-mono text-[10px] text-neutral-600 font-bold uppercase text-center flex items-center justify-center gap-1.5">
+                        <i class="ph ph-check-circle text-emerald-600 text-sm"></i>
+                        <span>HISTORICAL INCIDENT &bull; CLOSED</span>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <div x-show="incidents.length === 0" class="border border-[#111111] bg-[#F9F9F7] p-8 text-center">
+            <h4 class="font-serif font-bold text-lg text-[#111111] m-0">ALL SYSTEMS NOMINAL — ZERO INCIDENTS</h4>
+            <p class="font-body text-xs text-neutral-500 mt-1">No anomalous breaches or deterministic rule violations detected.</p>
+          </div>
+        </div>
+
+        <!-- Rules Sub-Section -->
+        <div class="border border-[#111111] p-4 bg-white">
+          <div class="flex items-center justify-between border-b border-[#111111] pb-2 mb-2">
+            <h4 class="font-serif font-bold text-base text-[#111111] m-0">Detection Rules Matrix</h4>
+            <span class="font-mono text-xs text-neutral-500" x-text="allRules.length + ' Active'"></span>
+          </div>
+          <div class="overflow-x-auto max-h-60">
+            <table class="news-table">
+              <thead>
+                <tr>
+                  <th>Rule ID</th>
+                  <th>Name</th>
+                  <th>Severity</th>
+                  <th>Confidence</th>
+                  <th>Type</th>
+                  <th class="text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="r in allRules" :key="r.rule_id">
+                  <tr>
+                    <td class="font-mono font-bold text-xs text-[#CC0000]" x-text="formatRuleId(r.rule_id)"></td>
+                    <td class="font-sans font-semibold text-xs text-[#111111]" x-text="r.name"></td>
+                    <td class="font-mono text-xs" x-text="r.severity_weight"></td>
+                    <td class="font-mono text-xs" x-text="r.confidence_weight"></td>
+                    <td>
+                      <span class="border border-[#111111] px-1 text-[10px] font-mono" x-text="r.is_custom ? 'CUSTOM' : 'BUILT-IN'"></span>
+                    </td>
+                    <td class="text-right">
+                      <button x-show="r.is_custom" @click="disableCustomRule(r._customRule)" class="text-[10px] font-mono text-[#CC0000] underline font-bold">
+                        DISABLE
+                      </button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- ======================================================================
+         TAB 4: VULNERABILITIES (REACHABILITY FUNNEL)
+         ====================================================================== -->
+    <main x-show="activeTab==='vulnerabilities'" class="space-y-6">
+      <div class="border-2 border-[#111111] bg-white p-5">
+        
+        <div class="border-b border-[#111111] pb-3 mb-4">
+          <h2 class="font-serif font-bold text-2xl text-[#111111] m-0">Vulnerability Reachability Index</h2>
+          <p class="font-body text-xs text-neutral-600 m-0">Filters dormant static CVEs by intersecting SBOM manifests with live kernel execution.</p>
+        </div>
+
+        <!-- 4-Stage Horizontal Summary -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6 text-center font-mono text-xs">
+          <div class="border border-[#111111] bg-[#F9F9F7] p-3">
+            <div class="text-neutral-500 font-bold">1. SBOM PRESENT</div>
+            <div class="font-serif font-black text-2xl text-[#111111] mt-1" x-text="evidenceCounts.package_present">0</div>
+          </div>
+          <div class="border border-[#111111] bg-[#F9F9F7] p-3">
+            <div class="text-neutral-500 font-bold">2. DEPLOYED</div>
+            <div class="font-serif font-black text-2xl text-[#111111] mt-1" x-text="evidenceCounts.deployed">0</div>
+          </div>
+          <div class="border border-[#111111] bg-neutral-100 p-3">
+            <div class="text-[#111111] font-bold">3. RUNTIME OBSERVED</div>
+            <div class="font-serif font-black text-2xl text-[#111111] mt-1" x-text="evidenceCounts.runtime_observed">0</div>
+          </div>
+          <div class="border-2 border-[#CC0000] bg-red-50 text-[#CC0000] p-3">
+            <div class="font-bold">4. PORT REACHABLE</div>
+            <div class="font-serif font-black text-2xl mt-1" x-text="evidenceCounts.runtime_observed_and_port_published">0</div>
+          </div>
+        </div>
+
+        <!-- Dynamic Pipeline Audit Callout -->
+        <div class="border border-[#111111] p-3 bg-neutral-100 flex items-start gap-2.5 mb-6 text-xs font-mono">
+          <i class="ph ph-info text-base mt-0.5 text-[#111111]"></i>
+          <div>
+            <strong>LIVE DYNAMIC FUNNEL AUDIT:</strong>
+            <span class="text-neutral-700">These 4 counts (<span x-text="evidenceCounts.package_present"></span>, <span x-text="evidenceCounts.deployed"></span>, <span x-text="evidenceCounts.runtime_observed"></span>, <span x-text="evidenceCounts.runtime_observed_and_port_published"></span>) dynamically filter static CycloneDX SBOM &amp; Trivy CVE scans against active eBPF kernel execution. 20 packages are present in image manifests, 20 are in running containers, 4 have been actively observed executing in the kernel, and 0 are exposed on open published ports.</span>
+          </div>
+        </div>
+
+        <!-- Findings Table -->
+        <div class="overflow-x-auto">
+          <table class="news-table">
+            <thead>
+              <tr>
+                <th>CVE ID</th>
+                <th>Package Name</th>
+                <th>Severity</th>
+                <th>CVSS</th>
+                <th>EPSS Probability</th>
+                <th>CISA KEV</th>
+                <th>Stage</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="f in vulnerabilityFindings" :key="f.finding_id || f.cve_id">
+                <tr>
+                  <td class="font-mono font-bold text-xs text-[#111111]" x-text="f.cve_id"></td>
+                  <td class="font-mono text-xs text-neutral-800" x-text="f.package_name + ' (' + f.installed_version + ')'"></td>
+                  <td>
+                    <span class="border border-[#111111] px-1 text-[10px] font-mono font-bold uppercase"
+                          :class="f.severity==='CRITICAL' ? 'bg-[#CC0000] text-white' : 'bg-neutral-100'"
+                          x-text="f.severity"></span>
+                  </td>
+                  <td class="font-mono text-xs font-bold" x-text="f.cvss_score || '—'"></td>
+                  <td class="font-mono text-xs" x-text="f.epss_score ? (f.epss_score * 100).toFixed(1) + '%' : '—'"></td>
+                  <td>
+                    <span x-show="f.cisa_kev" class="badge-breaking text-[9px] py-0 px-1">KEV ACTIVE</span>
+                    <span x-show="!f.cisa_kev" class="font-mono text-neutral-400 text-xs">—</span>
+                  </td>
+                  <td class="font-mono text-xs font-bold uppercase" x-text="f.reachability_stage || 'package_present'"></td>
+                </tr>
+              </template>
+              <tr x-show="vulnerabilityFindings.length === 0">
+                <td colspan="7" class="text-center py-6 font-mono text-neutral-500">NO VULNERABILITIES CATALOGED IN WORKLOAD SCANS</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- ======================================================================
+         TAB 5: LIVE ATTACK SIMULATOR (WAR GAMES)
+         ====================================================================== -->
+    <main x-show="activeTab==='simulator'" class="space-y-6">
+      <div class="border-2 border-[#111111] bg-white p-5">
+        
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b-2 border-[#111111] pb-3 mb-4 gap-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="badge-breaking">[LIVE WAR ROOM]</span>
+              <h2 class="font-serif font-bold text-2xl text-[#111111] m-0">Canary Attack Simulator &amp; Validation Lab</h2>
+            </div>
+            <p class="font-body text-xs text-neutral-600 mt-1 mb-0">
+              Dispatch real-time container attacks against isolated targets to verify live eBPF kernel detection, rule triggering, and anomaly divergence scoring.
+            </p>
+          </div>
+          <div class="flex items-center gap-2 font-mono text-xs">
+            <span class="border border-[#111111] px-2.5 py-1 bg-neutral-100 font-bold">
+              OPERATOR CLEARANCE: <span :class="operatorToken ? 'text-[#111111]' : 'text-[#CC0000]'" x-text="operatorToken ? 'AUTHORIZED (TOKEN SET)' : 'REQUIRED'"></span>
+            </span>
+          </div>
+        </div>
+
+        <!-- 8 Interactive Attack Scenarios Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          
+          <!-- Scenario 1 -->
+          <div class="border-2 border-[#111111] p-4 bg-[#F9F9F7] flex flex-col justify-between hard-shadow">
+            <div>
+              <div class="flex items-center justify-between border-b border-[#111111] pb-1.5 mb-2">
+                <span class="badge-breaking text-[10px]">CANARY 01</span>
+                <span class="font-mono text-[10px] font-bold text-[#CC0000]">RULE 02</span>
+              </div>
+              <h3 class="font-serif font-bold text-base text-[#111111] m-0">Unseen Interactive Shell</h3>
+              <p class="font-body text-xs text-neutral-600 mt-1.5 leading-relaxed">
+                Spawns <code class="font-mono text-[10px] bg-neutral-200 px-1">/bin/sh</code> inside non-shell service. Triggers anomaly divergence and shell invocation rules.
+              </p>
+              <div class="bg-white border border-[#111111] p-1.5 font-mono text-[10px] text-[#111111] mt-3 truncate">
+                sh -c 'id; echo canary_shell'
+              </div>
+            </div>
+            <div>
+              <button :disabled="isExecutingAttack"
+                      @click="triggerAttackScenario({ id: 'unseen_shell', name: 'Unseen Interactive Shell' })"
+                      class="btn-news-alert mt-4 w-full text-xs text-center disabled:opacity-40">
+                <i class="ph ph-lightning"></i>
+                <span x-text="scenarioResults['unseen_shell']?.status === 'running' ? 'EXECUTING...' : 'TRIGGER ATTACK &rarr;'"></span>
+              </button>
+              <template x-if="scenarioResults['unseen_shell']">
+                <div class="mt-2 p-2 bg-[#111111] text-[#F9F9F7] font-mono text-[10px] border border-[#111111]">
+                  <template x-if="scenarioResults['unseen_shell'].status === 'running'">
+                    <div class="text-amber-400 font-bold animate-pulse">SPOOLING WORKLOAD...</div>
+                  </template>
+                  <template x-if="scenarioResults['unseen_shell'].status === 'success'">
+                    <div>
+                      <div class="flex items-center justify-between text-neutral-400 font-bold mb-1 border-b border-neutral-800 pb-1">
+                        <span class="text-emerald-400 flex items-center gap-1"><i class="ph ph-check-circle"></i> EXECUTED &bull; LIVE</span>
+                        <button @click="currentTab='telemetry'" class="text-white underline text-[9px] uppercase">TELEMETRY &rarr;</button>
+                      </div>
+                      <div class="text-neutral-300 truncate" x-text="scenarioResults['unseen_shell'].command"></div>
+                      <div class="text-emerald-300 mt-0.5 max-h-12 overflow-y-auto leading-tight" x-text="scenarioResults['unseen_shell'].output"></div>
+                    </div>
+                  </template>
+                  <template x-if="scenarioResults['unseen_shell'].status === 'error'">
+                    <div class="text-[#CC0000] font-bold" x-text="scenarioResults['unseen_shell'].error"></div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Scenario 2 -->
+          <div class="border-2 border-[#111111] p-4 bg-[#F9F9F7] flex flex-col justify-between hard-shadow">
+            <div>
+              <div class="flex items-center justify-between border-b border-[#111111] pb-1.5 mb-2">
+                <span class="badge-breaking text-[10px]">CANARY 02</span>
+                <span class="font-mono text-[10px] font-bold text-[#CC0000]">RULE 05</span>
+              </div>
+              <h3 class="font-serif font-bold text-base text-[#111111] m-0">Shell-to-Tool Dropper</h3>
+              <p class="font-body text-xs text-neutral-600 mt-1.5 leading-relaxed">
+                Shell &rarr; <code class="font-mono text-[10px] bg-neutral-200 px-1">wget</code> payload download chain. Demonstrates dual-use binary abuse detection.
+              </p>
+              <div class="bg-white border border-[#111111] p-1.5 font-mono text-[10px] text-[#111111] mt-3 truncate">
+                sh &rarr; wget https://example.com
+              </div>
+            </div>
+            <div>
+              <button :disabled="isExecutingAttack"
+                      @click="triggerAttackScenario({ id: 'shell_to_tool', name: 'Shell-to-Tool Dropper' })"
+                      class="btn-news-alert mt-4 w-full text-xs text-center disabled:opacity-40">
+                <i class="ph ph-lightning"></i>
+                <span x-text="scenarioResults['shell_to_tool']?.status === 'running' ? 'EXECUTING...' : 'TRIGGER ATTACK &rarr;'"></span>
+              </button>
+              <template x-if="scenarioResults['shell_to_tool']">
+                <div class="mt-2 p-2 bg-[#111111] text-[#F9F9F7] font-mono text-[10px] border border-[#111111]">
+                  <template x-if="scenarioResults['shell_to_tool'].status === 'running'">
+                    <div class="text-amber-400 font-bold animate-pulse">SPOOLING WORKLOAD...</div>
+                  </template>
+                  <template x-if="scenarioResults['shell_to_tool'].status === 'success'">
+                    <div>
+                      <div class="flex items-center justify-between text-neutral-400 font-bold mb-1 border-b border-neutral-800 pb-1">
+                        <span class="text-emerald-400 flex items-center gap-1"><i class="ph ph-check-circle"></i> EXECUTED &bull; LIVE</span>
+                        <button @click="currentTab='telemetry'" class="text-white underline text-[9px] uppercase">TELEMETRY &rarr;</button>
+                      </div>
+                      <div class="text-neutral-300 truncate" x-text="scenarioResults['shell_to_tool'].command"></div>
+                      <div class="text-emerald-300 mt-0.5 max-h-12 overflow-y-auto leading-tight" x-text="scenarioResults['shell_to_tool'].output"></div>
+                    </div>
+                  </template>
+                  <template x-if="scenarioResults['shell_to_tool'].status === 'error'">
+                    <div class="text-[#CC0000] font-bold" x-text="scenarioResults['shell_to_tool'].error"></div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Scenario 3 -->
+          <div class="border-2 border-[#111111] p-4 bg-[#F9F9F7] flex flex-col justify-between hard-shadow">
+            <div>
+              <div class="flex items-center justify-between border-b border-[#111111] pb-1.5 mb-2">
+                <span class="badge-breaking text-[10px]">CANARY 03</span>
+                <span class="font-mono text-[10px] font-bold text-[#CC0000]">RULE 04</span>
+              </div>
+              <h3 class="font-serif font-bold text-base text-[#111111] m-0">Cryptominer Malware</h3>
+              <p class="font-body text-xs text-neutral-600 mt-1.5 leading-relaxed">
+                Executes XMRig malware container + EICAR antivirus test signature string in container space.
+              </p>
+              <div class="bg-white border border-[#111111] p-1.5 font-mono text-[10px] text-[#111111] mt-3 truncate">
+                xmrig --version &amp;&amp; cat eicar.txt
+              </div>
+            </div>
+            <div>
+              <button :disabled="isExecutingAttack"
+                      @click="triggerAttackScenario({ id: 'cryptominer', name: 'XMRig Cryptominer' })"
+                      class="btn-news-alert mt-4 w-full text-xs text-center disabled:opacity-40">
+                <i class="ph ph-lightning"></i>
+                <span x-text="scenarioResults['cryptominer']?.status === 'running' ? 'EXECUTING...' : 'TRIGGER ATTACK &rarr;'"></span>
+              </button>
+              <template x-if="scenarioResults['cryptominer']">
+                <div class="mt-2 p-2 bg-[#111111] text-[#F9F9F7] font-mono text-[10px] border border-[#111111]">
+                  <template x-if="scenarioResults['cryptominer'].status === 'running'">
+                    <div class="text-amber-400 font-bold animate-pulse">SPOOLING WORKLOAD...</div>
+                  </template>
+                  <template x-if="scenarioResults['cryptominer'].status === 'success'">
+                    <div>
+                      <div class="flex items-center justify-between text-neutral-400 font-bold mb-1 border-b border-neutral-800 pb-1">
+                        <span class="text-emerald-400 flex items-center gap-1"><i class="ph ph-check-circle"></i> EXECUTED &bull; LIVE</span>
+                        <button @click="currentTab='telemetry'" class="text-white underline text-[9px] uppercase">TELEMETRY &rarr;</button>
+                      </div>
+                      <div class="text-neutral-300 truncate" x-text="scenarioResults['cryptominer'].command"></div>
+                      <div class="text-emerald-300 mt-0.5 max-h-12 overflow-y-auto leading-tight" x-text="scenarioResults['cryptominer'].output"></div>
+                    </div>
+                  </template>
+                  <template x-if="scenarioResults['cryptominer'].status === 'error'">
+                    <div class="text-[#CC0000] font-bold" x-text="scenarioResults['cryptominer'].error"></div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Scenario 4 -->
+          <div class="border-2 border-[#111111] p-4 bg-[#F9F9F7] flex flex-col justify-between hard-shadow">
+            <div>
+              <div class="flex items-center justify-between border-b border-[#111111] pb-1.5 mb-2">
+                <span class="badge-breaking text-[10px]">CANARY 04</span>
+                <span class="font-mono text-[10px] font-bold text-[#CC0000]">RULE 04</span>
+              </div>
+              <h3 class="font-serif font-bold text-base text-[#111111] m-0">Network Port Discovery</h3>
+              <p class="font-body text-xs text-neutral-600 mt-1.5 leading-relaxed">
+                Dispatches internal network reconnaissance probe using <code class="font-mono text-[10px] bg-neutral-200 px-1">nc</code> to scan localhost services.
+              </p>
+              <div class="bg-white border border-[#111111] p-1.5 font-mono text-[10px] text-[#111111] mt-3 truncate">
+                nc -z -w1 127.0.0.1 80 8080 3000
+              </div>
+            </div>
+            <div>
+              <button :disabled="isExecutingAttack"
+                      @click="triggerAttackScenario({ id: 'network_scan', name: 'Network Port Discovery' })"
+                      class="btn-news-alert mt-4 w-full text-xs text-center disabled:opacity-40">
+                <i class="ph ph-lightning"></i>
+                <span x-text="scenarioResults['network_scan']?.status === 'running' ? 'EXECUTING...' : 'TRIGGER ATTACK &rarr;'"></span>
+              </button>
+              <template x-if="scenarioResults['network_scan']">
+                <div class="mt-2 p-2 bg-[#111111] text-[#F9F9F7] font-mono text-[10px] border border-[#111111]">
+                  <template x-if="scenarioResults['network_scan'].status === 'running'">
+                    <div class="text-amber-400 font-bold animate-pulse">SPOOLING WORKLOAD...</div>
+                  </template>
+                  <template x-if="scenarioResults['network_scan'].status === 'success'">
+                    <div>
+                      <div class="flex items-center justify-between text-neutral-400 font-bold mb-1 border-b border-neutral-800 pb-1">
+                        <span class="text-emerald-400 flex items-center gap-1"><i class="ph ph-check-circle"></i> EXECUTED &bull; LIVE</span>
+                        <button @click="currentTab='telemetry'" class="text-white underline text-[9px] uppercase">TELEMETRY &rarr;</button>
+                      </div>
+                      <div class="text-neutral-300 truncate" x-text="scenarioResults['network_scan'].command"></div>
+                      <div class="text-emerald-300 mt-0.5 max-h-12 overflow-y-auto leading-tight" x-text="scenarioResults['network_scan'].output"></div>
+                    </div>
+                  </template>
+                  <template x-if="scenarioResults['network_scan'].status === 'error'">
+                    <div class="text-[#CC0000] font-bold" x-text="scenarioResults['network_scan'].error"></div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Scenario 5 -->
+          <div class="border-2 border-[#111111] p-4 bg-[#F9F9F7] flex flex-col justify-between hard-shadow">
+            <div>
+              <div class="flex items-center justify-between border-b border-[#111111] pb-1.5 mb-2">
+                <span class="badge-breaking text-[10px]">CANARY 05</span>
+                <span class="font-mono text-[10px] font-bold text-[#CC0000]">RULE 01</span>
+              </div>
+              <h3 class="font-serif font-bold text-base text-[#111111] m-0">File Dropper Tampering</h3>
+              <p class="font-body text-xs text-neutral-600 mt-1.5 leading-relaxed">
+                Writes malicious script to <code class="font-mono text-[10px] bg-neutral-200 px-1">/tmp</code> and invokes <code class="font-mono text-[10px] bg-neutral-200 px-1">chmod +x</code> to stage execution.
+              </p>
+              <div class="bg-white border border-[#111111] p-1.5 font-mono text-[10px] text-[#111111] mt-3 truncate">
+                touch /tmp/malicious.sh &amp;&amp; chmod +x
+              </div>
+            </div>
+            <div>
+              <button :disabled="isExecutingAttack"
+                      @click="triggerAttackScenario({ id: 'file_evasion', name: 'File Dropper Tampering' })"
+                      class="btn-news-alert mt-4 w-full text-xs text-center disabled:opacity-40">
+                <i class="ph ph-lightning"></i>
+                <span x-text="scenarioResults['file_evasion']?.status === 'running' ? 'EXECUTING...' : 'TRIGGER ATTACK &rarr;'"></span>
+              </button>
+              <template x-if="scenarioResults['file_evasion']">
+                <div class="mt-2 p-2 bg-[#111111] text-[#F9F9F7] font-mono text-[10px] border border-[#111111]">
+                  <template x-if="scenarioResults['file_evasion'].status === 'running'">
+                    <div class="text-amber-400 font-bold animate-pulse">SPOOLING WORKLOAD...</div>
+                  </template>
+                  <template x-if="scenarioResults['file_evasion'].status === 'success'">
+                    <div>
+                      <div class="flex items-center justify-between text-neutral-400 font-bold mb-1 border-b border-neutral-800 pb-1">
+                        <span class="text-emerald-400 flex items-center gap-1"><i class="ph ph-check-circle"></i> EXECUTED &bull; LIVE</span>
+                        <button @click="currentTab='telemetry'" class="text-white underline text-[9px] uppercase">TELEMETRY &rarr;</button>
+                      </div>
+                      <div class="text-neutral-300 truncate" x-text="scenarioResults['file_evasion'].command"></div>
+                      <div class="text-emerald-300 mt-0.5 max-h-12 overflow-y-auto leading-tight" x-text="scenarioResults['file_evasion'].output"></div>
+                    </div>
+                  </template>
+                  <template x-if="scenarioResults['file_evasion'].status === 'error'">
+                    <div class="text-[#CC0000] font-bold" x-text="scenarioResults['file_evasion'].error"></div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Scenario 6 -->
+          <div class="border-2 border-[#111111] p-4 bg-[#F9F9F7] flex flex-col justify-between hard-shadow">
+            <div>
+              <div class="flex items-center justify-between border-b border-[#111111] pb-1.5 mb-2">
+                <span class="badge-breaking text-[10px]">CANARY 06</span>
+                <span class="font-mono text-[10px] font-bold text-[#CC0000]">RULE 07</span>
+              </div>
+              <h3 class="font-serif font-bold text-base text-[#111111] m-0">Log Wiping Evasion</h3>
+              <p class="font-body text-xs text-neutral-600 mt-1.5 leading-relaxed">
+                Simulates defense evasion via shell redirection log truncation targeting audit trails.
+              </p>
+              <div class="bg-white border border-[#111111] p-1.5 font-mono text-[10px] text-[#111111] mt-3 truncate">
+                echo '' &gt; /var/log/bootstrap.log
+              </div>
+            </div>
+            <div>
+              <button :disabled="isExecutingAttack"
+                      @click="triggerAttackScenario({ id: 'defense_evasion', name: 'Log Wiping Evasion' })"
+                      class="btn-news-alert mt-4 w-full text-xs text-center disabled:opacity-40">
+                <i class="ph ph-lightning"></i>
+                <span x-text="scenarioResults['defense_evasion']?.status === 'running' ? 'EXECUTING...' : 'TRIGGER ATTACK &rarr;'"></span>
+              </button>
+              <template x-if="scenarioResults['defense_evasion']">
+                <div class="mt-2 p-2 bg-[#111111] text-[#F9F9F7] font-mono text-[10px] border border-[#111111]">
+                  <template x-if="scenarioResults['defense_evasion'].status === 'running'">
+                    <div class="text-amber-400 font-bold animate-pulse">SPOOLING WORKLOAD...</div>
+                  </template>
+                  <template x-if="scenarioResults['defense_evasion'].status === 'success'">
+                    <div>
+                      <div class="flex items-center justify-between text-neutral-400 font-bold mb-1 border-b border-neutral-800 pb-1">
+                        <span class="text-emerald-400 flex items-center gap-1"><i class="ph ph-check-circle"></i> EXECUTED &bull; LIVE</span>
+                        <button @click="currentTab='telemetry'" class="text-white underline text-[9px] uppercase">TELEMETRY &rarr;</button>
+                      </div>
+                      <div class="text-neutral-300 truncate" x-text="scenarioResults['defense_evasion'].command"></div>
+                      <div class="text-emerald-300 mt-0.5 max-h-12 overflow-y-auto leading-tight" x-text="scenarioResults['defense_evasion'].output"></div>
+                    </div>
+                  </template>
+                  <template x-if="scenarioResults['defense_evasion'].status === 'error'">
+                    <div class="text-[#CC0000] font-bold" x-text="scenarioResults['defense_evasion'].error"></div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Scenario 7 -->
+          <div class="border-2 border-[#111111] p-4 bg-[#F9F9F7] flex flex-col justify-between hard-shadow">
+            <div>
+              <div class="flex items-center justify-between border-b border-[#111111] pb-1.5 mb-2">
+                <span class="badge-breaking text-[10px]">CANARY 07</span>
+                <span class="font-mono text-[10px] font-bold text-[#CC0000]">RULE 03</span>
+              </div>
+              <h3 class="font-serif font-bold text-base text-[#111111] m-0">Privilege Escalation</h3>
+              <p class="font-body text-xs text-neutral-600 mt-1.5 leading-relaxed">
+                Inspects <code class="font-mono text-[10px] bg-neutral-200 px-1">/proc/self/status</code> and validates UID 0 unprivileged execution barriers.
+              </p>
+              <div class="bg-white border border-[#111111] p-1.5 font-mono text-[10px] text-[#111111] mt-3 truncate">
+                id; cat /proc/self/status
+              </div>
+            </div>
+            <div>
+              <button :disabled="isExecutingAttack"
+                      @click="triggerAttackScenario({ id: 'priv_esc', name: 'Privilege Escalation Probe' })"
+                      class="btn-news-alert mt-4 w-full text-xs text-center disabled:opacity-40">
+                <i class="ph ph-lightning"></i>
+                <span x-text="scenarioResults['priv_esc']?.status === 'running' ? 'EXECUTING...' : 'TRIGGER ATTACK &rarr;'"></span>
+              </button>
+              <template x-if="scenarioResults['priv_esc']">
+                <div class="mt-2 p-2 bg-[#111111] text-[#F9F9F7] font-mono text-[10px] border border-[#111111]">
+                  <template x-if="scenarioResults['priv_esc'].status === 'running'">
+                    <div class="text-amber-400 font-bold animate-pulse">SPOOLING WORKLOAD...</div>
+                  </template>
+                  <template x-if="scenarioResults['priv_esc'].status === 'success'">
+                    <div>
+                      <div class="flex items-center justify-between text-neutral-400 font-bold mb-1 border-b border-neutral-800 pb-1">
+                        <span class="text-emerald-400 flex items-center gap-1"><i class="ph ph-check-circle"></i> EXECUTED &bull; LIVE</span>
+                        <button @click="currentTab='telemetry'" class="text-white underline text-[9px] uppercase">TELEMETRY &rarr;</button>
+                      </div>
+                      <div class="text-neutral-300 truncate" x-text="scenarioResults['priv_esc'].command"></div>
+                      <div class="text-emerald-300 mt-0.5 max-h-12 overflow-y-auto leading-tight" x-text="scenarioResults['priv_esc'].output"></div>
+                    </div>
+                  </template>
+                  <template x-if="scenarioResults['priv_esc'].status === 'error'">
+                    <div class="text-[#CC0000] font-bold" x-text="scenarioResults['priv_esc'].error"></div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Scenario 8 -->
+          <div class="border-2 border-[#111111] p-4 bg-[#F9F9F7] flex flex-col justify-between hard-shadow">
+            <div>
+              <div class="flex items-center justify-between border-b border-[#111111] pb-1.5 mb-2">
+                <span class="badge-breaking text-[10px]">CANARY 08</span>
+                <span class="font-mono text-[10px] font-bold text-neutral-500">LIVE TARGET</span>
+              </div>
+              <h3 class="font-serif font-bold text-base text-[#111111] m-0">OWASP Juice Shop</h3>
+              <p class="font-body text-xs text-neutral-600 mt-1.5 leading-relaxed">
+                Spins up or removes a live vulnerable OWASP Juice Shop container on port 3001 for live penetration testing.
+              </p>
+              <div class="bg-white border border-[#111111] p-1.5 font-mono text-[10px] text-[#111111] mt-3 truncate">
+                bkimminich/juice-shop on :3001
+              </div>
+            </div>
+            <div>
+              <button :disabled="isExecutingAttack"
+                      @click="triggerAttackScenario({ id: 'juice_shop_toggle', name: 'OWASP Juice Shop Toggle' })"
+                      class="btn-news-primary mt-4 w-full text-xs text-center disabled:opacity-40">
+                <i class="ph ph-cube"></i>
+                <span x-text="scenarioResults['juice_shop_toggle']?.status === 'running' ? 'TOGGLING...' : 'TOGGLE CONTAINER &rarr;'"></span>
+              </button>
+              <template x-if="scenarioResults['juice_shop_toggle']">
+                <div class="mt-2 p-2 bg-[#111111] text-[#F9F9F7] font-mono text-[10px] border border-[#111111]">
+                  <template x-if="scenarioResults['juice_shop_toggle'].status === 'running'">
+                    <div class="text-amber-400 font-bold animate-pulse">TOGGLING DOCKER CONTAINER...</div>
+                  </template>
+                  <template x-if="scenarioResults['juice_shop_toggle'].status === 'success'">
+                    <div>
+                      <div class="flex items-center justify-between text-neutral-400 font-bold mb-1 border-b border-neutral-800 pb-1">
+                        <span class="text-emerald-400 flex items-center gap-1"><i class="ph ph-check-circle"></i> CONTAINER TOGGLED</span>
+                        <a href="http://127.0.0.1:3001" target="_blank" class="text-cyan-400 underline text-[9px] uppercase">OPEN :3001 &rarr;</a>
+                      </div>
+                      <div class="text-neutral-300 truncate" x-text="scenarioResults['juice_shop_toggle'].command"></div>
+                      <div class="text-emerald-300 mt-0.5 max-h-12 overflow-y-auto leading-tight" x-text="scenarioResults['juice_shop_toggle'].output"></div>
+                    </div>
+                  </template>
+                  <template x-if="scenarioResults['juice_shop_toggle'].status === 'error'">
+                    <div class="text-[#CC0000] font-bold" x-text="scenarioResults['juice_shop_toggle'].error"></div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Teletype Canary Terminal Box -->
+        <div class="border-2 border-[#111111] bg-[#111111] text-[#F9F9F7] p-4 hard-shadow">
+          <div class="flex items-center justify-between border-b border-[#333333] pb-2 mb-2 font-mono text-xs">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 bg-[#CC0000] animate-pulse"></span>
+              <span class="font-bold uppercase tracking-wider text-white">TELETYPE CANARY TERMINAL WIRE</span>
+            </div>
+            <button @click="terminalLogs=[]" class="text-neutral-400 hover:text-white uppercase text-[10px] underline">
+              CLEAR LOGS
+            </button>
+          </div>
+
+          <div class="font-mono text-xs space-y-1 max-h-56 overflow-y-auto leading-relaxed py-1 scrollbar-none">
+            <template x-for="(log, idx) in terminalLogs" :key="idx">
+              <div class="flex items-start gap-2">
+                <span class="text-neutral-500" x-text="'[' + log.time + ']'"></span>
+                <span :class="log.level==='error' ? 'text-[#CC0000] font-bold' : log.level==='success' ? 'text-emerald-400 font-bold' : 'text-neutral-300'"
+                      x-text="'[' + (log.tag || 'INFO') + '] ' + (log.message || log.msg || 'Signal dispatched')"></span>
+              </div>
+            </template>
+            <div x-show="terminalLogs.length === 0" class="text-neutral-500 italic py-4 text-center">
+              Canary terminal idle. Click 'TRIGGER ATTACK' on any scenario above to dispatch real container workloads and stream stdout/stderr.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- ======================================================================
+         MODALS & DIALOGS (CLEAN, SHARP, UNCLUTTERED)
+         ====================================================================== -->
+
+    <!-- OPERATOR TOKEN CLEARANCE MODAL -->
+    <div x-show="tokenModal.show" class="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" style="display:none" @keydown.escape.window="cancelTokenModal()">
+      <div class="border-2 border-[#111111] bg-white p-6 max-w-md w-full hard-shadow text-[#111111]">
+        <div class="flex items-center justify-between border-b border-[#111111] pb-2 mb-3">
+          <span class="font-mono text-xs font-bold uppercase text-[#CC0000]">OPERATOR CLEARANCE</span>
+          <button @click="cancelTokenModal()" class="font-mono font-bold text-base">&times;</button>
+        </div>
+        <h3 class="font-serif font-bold text-xl text-[#111111] m-0" x-text="tokenModal.title">Operator Token</h3>
+        <p class="font-body text-xs text-neutral-600 mt-1 mb-4" x-text="tokenModal.message">Containment actions require the operator secret token.</p>
+
+        <input type="password" x-model="tokenModal.value" @keydown.enter="submitTokenModal()"
+               placeholder="PORYGON_OPERATOR_API_TOKEN..."
+               class="input-news font-mono text-xs mb-4">
+
+        <div class="flex justify-end gap-2">
+          <button @click="cancelTokenModal()" class="btn-news-secondary py-1 px-3 text-xs">CANCEL</button>
+          <button @click="submitTokenModal()" class="btn-news-primary py-1 px-3 text-xs">AUTHORIZE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI AUDIT RESULTS MODAL -->
+    <div x-show="aiAuditModal.show" class="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" style="display:none" @keydown.escape.window="aiAuditModal.show=false">
+      <div class="border-2 border-[#111111] bg-white p-6 max-w-xl w-full hard-shadow text-[#111111] max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b border-[#111111] pb-2 mb-3">
+          <span class="badge-breaking">AI SECURITY REPORT</span>
+          <button @click="aiAuditModal.show=false" class="font-mono font-bold text-base">&times;</button>
+        </div>
+        <h3 class="font-serif font-bold text-xl text-[#111111] m-0">Container Audit</h3>
+        <div class="font-mono text-xs text-neutral-500 mt-0.5 mb-4" x-text="'TARGET: ' + (aiAuditModal.container?.container_name || '')"></div>
+
+        <div x-show="aiAuditModal.loading" class="text-center py-8 font-mono text-xs">
+          <span>RUNNING AI SECURITY ASSESSMENT...</span>
+        </div>
+
+        <div x-show="!aiAuditModal.loading && aiAuditModal.result" class="space-y-3 font-body text-xs">
+          <div class="border border-[#111111] p-3 bg-[#F9F9F7]">
+            <h4 class="font-serif font-bold text-sm text-[#111111] mb-1">Assessment Summary</h4>
+            <p class="text-neutral-800 leading-relaxed" x-text="aiAuditModal.result?.summary"></p>
+          </div>
+          <div class="border border-[#111111] p-3 bg-[#F9F9F7]">
+            <h4 class="font-serif font-bold text-sm text-[#111111] mb-1">Hardening Steps</h4>
+            <ul class="list-disc pl-4 space-y-1 text-neutral-800">
+              <template x-for="r in (aiAuditModal.result?.recommendations || [])" :key="r">
+                <li x-text="r"></li>
+              </template>
+            </ul>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-[#111111] flex justify-end">
+          <button @click="aiAuditModal.show=false" class="btn-news-primary py-1 px-3 text-xs">DISMISS</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD CUSTOM RULE MODAL -->
+    <div x-show="showAddRuleModal" class="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" style="display:none" @keydown.escape.window="showAddRuleModal=false">
+      <div class="border-2 border-[#111111] bg-white p-6 max-w-md w-full hard-shadow text-[#111111]">
+        <div class="flex items-center justify-between border-b border-[#111111] pb-2 mb-3">
+          <span class="font-mono text-xs font-bold uppercase text-[#111111]">NEW DETECTION RULE</span>
+          <button @click="showAddRuleModal=false" class="font-mono font-bold text-base">&times;</button>
+        </div>
+        <h3 class="font-serif font-bold text-xl text-[#111111] m-0">Add Detection Rule</h3>
+        <p class="font-body text-xs text-neutral-600 mt-1 mb-4">Declarative rule evaluated against incoming execve events.</p>
+
+        <div class="space-y-3 mb-4">
+          <div>
+            <label class="font-mono text-[10px] font-bold block mb-1">RULE SLUG</label>
+            <input type="text" x-model="newRuleDraft.slug" placeholder="e.g. detect-wget-download" class="input-news text-xs">
+          </div>
+          <div>
+            <label class="font-mono text-[10px] font-bold block mb-1">RULE NAME</label>
+            <input type="text" x-model="newRuleDraft.name" placeholder="Title..." class="input-news text-xs">
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="font-mono text-[9px] font-bold block mb-0.5">FIELD</label>
+              <select x-model="newRuleDraft.conditions[0].field" class="border border-[#111111] bg-white p-1 w-full font-mono text-xs">
+                <option value="executable">executable</option>
+                <option value="process_name">process_name</option>
+                <option value="command_line">command_line</option>
+              </select>
+            </div>
+            <div>
+              <label class="font-mono text-[9px] font-bold block mb-0.5">OP</label>
+              <select x-model="newRuleDraft.conditions[0].op" class="border border-[#111111] bg-white p-1 w-full font-mono text-xs">
+                <option value="equals">equals</option>
+                <option value="contains">contains</option>
+              </select>
+            </div>
+            <div>
+              <label class="font-mono text-[9px] font-bold block mb-0.5">VALUE</label>
+              <input type="text" x-model="newRuleDraft.conditions[0].value" placeholder="pattern" class="input-news p-1 text-xs">
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2">
+          <button @click="showAddRuleModal=false" class="btn-news-secondary py-1 px-3 text-xs">CANCEL</button>
+          <button @click="submitCustomRule()" class="btn-news-primary py-1 px-3 text-xs">SAVE RULE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI CONFIG MODAL -->
+    <div x-show="aiModal.show" class="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" style="display:none" @keydown.escape.window="aiModal.show=false">
+      <div class="border-2 border-[#111111] bg-white p-6 max-w-md w-full hard-shadow text-[#111111]">
+        <div class="flex items-center justify-between border-b border-[#111111] pb-2 mb-3">
+          <span class="font-mono text-xs font-bold uppercase text-[#111111]">AI INSPECTOR CONFIG</span>
+          <button @click="aiModal.show=false" class="font-mono font-bold text-base">&times;</button>
+        </div>
+        <h3 class="font-serif font-bold text-xl text-[#111111] m-0">Configure Provider</h3>
+        <p class="font-body text-xs text-neutral-600 mt-1 mb-4">Choose AI model provider and save your API key locally.</p>
+
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <button type="button" @click="aiModal.provider='gemini'"
+                  :class="aiModal.provider==='gemini' ? 'bg-[#111111] text-white font-bold' : 'border border-[#111111]'"
+                  class="py-1.5 text-xs font-mono">Gemini</button>
+          <button type="button" @click="aiModal.provider='openai'"
+                  :class="aiModal.provider==='openai' ? 'bg-[#111111] text-white font-bold' : 'border border-[#111111]'"
+                  class="py-1.5 text-xs font-mono">OpenAI</button>
+        </div>
+
+        <input type="password" x-model="aiModal.apiKey" placeholder="API Key..." class="input-news font-mono text-xs mb-4">
+
+        <div class="flex justify-end gap-2">
+          <button @click="aiModal.show=false" class="btn-news-secondary py-1 px-3 text-xs">CANCEL</button>
+          <button @click="saveAiKey()" class="btn-news-primary py-1 px-3 text-xs">SAVE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MINIMAL FOOTER -->
+    <footer class="border-t border-[#111111] mt-12 py-4 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-neutral-500">
+      <div>PORYGON &bull; DOCKER RUNTIME BEHAVIORAL VERIFICATION &bull; eBPF / FALCO</div>
+      <div>&copy; 2026 RESEARCH GROUP &bull; ALL RIGHTS RESERVED</div>
+    </footer>
+
+  </div>
+
+</body>
+</html>

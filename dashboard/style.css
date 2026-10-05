@@ -1,0 +1,353 @@
+/* ==========================================================================
+   THE PORYGON DISPATCH — NEWSPRINT DESIGN SYSTEM (v1.0)
+   "All the News That's Fit to Print."
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,700&family=Lora:ital,wght@0,400;0,600;1,400&display=block');
+
+/* Design Tokens & CSS Variables */
+:root {
+  --color-paper: #F9F9F7;
+  --color-ink: #111111;
+  --color-divider: #E5E5E0;
+  --color-accent-red: #CC0000;
+  
+  --font-display: 'Playfair Display', 'Times New Roman', serif;
+  --font-body: 'Lora', Georgia, serif;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  
+  --ease-snappy: cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* Global Reset & Strict Zero Border Radius */
+*, *::before, *::after {
+  border-radius: 0px !important;
+  box-sizing: border-box;
+}
+
+html {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-width: 320px;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  /* 4x4 subtle dot grid simulating newsprint paper grain */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='%23111111' fill-opacity='0.04' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E");
+}
+
+/* Typography Utility Classes */
+.font-display { font-family: var(--font-display); }
+.font-body { font-family: var(--font-body); }
+.font-sans { font-family: var(--font-ui); }
+.font-mono { font-family: var(--font-mono); }
+
+/* Editorial Textures & Patterns */
+.newsprint-texture {
+  position: relative;
+}
+.newsprint-texture::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(0deg, transparent 98%, rgba(17, 17, 17, 0.03) 100%),
+    linear-gradient(90deg, transparent 98%, rgba(17, 17, 17, 0.03) 100%);
+  background-size: 4px 4px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.halftone-dots {
+  background-image: radial-gradient(#111111 1px, transparent 1px);
+  background-size: 8px 8px;
+}
+
+/* Editorial Drop Caps */
+.drop-cap::first-letter {
+  font-family: var(--font-display);
+  font-size: 4.5rem;
+  line-height: 0.82;
+  float: left;
+  margin-right: 0.75rem;
+  margin-bottom: -0.25rem;
+  font-weight: 900;
+  color: var(--color-ink);
+}
+
+/* Ornamental Dividers */
+.ornament-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: #737373;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  letter-spacing: 0.5em;
+  margin: 1.5rem 0;
+}
+.ornament-divider::before,
+.ornament-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: var(--color-ink);
+}
+
+/* Hard Shadows & Snappy Micro-interactions */
+.hard-shadow {
+  box-shadow: 4px 4px 0px 0px var(--color-ink);
+}
+
+.hard-shadow-sm {
+  box-shadow: 2px 2px 0px 0px var(--color-ink);
+}
+
+.hard-shadow-hover {
+  transition: transform 140ms var(--ease-snappy), box-shadow 140ms var(--ease-snappy);
+}
+.hard-shadow-hover:hover {
+  box-shadow: 4px 4px 0px 0px var(--color-ink);
+  transform: translate(-2px, -2px);
+}
+.hard-shadow-hover:active {
+  box-shadow: 1px 1px 0px 0px var(--color-ink);
+  transform: translate(1px, 1px);
+}
+
+/* Primary Newspaper Button */
+.btn-news-primary {
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+  border: 1px solid var(--color-ink);
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0.5rem 1.25rem;
+  cursor: pointer;
+  transition: all 140ms var(--ease-snappy);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 40px;
+}
+.btn-news-primary:hover {
+  background-color: #FFFFFF;
+  color: var(--color-ink);
+  box-shadow: 3px 3px 0px 0px var(--color-ink);
+  transform: translate(-1px, -1px);
+}
+.btn-news-primary:active {
+  transform: translate(1px, 1px);
+  box-shadow: 0px 0px 0px 0px var(--color-ink);
+}
+
+/* Secondary Newspaper Button (Outline) */
+.btn-news-secondary {
+  background-color: transparent;
+  color: var(--color-ink);
+  border: 1px solid var(--color-ink);
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0.5rem 1.25rem;
+  cursor: pointer;
+  transition: all 140ms var(--ease-snappy);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 40px;
+}
+.btn-news-secondary:hover {
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+  box-shadow: 3px 3px 0px 0px var(--color-ink);
+  transform: translate(-1px, -1px);
+}
+
+/* Editorial Red Alert Button */
+.btn-news-alert {
+  background-color: var(--color-accent-red);
+  color: #FFFFFF;
+  border: 1px solid var(--color-ink);
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0.5rem 1.25rem;
+  cursor: pointer;
+  transition: all 140ms var(--ease-snappy);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 40px;
+}
+.btn-news-alert:hover {
+  background-color: var(--color-ink);
+  color: #FFFFFF;
+  box-shadow: 3px 3px 0px 0px var(--color-ink);
+  transform: translate(-1px, -1px);
+}
+
+/* Newspaper Underlined Inputs */
+.input-news {
+  border: none;
+  border-bottom: 2px solid var(--color-ink);
+  background-color: transparent;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--color-ink);
+  outline: none;
+  width: 100%;
+  transition: background-color 140ms ease;
+}
+.input-news:focus {
+  background-color: #F0F0EB;
+  border-bottom-color: var(--color-accent-red);
+}
+
+/* Editorial Badges */
+.badge-breaking {
+  background-color: var(--color-accent-red);
+  color: #FFFFFF;
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  padding: 0.2rem 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--color-ink);
+}
+
+.badge-classified {
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--color-ink);
+}
+
+.badge-outline {
+  background-color: transparent;
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--color-ink);
+}
+
+/* Collapsed Newspaper Grid Separators */
+.news-col-divider {
+  border-right: 1px solid var(--color-ink);
+}
+@media (max-width: 1023px) {
+  .news-col-divider {
+    border-right: none;
+    border-bottom: 1px solid var(--color-ink);
+  }
+}
+
+/* Ticker Animation */
+@keyframes tickerSlide {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+.ticker-wrap {
+  overflow: hidden;
+  white-space: nowrap;
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.ticker-track {
+  display: inline-block;
+  padding-left: 100%;
+  animation: tickerSlide 40s linear infinite;
+}
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
+/* High-Density Editorial Table */
+.news-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  text-align: left;
+}
+.news-table th {
+  background-color: #111111;
+  color: #F9F9F7;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-ink);
+}
+.news-table td {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #111111;
+  background-color: #F9F9F7;
+}
+.news-table tr:hover td {
+  background-color: #F0F0EB;
+}
+
+/* Inverted Editorial Section (Black Background, White Text) */
+.news-inverted {
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+  border: 2px solid var(--color-ink);
+}
+
+/* Accessible focus visible */
+button:focus-visible, a:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--color-ink) !important;
+  outline-offset: 2px !important;
+}
+
+/* Native scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-paper);
+  border-left: 1px solid var(--color-ink);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink);
+}
