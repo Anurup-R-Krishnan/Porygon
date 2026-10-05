@@ -172,7 +172,7 @@ flowchart TB
 | Component | Network Attachments | Socket Access | Credentials Held | Capabilities / Permissions |
 |---|---|---|---|---|
 | **NGINX Gateway** | `porygon_ingress`, `porygon_internal` | None | None (Credential-free) | `cap_drop: ALL`, unprivileged UID |
-| **API Backend** | `porygon_internal` | None | PostgreSQL & Service Tokens | `cap_drop: ALL`, `read_only: true` |
+| **API Backend** | `porygon_internal`, `porygon_egress` | None | PostgreSQL & Service Tokens | `cap_drop: ALL`, `read_only: true`; egress used only by the operator-gated AI auditor to reach Gemini/OpenAI/Anthropic |
 | **PostgreSQL** | `porygon_internal` | None | PostgreSQL Internal Credentials | Persistent named volume |
 | **Docker Collector** | `porygon_internal` | `/var/run/docker.sock` *(ro)* | Internal Service API Token | Read-only socket, SQLite local outbox |
 | **Falco (eBPF)** | `porygon_internal` | `/var/run/docker.sock` *(ro)* | None | `BPF`, `PERFMON`, `SYS_RESOURCE`, `SYS_PTRACE` |

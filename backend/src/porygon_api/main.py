@@ -2378,7 +2378,20 @@ def list_containers(
     )
 
 
-@app.post("/api/v1/ai/audit", response_model=AiAuditOut, tags=["ai"])
+# Operator-gated, under /operator/ like every other write that is not an
+# internal service call. It was first merged as POST /api/v1/ai/audit with no
+# auth dependency -- the only write method in the whole /api/ namespace -- while
+# falling back to PORYGON_AI_API_KEY from .env when the caller supplies no key.
+# Any client that could reach the gateway could therefore spend the server's
+# LLM key and make the backend ship a container's command lines, executables,
+# and CVE list to a third-party provider. Command lines routinely carry
+# secrets in their arguments, so that is data egress, not just cost abuse.
+@app.post(
+    "/operator/v1/ai/audit",
+    response_model=AiAuditOut,
+    tags=["ai"],
+    dependencies=[Depends(require_operator_token)],
+)
 def audit_container(
     payload: AiAuditIn,
     x_porygon_ai_key: str | None = Header(default=None, alias="X-Porygon-AI-Key"),

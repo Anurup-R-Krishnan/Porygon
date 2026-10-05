@@ -135,3 +135,64 @@ def test_perform_container_audit_unsupported_provider() -> None:
             provider="unknown_provider",
             api_key="key",
         )
+
+
+class _CapturedResponse:
+    def __init__(self, body: bytes) -> None:
+        self._body = body
+
+    def read(self) -> bytes:
+        return self._body
+
+    def __enter__(self) -> "_CapturedResponse":
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        return None
+
+
+def test_gemini_key_travels_in_a_header_not_the_url() -> None:
+    from porygon_api import ai_auditor
+
+    body = (
+        b'{"candidates":[{"content":{"parts":[{"text":'
+        b'"{\\"ai_risk_score\\": 0.1, \\"threat_level\\": \\"low\\"}"}]}}]}'
+    )
+    captured = []
+
+    def fake_urlopen(request, timeout=None):
+        captured.append(request)
+        return _CapturedResponse(body)
+
+    secret = "AIzaSy-test-secret-value"
+    with patch.object(ai_auditor.urllib.request, "urlopen", side_effect=fake_urlopen):
+        ai_auditor._call_gemini(secret, "gemini-1.5-flash", "prompt")
+
+    assert captured, "no request was made"
+    for request in captured:
+        assert secret not in request.full_url, request.full_url
+        # urllib normalises header names with str.capitalize().
+        assert request.get_header("X-goog-api-key") == secret
+
+
+@pytest.mark.parametrize(
+    "model",
+    ["gemini-1.5-flash", "models/gemini-2.0-flash", "gpt-4o-mini", "claude-3-5-haiku-20241022"],
+)
+def test_audit_request_accepts_real_model_names(model: str) -> None:
+    from porygon_api.schemas import AiAuditIn
+
+    assert AiAuditIn(container_id="abc", model=model).model == model
+
+
+@pytest.mark.parametrize(
+    "model",
+    ["../../v1/models", "flash?key=x", "flash#", "a/b", "flash generateContent", "-flash"],
+)
+def test_audit_request_rejects_model_names_that_rewrite_the_url(model: str) -> None:
+    from pydantic import ValidationError
+
+    from porygon_api.schemas import AiAuditIn
+
+    with pytest.raises(ValidationError):
+        AiAuditIn(container_id="abc", model=model)

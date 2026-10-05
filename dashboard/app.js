@@ -494,6 +494,16 @@ document.addEventListener('alpine:init', () => {
         this.openAiKeyModal();
         return;
       }
+      // The audit sends this container's command lines to a third-party LLM,
+      // so it is an operator-authorised action like containment, not a read.
+      if (!this.operatorToken) {
+        const t = await this.requestOperatorToken(
+          'An AI audit sends this container\'s process telemetry to an external provider and requires operator authorization.',
+          'Authorize AI audit',
+        );
+        if (!t) return;
+        this.operatorToken = t;
+      }
       this.aiAuditModal.container = container;
       this.aiAuditModal.loading = true;
       this.aiAuditModal.error = null;
@@ -501,7 +511,10 @@ document.addEventListener('alpine:init', () => {
       this.aiAuditModal.show = true;
 
       try {
-        const resp = await fetch('/api/v1/ai/audit', {
+        // The provider key travels only in the header. The backend still
+        // accepts it in the body, but a JSON body is what request loggers and
+        // validation-error echoes capture, so the console does not put it there.
+        const resp = await this._apiFetch('/operator/v1/ai/audit', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -511,11 +524,15 @@ document.addEventListener('alpine:init', () => {
           body: JSON.stringify({
             container_id: container.container_id || container.id,
             provider: this.aiConfig.provider,
-            api_key: this.aiConfig.apiKey,
             model: this.aiConfig.model || null,
             event_limit: 40,
           }),
         });
+        if (resp.status === 401) {
+          this.operatorToken = '';
+          this.aiAuditModal.error = 'Operator token was rejected. Set it again and retry.';
+          return;
+        }
 
         const data = await resp.json();
         if (!resp.ok) {

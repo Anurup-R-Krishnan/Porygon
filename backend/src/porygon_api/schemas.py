@@ -1076,7 +1076,15 @@ class AiAuditIn(BaseModel):
     container_id: str = Field(min_length=1, max_length=128)
     provider: Literal["gemini", "openai", "anthropic"] | None = None
     api_key: str | None = Field(default=None, max_length=512)
-    model: str | None = Field(default=None, max_length=128)
+    # Interpolated into the Gemini request path (models/{model}:generateContent),
+    # so it is restricted to the characters real model identifiers use. Without
+    # this a value containing "/", "?" or "#" could rewrite the path or truncate
+    # the query string the API key travels in.
+    model: str | None = Field(
+        default=None,
+        max_length=128,
+        pattern=r"^(models/)?[A-Za-z0-9][A-Za-z0-9._-]*$",
+    )
     event_limit: int = Field(default=40, ge=1, le=100)
 
 

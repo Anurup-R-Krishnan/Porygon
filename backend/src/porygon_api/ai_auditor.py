@@ -117,11 +117,22 @@ def _extract_json_from_text(raw: str) -> dict[str, Any]:
     return json.loads(cleaned)
 
 
+def _gemini_headers(api_key: str) -> dict[str, str]:
+    """Carry the Gemini key in a header rather than the URL.
+
+    Google accepts the key as either a `key=` query parameter or the
+    `x-goog-api-key` header. A URL is the part of a request that lands in proxy
+    access logs, error messages that echo the target, and exception reprs; a
+    header generally is not. The other two providers already use headers.
+    """
+    return {"Content-Type": "application/json", "x-goog-api-key": api_key}
+
+
 def _list_gemini_models(api_key: str) -> list[str]:
     """Query Google API to discover available models that support generateContent."""
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
-        req = urllib.request.Request(url)
+        url = "https://generativelanguage.googleapis.com/v1beta/models"
+        req = urllib.request.Request(url, headers={"x-goog-api-key": api_key})
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))
         available = []
@@ -154,11 +165,11 @@ def _call_gemini(api_key: str, model: str, prompt: str) -> dict[str, Any]:
 
     last_error: Exception | None = None
     for candidate in candidates:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{candidate}:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{candidate}:generateContent"
         req = urllib.request.Request(
             url,
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers=_gemini_headers(api_key),
             method="POST",
         )
         try:
@@ -176,11 +187,11 @@ def _call_gemini(api_key: str, model: str, prompt: str) -> dict[str, Any]:
     available = _list_gemini_models(api_key)
     if available:
         preferred = next((m for m in available if "flash" in m), available[0])
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{preferred}:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{preferred}:generateContent"
         req = urllib.request.Request(
             url,
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers=_gemini_headers(api_key),
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=30) as resp:

@@ -195,6 +195,28 @@ assert services['falco']['depends_on']['falco-events-init']['condition'] == 'ser
 assert services['telemetry']['depends_on']['falco-events-init']['condition'] == 'service_completed_successfully'
 assert networks['porygon_internal']['internal'] is True
 assert not networks['porygon_ingress'].get('internal', False)
+
+# Exact egress membership. Only the gateway's networks used to be pinned, so a
+# service could join porygon_egress and every invariant here still held: the
+# AI auditor merge gave the backend -- the one service holding PostgreSQL
+# credentials -- outbound internet that way, contradicting the network table in
+# README.md. Joining egress is now a reviewed change to this set, not a
+# one-line compose edit.
+#   scanner: Trivy DB, EPSS and CISA KEV feeds.
+#   backend: LLM provider calls from the operator-gated AI auditor only
+#            (POST /operator/v1/ai/audit). See README.md.
+EXPECTED_EGRESS = {'backend', 'scanner'}
+actual_egress = {
+    name for name, cfg in services.items()
+    if 'porygon_egress' in (cfg.get('networks') or [])
+}
+assert actual_egress == EXPECTED_EGRESS, (
+    f'porygon_egress membership changed: expected {sorted(EXPECTED_EGRESS)}, '
+    f'found {sorted(actual_egress)}. Update EXPECTED_EGRESS and README.md together.'
+)
+assert set(services['postgres'].get('networks') or []) == {'porygon_internal'}, (
+    'postgres must be reachable only on porygon_internal'
+)
 assert '\n' not in rules[0]['output'], 'Falco output template must be one line'
 assert '%proc.vpid' in rules[0]['output']
 
