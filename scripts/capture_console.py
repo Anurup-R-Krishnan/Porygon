@@ -331,7 +331,8 @@ def main() -> int:
     manifest_path = output_dir / "capture-manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
-    print(f"\nwrote {manifest_path.relative_to(ROOT)}")
+    shown = manifest_path.relative_to(ROOT) if manifest_path.is_relative_to(ROOT) else manifest_path
+    print(f"\nwrote {shown}")
     print(f"  commit {manifest['commit'][:12]}, {len(captures)} captures")
     if unhealthy:
         print(
