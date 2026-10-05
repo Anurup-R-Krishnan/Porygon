@@ -33,6 +33,12 @@ const credentialStore = (function () {
 })();
 const OPERATOR_TOKEN_TTL_MS = window.PorygonCredentials.OPERATOR_TOKEN_TTL_MS;
 
+// The polling scheduler (dashboard/src/poller.js). Held outside the Alpine
+// component like chartRegistry: its timers and closures have no business
+// inside a reactive proxy.
+let consolePoller = null;
+const fmt = window.PorygonFormat;
+
 document.addEventListener('alpine:init', () => {
   Alpine.data('porygonApp', () => ({
     // Navigation
@@ -69,6 +75,22 @@ document.addEventListener('alpine:init', () => {
     latestWindowInsufficientData: false,
     scoreContributors: [],
     unseenTokens: [],
+
+    // API health as reported by the polling scheduler: healthy, degraded
+    // (named endpoints failing) or offline (backend or gateway unreachable).
+    apiHealth: 'healthy',
+    apiHealthFailing: [],
+    // What the banner says. Updated only on a non-healthy state, so during the
+    // banner's fade-out on recovery it keeps showing what it was showing,
+    // instead of re-rendering as an empty "Failing: ." for 300 ms.
+    bannerHealth: 'offline',
+    bannerFailing: [],
+    // Which feed `events` came from. Only kernel process events can vouch for
+    // the eBPF sensor; the Docker lifecycle fallback cannot.
+    eventsSource: null,
+    // A reactive clock, ticked every 10 s, so ages and "today" comparisons in
+    // the template stay current without each binding owning a timer.
+    nowTick: Date.now(),
 
     // AI Security Inspector State
     aiConfig: {
@@ -600,7 +622,9 @@ document.addEventListener('alpine:init', () => {
       if (typeof window.initReveal === 'function') window.initReveal();
       await this.fetchRules();
       await this.fetchCustomRules();
-      await this.refreshAllData();
+      // Charts are created empty and filled by the first polling round: the
+      // timeline and evidence-ladder charts both have update paths, and the
+      // composition chart shows fixed protocol weights.
       this.initCharts();
       // after DOM for charts, init reveal again for bento
       if (typeof window.initReveal === 'function') window.initReveal();
@@ -628,13 +652,82 @@ document.addEventListener('alpine:init', () => {
         });
       }
 
-      // Auto-refresh interval every 3 seconds (lightweight polling without heavy summaries)
-      setInterval(() => {
-        this.pollLiveTelemetry();
-      }, 3000);
-      // heavier refresh for system info every 10s
-      setInterval(() => { this.fetchSystemInfo(); this.fetchAnomalyScores(); }, 10000);
+      this._startPolling();
+      setInterval(() => { this.nowTick = Date.now(); }, 10000);
       setInterval(() => this._enforceCredentialExpiry(), 15000);
+    },
+
+    // Every API read goes through one scheduler. Each task is its own chain,
+    // so a slow request is never overlapped by the next tick; the whole thing
+    // pauses while the tab is hidden and refreshes on return; failures back
+    // off with jitter; and health is reported once per transition instead of
+    // as a toast per failed request. See dashboard/src/poller.js.
+    //
+    // Service health and image scans are on the schedule too. They used to be
+    // fetched once at page load and never again, so a service that died after
+    // the console opened stayed "healthy" until someone clicked sync.
+    _startPolling() {
+      consolePoller = window.PorygonPoller.createPoller({
+        tasks: [
+          { name: 'containers', label: 'container inventory', intervalMs: 3000, run: (signal) => this.fetchContainers(signal) },
+          { name: 'events', label: 'process telemetry', intervalMs: 3000, run: (signal) => this.fetchEvents(signal) },
+          { name: 'incidents', label: 'incidents', intervalMs: 3000, run: (signal) => this.fetchIncidents(signal) },
+          { name: 'scores', label: 'anomaly scores', intervalMs: 3000, run: (signal) => this.fetchAnomalyScores(signal) },
+          { name: 'system', label: 'system summary', intervalMs: 10000, run: (signal) => this.fetchSystemInfo(signal) },
+          { name: 'services', label: 'service health', intervalMs: 15000, run: (signal) => this.fetchServices(signal) },
+          { name: 'scans', label: 'image scans', intervalMs: 60000, run: (signal) => this.fetchScans(signal) },
+        ],
+        visibility: {
+          isHidden: () => document.hidden,
+          onChange: (listener) => document.addEventListener('visibilitychange', listener),
+        },
+        onHealthChange: (health, detail) => this._onApiHealthChange(health, detail),
+      });
+      consolePoller.start(true);
+    },
+
+    _onApiHealthChange(health, { previous, failing }) {
+      this.apiHealth = health;
+      this.apiHealthFailing = failing;
+      if (health !== 'healthy') {
+        this.bannerHealth = health;
+        this.bannerFailing = failing;
+      }
+      if (health === 'offline') {
+        this.showToast('Backend unreachable. Panels are cleared rather than left stale; retrying with backoff.', 'danger');
+        this.logTerminal('API', 'Backend unreachable: ' + failing.join(', '), 'error');
+      } else if (health === 'degraded') {
+        this.showToast('Unavailable: ' + failing.join(', '), 'warn');
+        this.logTerminal('API', 'Degraded: ' + failing.join(', '), 'warn');
+      } else if (previous !== 'healthy') {
+        this.showToast('Connection restored. Panels refreshed.', 'info');
+        this.logTerminal('API', 'Connection restored', 'info');
+      }
+    },
+
+    // Kernel telemetry as far as the console can know it, for the nav pill.
+    // This replaced a hardcoded, pulsing "eBPF Active" that stayed green while
+    // Falco was crashlooping and the newest kernel event was eleven days old.
+    get kernelTelemetry() {
+      return fmt.kernelTelemetryState({
+        apiHealth: this.apiHealth,
+        eventsSource: this.eventsSource,
+        events: this.events,
+        now: this.nowTick,
+      });
+    },
+
+    // Data timestamps keep their date unless they are from today; see
+    // dashboard/src/format.js. Reading nowTick makes them re-evaluate as the
+    // day turns over.
+    fmtTime(value) {
+      return fmt.formatTimestamp(value, this.nowTick);
+    },
+    fmtShortTime(value) {
+      return fmt.formatShortTimestamp(value, this.nowTick);
+    },
+    fmtTimeMs(value) {
+      return fmt.formatTimestamp(value, this.nowTick, { milliseconds: true });
     },
 
     // helpers
@@ -841,52 +934,60 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
-    async fetchSystemInfo() {
+    // Every fetcher below takes the scheduler's abort signal and returns
+    // whether it succeeded. Failures are reported once, as a health state, by
+    // the scheduler (dashboard/src/poller.js) -- each fetcher used to raise its
+    // own toast on every failed 3 s tick, which during an outage stacked them
+    // faster than they expired.
+    async fetchSystemInfo(signal) {
       try {
-        const res = await fetch('/api/v1/system/info');
-        if (res.ok) {
-          this.systemInfo = await res.json();
-          // sync counters that were previously hardcoded
-          // keep in terminal
-        }
-      } catch(e){ console.warn('system/info failed', e); }
+        const res = await fetch('/api/v1/system/info', { signal });
+        if (!res.ok) return false;
+        this.systemInfo = await res.json();
+        return true;
+      } catch (e) {
+        console.warn('system/info failed', e);
+        return false;
+      }
     },
 
-    async fetchServices() {
+    async fetchServices(signal) {
       try {
-        const res = await fetch('/api/v1/services');
-        if (res.ok) {
-          this.services = await res.json();
-        } else throw new Error('non-200');
+        const res = await fetch('/api/v1/services', { signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        this.services = await res.json();
+        return true;
       } catch (err) {
         // An unavailable health endpoint must not look like a healthy fleet.
         this.services = [];
-        this.showToast('Service health is unavailable', 'warn');
+        return false;
       }
     },
 
-    async fetchContainers() {
+    async fetchContainers(signal) {
       try {
-        const res = await fetch('/api/v1/containers?limit=100');
+        const res = await fetch('/api/v1/containers?limit=100', { signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         this.containers = Array.isArray(data) ? data : (data.items || []);
+        return true;
       } catch (err) {
         // An unavailable containers endpoint must not look like an empty,
-        // fully-monitored fleet — clear stale data and signal the gap.
+        // fully-monitored fleet — clear stale data; the scheduler signals the gap.
         console.warn('Could not fetch containers:', err);
         this.containers = [];
-        this.showToast('Container inventory is unavailable', 'warn');
+        return false;
       }
     },
 
-    async fetchEvents() {
+    async fetchEvents(signal) {
       // Prefer process-events (eBPF) for telemetry tab (fast limit=40 query)
       try {
-        const res = await fetch('/api/v1/process-events?limit=40');
+        const res = await fetch('/api/v1/process-events?limit=40', { signal });
         if (res.ok) {
           this.events = await res.json();
-          return;
+          this.eventsSource = 'process';
+          return true;
         }
         // fallback to older /events if process-events not yet available.
         // Real bug found live: this used to write the fallback result into
@@ -894,75 +995,78 @@ document.addEventListener('alpine:init', () => {
         // the Telemetry tab (bound to `events`) silently stayed empty even
         // though the fallback fetch succeeded. Writing into `events` here
         // fixes that.
-        const r2 = await fetch('/api/v1/events?limit=40');
+        const r2 = await fetch('/api/v1/events?limit=40', { signal });
         if (r2.ok) {
           this.events = await r2.json();
-          return;
+          this.eventsSource = 'docker';
+          return true;
         }
         throw new Error(`process-events HTTP ${res.status}, events fallback HTTP ${r2.status}`);
       } catch (err) {
         console.warn('Could not fetch process-events:', err);
         this.events = [];
-        this.showToast('Process telemetry is unavailable', 'warn');
+        this.eventsSource = null;
+        return false;
       }
     },
 
-    async fetchAnomalyScores() {
+    async fetchAnomalyScores(signal) {
       try {
-        const res = await fetch('/api/v1/anomaly-scores?limit=20');
-        if (res.ok) {
-          const list = await res.json();
-          if (Array.isArray(list) && list.length) {
-            this.scores = list;
-            // The most recent window (list[0]) may not have enough telemetry to
-            // be scored yet — surface that explicitly rather than silently
-            // falling back to an older scored window and mislabeling it CURRENT.
-            this.latestWindowInsufficientData = list[0]?.status === 'insufficient_data';
-            // use most recent scored window
-            const latest = list.find(s => s.status === 'scored') || list[0];
-            if (latest && latest.total_score != null) {
-              this.currentAnomalyScore = latest.total_score;
-              this.currentScoreBand = latest.score_band || this._bandForScore(latest.total_score);
-              // Real timestamp of the window backing the score above, so a
-              // "CURRENT" label can show it and make a stale window visibly stale.
-              this.currentScoreWindowStart = latest.window_start || null;
-              // extract unseen tokens / contributors from explanation if present.
-              // Real bug found live: GET /api/v1/anomaly-scores/{id}'s
-              // explanation.unseen_tokens is an array of objects
-              // ({feature, token, proportion} — verified against the live
-              // backend), but this.unseenTokens is rendered with
-              // `x-for="tok in unseenTokens" :key="tok"` and used as
-              // `'unseen: ' + tok`, both of which expect plain strings.
-              // Assigning the raw objects here made Alpine use a whole
-              // object as an x-for key (console warning, once per real
-              // score fetched) and made every token render as
-              // "unseen: [object Object]" instead of the real value.
-              // Extracting .token fixes both.
-              const exp = latest.explanation || {};
-              const families = (latest.components && latest.components.categorical_distance && latest.components.categorical_distance.families) || {};
-              const asTokenStrings = (arr) => arr.map(t => (t && typeof t === 'object') ? (t.token ?? JSON.stringify(t)) : t);
-              // fallback: explanation.novel_executables etc.
-              if (exp.unseen_tokens) this.unseenTokens = [...new Set(asTokenStrings(exp.unseen_tokens))].slice(0,12);
-              else if (exp.novel_tokens) this.unseenTokens = [...new Set(asTokenStrings(exp.novel_tokens))].slice(0,12);
-              else {
-                // synthesize from categorical families top_observed where baseline_support small
-                const toks = [];
-                Object.values(families).forEach(f=>{
-                  if (f.distance > 0.5 && f.top_observed) {
-                    f.top_observed.slice(0,2).forEach(t=> toks.push(t.token));
-                  }
-                });
-                if (toks.length) this.unseenTokens = [...new Set(toks)].slice(0,10);
-              }
-              this.scoreContributors = latest.components ? Object.entries(latest.components).map(([k,v])=>({token:k, weight: v.score||0})) : [];
-              this.activeProfile = { profile_id: latest.profile_id, version: latest.profile_version };
-              this.updateTimelineChart();
-              this.updateScoreFromLatest();
+        const res = await fetch('/api/v1/anomaly-scores?limit=20', { signal });
+        if (!res.ok) return false;
+        const list = await res.json();
+        if (Array.isArray(list) && list.length) {
+          this.scores = list;
+          // The most recent window (list[0]) may not have enough telemetry to
+          // be scored yet — surface that explicitly rather than silently
+          // falling back to an older scored window and mislabeling it CURRENT.
+          this.latestWindowInsufficientData = list[0]?.status === 'insufficient_data';
+          // use most recent scored window
+          const latest = list.find(s => s.status === 'scored') || list[0];
+          if (latest && latest.total_score != null) {
+            this.currentAnomalyScore = latest.total_score;
+            this.currentScoreBand = latest.score_band || this._bandForScore(latest.total_score);
+            // Real timestamp of the window backing the score above, so a
+            // "CURRENT" label can show it and make a stale window visibly stale.
+            this.currentScoreWindowStart = latest.window_start || null;
+            // extract unseen tokens / contributors from explanation if present.
+            // Real bug found live: GET /api/v1/anomaly-scores/{id}'s
+            // explanation.unseen_tokens is an array of objects
+            // ({feature, token, proportion} — verified against the live
+            // backend), but this.unseenTokens is rendered with
+            // `x-for="tok in unseenTokens" :key="tok"` and used as
+            // `'unseen: ' + tok`, both of which expect plain strings.
+            // Assigning the raw objects here made Alpine use a whole
+            // object as an x-for key (console warning, once per real
+            // score fetched) and made every token render as
+            // "unseen: [object Object]" instead of the real value.
+            // Extracting .token fixes both.
+            const exp = latest.explanation || {};
+            const families = (latest.components && latest.components.categorical_distance && latest.components.categorical_distance.families) || {};
+            const asTokenStrings = (arr) => arr.map(t => (t && typeof t === 'object') ? (t.token ?? JSON.stringify(t)) : t);
+            // fallback: explanation.novel_executables etc.
+            if (exp.unseen_tokens) this.unseenTokens = [...new Set(asTokenStrings(exp.unseen_tokens))].slice(0,12);
+            else if (exp.novel_tokens) this.unseenTokens = [...new Set(asTokenStrings(exp.novel_tokens))].slice(0,12);
+            else {
+              // synthesize from categorical families top_observed where baseline_support small
+              const toks = [];
+              Object.values(families).forEach(f=>{
+                if (f.distance > 0.5 && f.top_observed) {
+                  f.top_observed.slice(0,2).forEach(t=> toks.push(t.token));
+                }
+              });
+              if (toks.length) this.unseenTokens = [...new Set(toks)].slice(0,10);
             }
+            this.scoreContributors = latest.components ? Object.entries(latest.components).map(([k,v])=>({token:k, weight: v.score||0})) : [];
+            this.activeProfile = { profile_id: latest.profile_id, version: latest.profile_version };
+            this.updateTimelineChart();
+            this.updateScoreFromLatest();
           }
         }
+        return true;
       } catch (err) {
         console.warn('Could not fetch anomaly-scores:', err);
+        return false;
       }
     },
 
@@ -979,9 +1083,9 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
-    async fetchIncidents() {
+    async fetchIncidents(signal) {
       try {
-        const res = await fetch('/api/v1/incidents?limit=50');
+        const res = await fetch('/api/v1/incidents?limit=50', { signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const fetched = await res.json();
         const getTime = (x) => {
@@ -992,19 +1096,20 @@ document.addEventListener('alpine:init', () => {
         if (this.incidents.length > 0 && !this.selectedIncident) {
           this.selectedIncident = this.incidents[0];
         }
+        return true;
       } catch (err) {
         // An unavailable incidents endpoint must not read as "all clear" —
         // clear stale data and signal the gap instead of leaving whatever
         // was last fetched on screen with no indicator.
         console.warn('Could not fetch incidents:', err);
         this.incidents = [];
-        this.showToast('Incident feed is unavailable', 'warn');
+        return false;
       }
     },
 
-    async fetchScans() {
+    async fetchScans(signal) {
       try {
-        const res = await fetch('/api/v1/image-scans?limit=20');
+        const res = await fetch('/api/v1/image-scans?limit=20', { signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const scans = await res.json();
         if (Array.isArray(scans) && scans.length > 0) {
@@ -1016,17 +1121,24 @@ document.addEventListener('alpine:init', () => {
           // image-scans limit=20 above) keeps the funnel counts honest.
           const targets = completedScans;
 
-          const allFindings = [];
-          for (const scan of targets) {
+          // Fetched concurrently: the sequential loop this replaces made one
+          // round trip per completed scan before anything rendered, and now
+          // that scans refresh on a schedule it must also finish inside the
+          // scheduler's timeout. Responses are not cached, because each embeds
+          // per-CVE EPSS/KEV intel that later threat-feed fetches update.
+          const details = await Promise.all(targets.map(async (scan) => {
             try {
-              const detailRes = await fetch(`/api/v1/image-scans/${scan.scan_id}`);
-              if (detailRes.ok) {
-                const detail = await detailRes.json();
-                if (Array.isArray(detail.vulnerabilities)) {
-                  allFindings.push(...detail.vulnerabilities);
-                }
-              }
-            } catch (e) {}
+              const detailRes = await fetch(`/api/v1/image-scans/${scan.scan_id}`, { signal });
+              return detailRes.ok ? await detailRes.json() : null;
+            } catch (e) {
+              return null;
+            }
+          }));
+          const allFindings = [];
+          for (const detail of details) {
+            if (detail && Array.isArray(detail.vulnerabilities)) {
+              allFindings.push(...detail.vulnerabilities);
+            }
           }
 
           // Deduplicate findings by finding_id or cve_id + package_name
@@ -1042,13 +1154,14 @@ document.addEventListener('alpine:init', () => {
           this.vulnerabilityFindings = [];
           this.calculateEvidenceCounts();
         }
+        return true;
       } catch (err) {
         // An unavailable scan endpoint must not leave a stale reachability
         // funnel on screen with no indicator that it's out of date.
         console.warn('Could not fetch scans:', err);
         this.vulnerabilityFindings = [];
         this.calculateEvidenceCounts();
-        this.showToast('Vulnerability scan data is unavailable', 'warn');
+        return false;
       }
     },
 
@@ -1095,26 +1208,11 @@ document.addEventListener('alpine:init', () => {
       return this.vulnerabilityFindings.filter(v => this.matchesReachabilityFilter(v, this.reachabilityFilter));
     },
 
-    async refreshAllData() {
-      await this.fetchSystemInfo();
-      await Promise.all([
-        this.fetchServices(),
-        this.fetchContainers(),
-        this.fetchEvents(),
-        this.fetchIncidents(),
-        this.fetchScans(),
-        this.fetchAnomalyScores()
-      ]);
-    },
-
-    async pollLiveTelemetry() {
-      await Promise.all([
-        this.fetchContainers(),
-        this.fetchEvents(),
-        this.fetchIncidents(),
-        this.fetchAnomalyScores()
-      ]);
-      this.updateTimelineChart();
+    // Manual sync. Routed through the scheduler rather than calling the
+    // fetchers directly, so a click can never run a request concurrently with
+    // the scheduled run of the same request.
+    refreshAllData() {
+      if (consolePoller) consolePoller.runNow();
     },
 
     // Chart Initializations — ethereal glass tuned
@@ -1127,7 +1225,7 @@ document.addEventListener('alpine:init', () => {
       const timelineCtx = document.getElementById('anomalyTimelineChart');
       if (timelineCtx) {
         const hasScores = this.scores && this.scores.length > 0;
-        const labels = hasScores ? this.scores.slice(0,7).reverse().map(s => new Date(s.window_start).toLocaleTimeString().slice(0,5)) : [];
+        const labels = hasScores ? this.scores.slice(0,7).reverse().map(s => this.fmtShortTime(s.window_start)) : [];
         const dataPoints = hasScores ? this.scores.slice(0,7).reverse().map(s => s.total_score ?? 0) : [];
         // ensure last point reflects current
         if (dataPoints.length) dataPoints[dataPoints.length-1] = this.currentAnomalyScore;
@@ -1328,7 +1426,7 @@ document.addEventListener('alpine:init', () => {
       // if we have real scores, rebuild labels+data from this.scores
       if (this.scores && this.scores.length) {
         const recent = this.scores.slice(0,7).reverse();
-        chart.data.labels = recent.map(s => new Date(s.window_start).toLocaleTimeString().slice(0,5));
+        chart.data.labels = recent.map(s => this.fmtShortTime(s.window_start));
         chart.data.datasets[0].data = recent.map(s => s.total_score != null ? s.total_score : 0);
         // overlay current if newer
         chart.data.datasets[0].data[chart.data.datasets[0].data.length-1] = this.currentAnomalyScore;
@@ -1391,7 +1489,7 @@ document.addEventListener('alpine:init', () => {
         this.showToast(`Attack simulator unavailable: ${err.message}`, 'danger');
       } finally {
         this.isExecutingAttack = false;
-        await this.pollLiveTelemetry();
+        this.refreshAllData();
       }
     },
 

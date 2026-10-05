@@ -21,7 +21,7 @@
     Enforced by:      scripts/verify_all.sh static
   -->
   <link rel="stylesheet" href="vendor/tailwind.css"
-        integrity="sha384-TmnKNAsP2hjccoos0eKhECBk91syU4UEsw9CSVogUgCo9QrCImQahTbY3B5/ye4h" crossorigin="anonymous">
+        integrity="sha384-rq04FESXeD4cQF1d6tNJUuZBBIcTNWPJsPdMmiuxnqGfpMYDsb8sj0yk4sdlekyJ" crossorigin="anonymous">
   <link rel="stylesheet" href="vendor/satoshi.css"
         integrity="sha384-3ro7LXWKnWg1LJQYZUmUql9aFf8YJT1+aAXoNZTSwDo4GKCmdxtrNaLNPwcgMmHH" crossorigin="anonymous">
   <link rel="stylesheet" href="vendor/jetbrains-mono.css"
@@ -34,6 +34,8 @@
   <!-- app.js must define the Alpine component before the deferred Alpine
        bundle initialises, which is the ordering the CDN version relied on. -->
   <script src="src/credentials.js"></script>
+  <script src="src/poller.js"></script>
+  <script src="src/format.js"></script>
   <script src="app.js"></script>
   <script defer src="reveal.js"></script>
   <script defer src="vendor/alpine.min.js"
@@ -56,6 +58,29 @@
     <div class="absolute top-[40vh] left-1/2 -translate-x-1/2 w-[70vw] h-[50vh] rounded-full opacity-[0.08] blur-[100px]" style="background: radial-gradient(ellipse at center, #E9D5FF 0%, transparent 65%)"></div>
   </div>
   <div class="grain" aria-hidden="true"></div>
+
+  <!-- API health banner, driven by the polling scheduler. Shown only while the
+       backend is unreachable or an endpoint is failing, so an empty panel can
+       always be told apart from a quiet system. -->
+  <div x-show="apiHealth !== 'healthy'" x-transition.opacity.duration.300 style="display:none"
+       class="fixed left-1/2 top-24 z-[45] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2"
+       role="alert" aria-live="assertive">
+    <div class="flex items-center gap-3 rounded-2xl px-4 py-3 text-[13px] ring-1 backdrop-blur-xl"
+         :class="bannerHealth === 'offline' ? 'bg-red-950/80 text-red-100 ring-red-500/40' : 'bg-amber-950/80 text-amber-100 ring-amber-400/40'">
+      <i class="ph text-[18px] flex-shrink-0" :class="bannerHealth === 'offline' ? 'ph-plugs' : 'ph-warning-circle'" aria-hidden="true"></i>
+      <div class="min-w-0 flex-1">
+        <div class="font-bold" x-text="bannerHealth === 'offline' ? 'Backend unreachable' : 'Some data is unavailable'"></div>
+        <div class="mt-0.5 text-[12px] opacity-80"
+             x-text="bannerHealth === 'offline'
+               ? 'Panels are cleared rather than left showing stale data. Retrying with backoff.'
+               : 'Failing: ' + bannerFailing.join(', ') + '. Other panels are current.'"></div>
+      </div>
+      <button type="button" @click="refreshAllData()"
+              class="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[12px] font-bold ring-1 ring-white/20 transition-colors hover:bg-white hover:text-black">
+        <i class="ph ph-arrow-clockwise" aria-hidden="true"></i> Retry now
+      </button>
+    </div>
+  </div>
 
   <!-- Toasts — glass -->
   <div class="fixed bottom-6 right-6 z-[70] flex flex-col gap-3 pointer-events-none">
@@ -95,12 +120,43 @@
     </div>
 
     <div class="flex items-center gap-1 sm:gap-1.5 flex-shrink-0 min-w-0">
-      <div class="hidden 2xl:flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-3 py-1.5 ring-1 ring-emerald-400/20">
-        <span class="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)] animate-pulse"></span>
-        <span class="text-[11px] font-semibold tracking-[0.14em] uppercase text-emerald-200">eBPF Active</span>
+      <!-- Kernel telemetry state, derived from the age of the newest kernel event
+           (dashboard/src/format.js::kernelTelemetryState). This was a hardcoded,
+           pulsing "eBPF Active" that stayed green while Falco crashlooped. -->
+      <div class="hidden 2xl:flex items-center gap-1.5 rounded-full px-3 py-1.5 ring-1"
+           role="status" :aria-label="kernelTelemetry.label" :title="kernelTelemetry.label + ' — ' + kernelTelemetry.detail"
+           :class="{
+             'bg-emerald-400/10 ring-emerald-400/20': kernelTelemetry.state === 'live',
+             'bg-amber-400/10 ring-amber-400/30': kernelTelemetry.state === 'stale',
+             'bg-white/5 ring-white/15': kernelTelemetry.state === 'none' || kernelTelemetry.state === 'unknown',
+           }">
+        <span class="h-2 w-2 rounded-full"
+              :class="{
+                'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)] animate-pulse': kernelTelemetry.state === 'live',
+                'bg-amber-400': kernelTelemetry.state === 'stale',
+                'bg-white/40': kernelTelemetry.state === 'none' || kernelTelemetry.state === 'unknown',
+              }"></span>
+        <span class="text-[11px] font-semibold tracking-[0.14em] uppercase"
+              :class="{
+                'text-emerald-200': kernelTelemetry.state === 'live',
+                'text-amber-200': kernelTelemetry.state === 'stale',
+                'text-white/60': kernelTelemetry.state === 'none' || kernelTelemetry.state === 'unknown',
+              }"
+              x-text="kernelTelemetry.shortLabel"></span>
       </div>
-      <div class="hidden xl:flex 2xl:hidden items-center gap-1 rounded-full bg-emerald-400/10 px-2 py-1.5 ring-1 ring-emerald-400/20" title="eBPF Active">
-        <span class="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)] animate-pulse"></span>
+      <div class="hidden xl:flex 2xl:hidden items-center gap-1 rounded-full px-2 py-1.5 ring-1"
+           role="status" :aria-label="kernelTelemetry.label" :title="kernelTelemetry.label + ' — ' + kernelTelemetry.detail"
+           :class="{
+             'bg-emerald-400/10 ring-emerald-400/20': kernelTelemetry.state === 'live',
+             'bg-amber-400/10 ring-amber-400/30': kernelTelemetry.state === 'stale',
+             'bg-white/5 ring-white/15': kernelTelemetry.state === 'none' || kernelTelemetry.state === 'unknown',
+           }">
+        <span class="h-2 w-2 rounded-full"
+              :class="{
+                'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)] animate-pulse': kernelTelemetry.state === 'live',
+                'bg-amber-400': kernelTelemetry.state === 'stale',
+                'bg-white/40': kernelTelemetry.state === 'none' || kernelTelemetry.state === 'unknown',
+              }"></span>
       </div>
       <button @click="refreshAllData()" class="hidden sm:inline-flex group h-9 w-9 nav-icon-btn rounded-full bg-white text-black transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.02] active:scale-[0.98]" title="Sync live telemetry">
         <i class="ph ph-arrows-clockwise text-[16px] leading-none block transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:rotate-180"></i>
@@ -222,7 +278,7 @@
                   <span class="text-[10px] font-bold uppercase tracking-[0.16em] text-black/50">Current</span>
                   <span class="font-mono text-[28px] font-bold leading-none tracking-[-0.03em]" x-text="currentAnomalyScore.toFixed(3)">0.082</span>
                   <span class="rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em]" :class="currentAnomalyScore>=0.75 ? 'bg-red-500 text-white' : currentAnomalyScore>=0.5 ? 'bg-amber-400 text-black' : 'bg-emerald-400 text-black'" x-text="currentScoreBand">baseline_like</span>
-                  <span x-show="currentScoreWindowStart" class="text-[9px] font-mono text-black/40" x-text="'window ' + new Date(currentScoreWindowStart).toLocaleTimeString()"></span>
+                  <span x-show="currentScoreWindowStart" class="text-[9px] font-mono text-black/40" x-text="'window ' + fmtTime(currentScoreWindowStart)"></span>
                 </div>
               </div>
 
@@ -759,6 +815,14 @@
             <div>
               <span class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-black">sys_enter_execve</span>
               <h3 class="mt-3 font-display text-[22px] font-bold tracking-tight">Kernel Process Telemetry Stream</h3>
+              <!-- Freshness of the stream, where an operator reads it. Without
+                   this an eleven-day-old event list looked live. -->
+              <div x-show="kernelTelemetry.state === 'stale' || kernelTelemetry.state === 'none'"
+                   class="mt-3 inline-flex items-center gap-2 rounded-full bg-amber-400/10 px-3 py-1.5 text-[12px] font-medium text-amber-200 ring-1 ring-amber-400/30"
+                   role="status">
+                <i class="ph ph-warning-circle" aria-hidden="true"></i>
+                <span x-text="kernelTelemetry.detail"></span>
+              </div>
             </div>
             <div class="flex items-center gap-2 rounded-full bg-white p-1.5 pl-4 ring-1 ring-black/5 w-full sm:w-auto">
               <i class="ph ph-magnifying-glass text-black/40"></i>
@@ -775,7 +839,7 @@
               <tbody class="divide-y divide-white/5">
                 <template x-for="e in events.filter(ev => !eventFilter || [ev.process_name, ev.executable, ev.command_line, ev.container_id, ev.container_name].filter(Boolean).join(' ').toLowerCase().includes(eventFilter.toLowerCase()))" :key="e.event_id || e.occurred_at">
                   <tr class="hover:bg-white/[0.03] transition-colors duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]">
-                    <td class="px-3 py-2.5 font-mono text-[11px] text-white/40" x-text="new Date(e.occurred_at).toLocaleTimeString() + '.' + String(new Date(e.occurred_at).getMilliseconds()).padStart(3,'0')"></td>
+                    <td class="px-3 py-2.5 font-mono text-[11px] text-white/40" x-text="fmtTimeMs(e.occurred_at)"></td>
                     <td class="px-3 py-2.5"><span class="rounded-full px-2 py-1 text-[11px] font-bold" :class="['sh','bash','xmrig','wget','curl'].includes(e.process_name) ? 'bg-red-500 text-white' : 'bg-white/10 text-white'" x-text="e.process_name"></span></td>
                     <td class="px-3 py-2.5 font-mono text-[11px]" x-text="e.executable"></td>
                     <td class="px-3 py-2.5 font-mono text-[11px] text-white/50" x-text="e.parent_executable || '—'"></td>
@@ -1113,7 +1177,7 @@
                         </div>
                       </div>
                       <div class="text-right text-[11px] font-mono text-white/40">
-                        <div>window: <span x-text="new Date(pipelineScoreDetail.window_start).toLocaleTimeString()"></span> – <span x-text="new Date(pipelineScoreDetail.window_end).toLocaleTimeString()"></span></div>
+                        <div>window: <span x-text="fmtTime(pipelineScoreDetail.window_start)"></span> – <span x-text="fmtTime(pipelineScoreDetail.window_end)"></span></div>
                         <div><span x-text="pipelineScoreDetail.process_event_count"></span> process events scored</div>
                       </div>
                     </div>
@@ -1168,7 +1232,7 @@
                         <div class="flex flex-wrap items-center gap-2">
                           <span class="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white/70" x-text="pipelineStageLabel(row)"></span>
                           <span x-show="row.rule_id" class="rounded-full bg-black px-2.5 py-1 text-[10px] font-bold text-white" x-text="row.rule_id"></span>
-                          <span class="ml-auto font-mono text-[10px] text-white/40" x-text="new Date(row.occurred_at).toLocaleTimeString()"></span>
+                          <span class="ml-auto font-mono text-[10px] text-white/40" x-text="fmtTime(row.occurred_at)"></span>
                         </div>
                         <div class="mt-2 text-[13px] font-semibold leading-snug" x-text="row.summary || row.source_id"></div>
                         <div x-show="row.rule_id && rulesMeta[row.rule_id]?.description" class="mt-1 text-[11px] text-white/60 leading-snug" x-text="rulesMeta[row.rule_id]?.description"></div>
@@ -1784,7 +1848,7 @@
 
         <!-- Footer -->
         <div class="flex items-center justify-between border-t border-white/10 pt-4">
-          <span class="text-[11px] font-mono text-white/30" x-text="'Audited: ' + new Date(aiAuditModal.result?.audited_at).toLocaleTimeString()"></span>
+          <span class="text-[11px] font-mono text-white/30" x-text="'Audited: ' + fmtTime(aiAuditModal.result?.audited_at)"></span>
           <button @click="aiAuditModal.show=false" class="rounded-full bg-white px-5 py-2 text-[12px] font-bold text-black hover:bg-white/90 transition-colors">Close</button>
         </div>
       </div>

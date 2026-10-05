@@ -70,7 +70,7 @@
     },
     "tailwind.css": {
       "source": "built by scripts/build_console_css.sh",
-      "integrity": "sha384-TmnKNAsP2hjccoos0eKhECBk91syU4UEsw9CSVogUgCo9QrCImQahTbY3B5/ye4h"
+      "integrity": "sha384-rq04FESXeD4cQF1d6tNJUuZBBIcTNWPJsPdMmiuxnqGfpMYDsb8sj0yk4sdlekyJ"
     }
   }
 }
