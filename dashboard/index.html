@@ -21,7 +21,7 @@
     Enforced by:      scripts/verify_all.sh static
   -->
   <link rel="stylesheet" href="vendor/tailwind.css"
-        integrity="sha384-rq04FESXeD4cQF1d6tNJUuZBBIcTNWPJsPdMmiuxnqGfpMYDsb8sj0yk4sdlekyJ" crossorigin="anonymous">
+        integrity="sha384-Q4JPsgazNj+jAd9EJvyUFcUeLOHhhYZtFp/BKvhbbgZDHOa8cQn75LMqw4ICpfds" crossorigin="anonymous">
   <link rel="stylesheet" href="vendor/satoshi.css"
         integrity="sha384-3ro7LXWKnWg1LJQYZUmUql9aFf8YJT1+aAXoNZTSwDo4GKCmdxtrNaLNPwcgMmHH" crossorigin="anonymous">
   <link rel="stylesheet" href="vendor/jetbrains-mono.css"
@@ -37,6 +37,8 @@
   <script src="src/poller.js"></script>
   <script src="src/format.js"></script>
   <script src="src/a11y.js"></script>
+  <script src="src/route.js"></script>
+  <script src="src/evidence.js"></script>
   <script src="app.js"></script>
   <script defer src="reveal.js"></script>
   <script defer src="vendor/alpine.min.js"
@@ -1158,6 +1160,24 @@
 
             <template x-if="pipelineIncidentId && !pipelineLoading && !pipelineError">
               <div>
+                <!-- Share and export this incident. The link is #pipeline/<id>;
+                     exports are built from fresh API responses with a sha256
+                     recorded per response (dashboard/src/evidence.js). -->
+                <div class="mb-6 flex flex-wrap items-center gap-2">
+                  <span class="mr-auto font-mono text-[11px] text-white/40" x-text="'incident ' + pipelineIncidentId"></span>
+                  <button type="button" @click="copyIncidentLink()"
+                          class="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1.5 text-[12px] font-semibold text-white/80 ring-1 ring-white/10 transition-colors hover:bg-white hover:text-black">
+                    <i class="ph ph-link" aria-hidden="true"></i> Copy link
+                  </button>
+                  <button type="button" @click="exportIncidentEvidence('markdown')" :disabled="exportingEvidence"
+                          class="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1.5 text-[12px] font-semibold text-white/80 ring-1 ring-white/10 transition-colors hover:bg-white hover:text-black disabled:opacity-40">
+                    <i class="ph ph-file-text" aria-hidden="true"></i> Export Markdown
+                  </button>
+                  <button type="button" @click="exportIncidentEvidence('json')" :disabled="exportingEvidence"
+                          class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-bold text-black ring-1 ring-white/10 transition-colors hover:bg-white/80 disabled:opacity-40">
+                    <i class="ph ph-download-simple" aria-hidden="true"></i> Export JSON
+                  </button>
+                </div>
                 <!-- REAL DIVERGENCE DETAIL — how much this window deviated
                      from the trained baseline, per feature family, from
                      GET /api/v1/anomaly-scores/{score_id} (the same
@@ -1456,7 +1476,18 @@
           <div class="text-[11px] font-medium uppercase tracking-[0.08em] text-black/40">com.porygon.protected=true — immune • © 2026 • Built for declassified blueprints</div>
         </div>
         <div class="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em]">
-          <span class="rounded-full bg-black px-3 py-1.5 text-white">HAZARD — DETECTION ACTIVE</span>
+          <!-- Was a hardcoded "HAZARD — DETECTION ACTIVE". POR-DET-002 to 005
+               match kernel process events and POR-DET-001's distance score draws
+               on them, so their input is only as fresh as the eBPF stream. The
+               Docker-lifecycle rules (006, 007) are unaffected, hence wording
+               scoped to kernel input when the stream is stale. -->
+          <span class="rounded-full px-3 py-1.5" role="status"
+                :class="kernelTelemetry.state === 'live' ? 'bg-black text-white' : 'bg-amber-400 text-black'"
+                x-text="kernelTelemetry.state === 'live'
+                  ? 'HAZARD — DETECTION ACTIVE'
+                  : kernelTelemetry.state === 'stale' ? 'KERNEL DETECTION INPUT STALE'
+                  : kernelTelemetry.state === 'none' ? 'NO KERNEL DETECTION INPUT'
+                  : 'KERNEL DETECTION INPUT UNKNOWN'">HAZARD — DETECTION ACTIVE</span>
           <button @click="showDocsModal = true" class="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-black/5 hover:bg-black hover:text-white px-3.5 py-1.5 ring-1 ring-black/10 transition-all duration-300 cursor-pointer" title="View Porygon Architecture Blueprint & Guide"><i class="ph ph-book text-sm"></i> Docs</button>
         </div>
       </div>

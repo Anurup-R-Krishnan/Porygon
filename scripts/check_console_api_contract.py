@@ -31,7 +31,9 @@ NOT_BACKEND = {
     ("POST", "/api/demo/run-scenario"),
 }
 
-CALL = re.compile(r"\b(?:fetch|_apiFetch)\s*\(")
+# _fetchEvidence is the evidence export's fetch wrapper; its first argument is a
+# path like any fetch() call's, so it is checked the same way.
+CALL = re.compile(r"\b(?:fetch|_apiFetch|_fetchEvidence)\s*\(")
 
 
 def _arguments(source: str, start: int) -> str:

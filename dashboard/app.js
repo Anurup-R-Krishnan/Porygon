@@ -38,6 +38,27 @@ const OPERATOR_TOKEN_TTL_MS = window.PorygonCredentials.OPERATOR_TOKEN_TTL_MS;
 // inside a reactive proxy.
 let consolePoller = null;
 const fmt = window.PorygonFormat;
+const route = window.PorygonRoute;
+
+// sha256 of a response body, for the evidence export's provenance. SubtleCrypto
+// exists only in secure contexts; behind plain HTTP on a non-local host the
+// hash is recorded as unavailable rather than faked.
+async function sha256Hex(buffer) {
+  if (!(window.crypto && window.crypto.subtle)) return null;
+  const digest = await window.crypto.subtle.digest('SHA-256', buffer);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function downloadText(filename, text, type) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 document.addEventListener('alpine:init', () => {
   // x-dialog="expr" on a modal's panel: while expr is truthy the panel is an
@@ -64,7 +85,8 @@ document.addEventListener('alpine:init', () => {
 
   Alpine.data('porygonApp', () => ({
     // Navigation
-    activeTab: (typeof window !== 'undefined' && window.location.hash && ['overview', 'pathway', 'telemetry', 'anomalies', 'incidents', 'pipeline', 'vulnerabilities', 'simulator'].includes(window.location.hash.slice(1))) ? window.location.hash.slice(1) : 'overview',
+    // From the URL: #<tab> or #pipeline/<incident_id> (dashboard/src/route.js).
+    activeTab: route.parseRoute(window.location.hash).tab,
     navOpen: false,
 
     // System & Health Data
@@ -128,6 +150,7 @@ document.addEventListener('alpine:init', () => {
     // Rules & Incidents
     rules: [],
     rulesMeta: {},
+    exportingEvidence: false,
     incidents: [],
     selectedIncident: null,
 
@@ -654,11 +677,13 @@ document.addEventListener('alpine:init', () => {
       // Watch activeTab to resize charts and trigger pipeline auto-selection
       if (typeof this.$watch === 'function') {
         this.$watch('activeTab', (newTab) => {
-          if (typeof window !== 'undefined' && window.location) {
-            try { window.location.hash = newTab; } catch(e){}
-          }
           if (newTab === 'pipeline' && !this.pipelineIncidentId && this.incidents.length > 0) {
+            // Writes #pipeline/<id> itself. Writing #pipeline first would
+            // leave two history entries for one action, so Back would appear
+            // to do nothing the first time.
             this.openPipelineForIncident(this.incidents[0]);
+          } else {
+            this._writeRoute();
           }
           const triggerResize = () => {
             Object.values(chartRegistry).forEach(c => {
@@ -675,6 +700,12 @@ document.addEventListener('alpine:init', () => {
       }
 
       this._startPolling();
+      // Back/Forward and hand-edited URLs. Previously the hash was written on
+      // every tab switch but never read again, so Back changed the URL and
+      // left the view where it was.
+      window.addEventListener('popstate', () => this._applyRoute());
+      window.addEventListener('hashchange', () => this._applyRoute());
+      this._applyRoute();
       setInterval(() => { this.nowTick = Date.now(); }, 10000);
       setInterval(() => this._enforceCredentialExpiry(), 15000);
     },
@@ -1230,6 +1261,113 @@ document.addEventListener('alpine:init', () => {
       return this.vulnerabilityFindings.filter(v => this.matchesReachabilityFilter(v, this.reachabilityFilter));
     },
 
+    // Push the current view into history, so Back returns to it and the URL
+    // can be shared. pushState, not location.hash, so writing a route does
+    // not fire hashchange and re-apply itself.
+    _writeRoute() {
+      const target = route.formatRoute({ tab: this.activeTab, incidentId: this.pipelineIncidentId });
+      if (window.location.hash !== target) {
+        try { history.pushState(null, '', target); } catch (e) {}
+      }
+    },
+
+    _applyRoute() {
+      const { tab, incidentId } = route.parseRoute(window.location.hash);
+      if (tab === 'pipeline' && incidentId && incidentId !== this.pipelineIncidentId) {
+        // Set the incident before the tab, so the pipeline watcher does not
+        // auto-open the newest incident in its place.
+        this.openPipelineById(incidentId);
+      } else if (tab !== this.activeTab) {
+        this.activeTab = tab;
+      }
+    },
+
+    // Open an incident by id from a link. It may be older than the 50 the
+    // incident list holds, so fall back to fetching it directly.
+    async openPipelineById(incidentId) {
+      const known = this.incidents.find((i) => i.incident_id === incidentId);
+      if (known) {
+        this.openPipelineForIncident(known);
+        return;
+      }
+      this.pipelineIncidentId = incidentId;
+      this.activeTab = 'pipeline';
+      try {
+        const res = await fetch(`/api/v1/incidents/${incidentId}`);
+        if (!res.ok) throw new Error(res.status === 404 ? 'not found' : `HTTP ${res.status}`);
+        this.openPipelineForIncident(await res.json());
+      } catch (err) {
+        this.pipelineIncidentId = null;
+        this.pipelineError = '';
+        this._writeRoute();
+        this.showToast(`Linked incident ${incidentId.slice(0, 8)} could not be opened: ${err.message}`, 'warn');
+      }
+    },
+
+    async copyIncidentLink() {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        this.showToast('Incident link copied', 'info');
+      } catch (err) {
+        this.showToast('Could not copy the link; copy it from the address bar', 'warn');
+      }
+    },
+
+    // Fetch one evidence source, recording its status, size, and the sha256
+    // of its exact bytes. Named so scripts/check_console_api_contract.py
+    // checks these paths against the backend like any other fetch.
+    async _fetchEvidence(path, sources) {
+      const res = await fetch(path);
+      const bytes = await res.arrayBuffer();
+      sources.push({
+        path,
+        status: res.status,
+        bytes: bytes.byteLength,
+        sha256: await sha256Hex(bytes),
+        fetched_at: new Date().toISOString(),
+      });
+      if (!res.ok) throw new Error(`${path} returned HTTP ${res.status}`);
+      return JSON.parse(new TextDecoder().decode(bytes));
+    },
+
+    // Export the selected incident as JSON or Markdown, built from fresh API
+    // responses rather than whatever the screen happens to hold, so the file
+    // and its recorded hashes describe the same bytes. See
+    // dashboard/src/evidence.js.
+    async exportIncidentEvidence(format) {
+      const incidentId = this.pipelineIncidentId;
+      if (!incidentId || this.exportingEvidence) return;
+      this.exportingEvidence = true;
+      const sources = [];
+      try {
+        const incident = await this._fetchEvidence(`/api/v1/incidents/${incidentId}`, sources);
+        const timeline = await this._fetchEvidence(`/api/v1/incidents/${incidentId}/timeline`, sources);
+        let score = null;
+        if (incident.score_id) {
+          try {
+            score = await this._fetchEvidence(`/api/v1/anomaly-scores/${incident.score_id}`, sources);
+          } catch (err) {
+            // Recorded in sources with its status; the bundle says it is missing.
+          }
+        }
+        const exportedAt = new Date().toISOString();
+        const bundle = window.PorygonEvidence.buildEvidenceBundle({
+          incident, timeline, score, rules: this.rulesMeta, sources, exportedAt,
+        });
+        const name = window.PorygonEvidence.exportFilename(incidentId, exportedAt, format === 'markdown' ? 'md' : 'json');
+        if (format === 'markdown') {
+          downloadText(name, window.PorygonEvidence.renderEvidenceMarkdown(bundle), 'text/markdown');
+        } else {
+          downloadText(name, JSON.stringify(bundle, null, 2) + '\n', 'application/json');
+        }
+        this.logTerminal('EXPORT', `${name} (${sources.length} sources hashed)`, 'success');
+      } catch (err) {
+        this.showToast(`Evidence export failed: ${err.message}`, 'danger');
+      } finally {
+        this.exportingEvidence = false;
+      }
+    },
+
     // ARIA tab pattern for the nav: Left/Right move and wrap, Home/End jump.
     // Selection follows focus, since switching views is cheap.
     onTabKeydown(event) {
@@ -1688,8 +1826,9 @@ document.addEventListener('alpine:init', () => {
     // graph is a row that exists in Postgres right now for that incident.
     openPipelineForIncident(incident) {
       if (!incident || !incident.incident_id) return;
-      this.activeTab = 'pipeline';
       this.pipelineIncidentId = incident.incident_id;
+      this.activeTab = 'pipeline';
+      this._writeRoute();
       this.fetchPipelineTimeline(incident.incident_id);
       this.fetchPipelineScoreDetail(incident.score_id);
     },
