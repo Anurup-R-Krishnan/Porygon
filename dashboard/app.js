@@ -813,6 +813,15 @@ document.addEventListener('alpine:init', () => {
       return String(ruleId);
     },
 
+    formatAuthorizeAction(action) {
+      if (!action) return 'AUTHORIZE: PAUSE';
+      const clean = String(action)
+        .replace(/_container$/i, '')
+        .replace(/_only$/i, '')
+        .toUpperCase();
+      return `AUTHORIZE: ${clean}`;
+    },
+
     // ---- Backend wiring ----
 
     async fetchRules() {
