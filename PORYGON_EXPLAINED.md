@@ -287,7 +287,38 @@ Instead of screaming that a container has a critical vulnerability the moment a 
 If a vulnerability is only at Stage 1 or Stage 2, Porygon categorizes it as:  
 `exploit_status = not_established`.
 
-Only when kernel probes observe the binary executing (Stage 3 or 4) alongside anomalous behavioral distance does Porygon correlate it into an active security incident.
+---
+
+### Block 6: Explainable Machine Learning — Solving the ML Fallacy with TreeSHAP
+
+Remember **Lie #2** ("A black-box AI model will magically catch attacks")? Porygon solves the explainability crisis through a supervised **Tree Ensemble (Random Forest)** combined with **TreeSHAP (SHapley Additive exPlanations)**.
+
+Instead of outputting an arbitrary, unexplainable percentage, Porygon's ML engine:
+1. **Computes a 12-Dimensional Feature Vector** over 60-second observation windows:
+   - `shell_ratio`: Interactive shell frequency (`sh`, `bash`, `dash`).
+   - `root_ratio`: Proportion of processes running as root (UID 0).
+   - `recon_ratio`: Network and host discovery binaries (`whoami`, `ip`, `nmap`).
+   - `tooling_ratio`: Ingress file-fetchers (`curl`, `wget`, `nc`, `socat`).
+   - `priv_escalation_ratio`: Sudo and capability manipulation utilities (`sudo`, `su`, `nsenter`).
+   - `compiler_miner_ratio`: Compilation tooling or crypto-miners (`gcc`, `make`, `xmrig`).
+   - `distinct_proc_count` & `event_count`: Process churn and event velocity.
+   - `unseen_executable_ratio`: Code executing outside the image's baseline digest.
+   - `parent_shim_ratio`: Processes spawned by container shims (`runc`, `docker exec`).
+   - `suspicious_sequence_ratio`: Recon-to-exploit chaining.
+   - `jensen_shannon_drift`: Information-theoretic distance $D_{JS}$.
+2. **Maps Directly to MITRE ATT&CK Tactics:**
+   - Categorizes activity into `benign`, `reconnaissance`, `privilege_escalation`, `shell_escape`, or `suspicious_tooling`.
+3. **Explains Every Verdict Mathematically:**
+   - Using TreeSHAP additive feature attributions ($\Delta \mathbf{P}$), Porygon tells the operator exactly *which* features pushed the decision:
+   ```text
+   Verdict: PRIVILEGE ESCALATION (Confidence: 94.2%)
+   ├─ root_ratio:              +0.42  (Process ran as UID 0)
+   ├─ shell_ratio:             +0.31  (Interactive shell spawned)
+   ├─ priv_escalation_ratio:   +0.18  (nsenter / sudo invocation)
+   └─ compiler_miner_ratio:    -0.05  (No mining loop detected)
+   ```
+4. **Pure-Python Architecture:**
+   - Implemented in clean, dependency-free Python (`ml_classifier.py`) without requiring bloated C-extensions or external machine-learning frameworks.
 
 ---
 
@@ -335,7 +366,7 @@ If you or your friends want to write a scientific paper, present at conferences,
    - `ARM-CONTEXT`: Profile per hash + security permissions (privileged flags, ports).  
    Porygon measures exactly how much false alarms drop across these four arms.
 2. **Pre-Registered Falsification Boundaries**:  
-   In [`docs/CLAIMS_V1.md`](file:///home/anuruprkris/Project/Porygon/docs/CLAIMS_V1.md), Porygon adheres to strict scientific hygiene: if an experiment fails to reduce false positives by a statistically significant margin, the project is required to report the negative result.
+   In [`docs/research/CLAIMS_V1.md`](docs/research/CLAIMS_V1.md), Porygon adheres to strict scientific hygiene: if an experiment fails to reduce false positives by a statistically significant margin, the project is required to report the negative result.
 3. **Provably Lossless Pipeline**:  
    Rather than hoping eBPF never drops packets, Porygon has automated saturation tests (`scripts/verify_all.sh`) that bombard the system with thousands of rapid executions and prove that the count in PostgreSQL matches the kernel event count 100%.
 
