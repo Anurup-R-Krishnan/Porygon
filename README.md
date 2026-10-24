@@ -199,7 +199,7 @@ Porygon pairs deterministic eBPF process execution capture with a supervised **T
 | Service | Internal Role | Tech Stack | Port | Access |
 |---|---|---|---|---|
 | **`porygon-backend`** | Core API, profiler, ML classifier, incidents | Python 3.14, FastAPI | `8000` | `http://localhost:8000` |
-| **`porygon-dashboard`** | Newsprint UI, simulator, telemetry stream | Alpine.js, Chart.js, Tailwind | `8080` / `3000` | `http://localhost:8080` |
+| **`porygon-dashboard`** | Newsprint UI, simulator, telemetry stream | Alpine.js, Chart.js, Tailwind | `3000` | `http://localhost:3000` |
 | **`porygon-telemetry`** | Kernel event ingestion & spooling | FastAPI, PostgreSQL | `8001` | Internal bridge |
 | **`porygon-responder`** | Containment execution & lease verification | Python 3.14, Docker SDK | `8002` | Docker socket (gated) |
 | **`porygon-collector`** | eBPF event normalizer & metadata resolver | Go / Python, Unix socket | `N/A` | Docker socket (read-only) |
@@ -241,7 +241,7 @@ Serve the newsprint dashboard:
 ```bash
 python3 scripts/serve_dashboard.py
 ```
-Open **`http://localhost:8080`** (or **`http://localhost:3000`**) in your web browser.
+Open **`http://localhost:3000`** in your web browser.
 
 ---
 
@@ -250,20 +250,29 @@ Open **`http://localhost:8080`** (or **`http://localhost:3000`**) in your web br
 Porygon provides specialized operator CLI scripts under `scripts/`:
 
 ```bash
-# Build baseline for an image digest from an approved container run
-python3 scripts/porygon_baseline.py build --container <container_id>
+# Build baseline for an image digest from an approved observation interval
+python3 scripts/porygon_baseline.py build --image-digest <sha256:...> --start <iso_timestamp> --end <iso_timestamp> --approved-by <operator_name>
 
-# Inspect drift and anomaly score for an active container
-python3 scripts/porygon_score.py evaluate --container <container_id>
+# List stored behavioral profiles
+python3 scripts/porygon_baseline.py list
 
-# Run vulnerability scan and generate SBOM for an image
-python3 scripts/porygon_scan.py scan --image nginx@sha256:...
+# Compute Jensen-Shannon distance score for an observation window
+python3 scripts/porygon_score.py compute --image-digest <sha256:...> --window-start <iso_timestamp>
+
+# List stored anomaly scores above a threshold
+python3 scripts/porygon_score.py list --minimum-score 0.65
+
+# Queue a digest-bound image vulnerability & SBOM scan
+python3 scripts/porygon_scan.py create --image-digest <sha256:...> --requested-by <operator_name>
 
 # Review active security incidents
-python3 scripts/incident_alerts.py list
+python3 scripts/porygon_detect.py incidents
 
-# Authorize container containment (PAUSE or STOP)
-python3 scripts/porygon_respond.py execute --incident <incident_id> --action pause
+# Approve container containment action (pause or stop)
+python3 scripts/porygon_respond.py approve <recommendation_id> pause_container --actor <operator_name> --note "Mitigate container escape"
+
+# Classify container threat and compute TreeSHAP attributions via API
+curl -s -X POST http://127.0.0.1:8000/api/v1/ml/classify-container/<container_id> | jq .
 ```
 
 ---

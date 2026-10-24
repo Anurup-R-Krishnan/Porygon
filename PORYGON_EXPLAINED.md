@@ -398,7 +398,7 @@ Here is a foolproof recipe you and your friends can run right now:
 
 ### Step 1: Clone the Repo
 ```bash
-git clone https://github.com/Anurup-R-Krishnan/Porygon.git
+git clone https://github.com/Porygon-Real/Porygon.git
 cd Porygon
 ```
 
@@ -412,15 +412,19 @@ make init
 ```bash
 make up
 ```
-*Docker will download and build all 7 microservices. Once done, verify they are running:*
+*Docker will download and build all microservices. Once done, verify they are running:*
 ```bash
 make ps
 ```
 
 ### Step 4: Open the Web Dashboard
+Launch the newsprint operational dashboard:
+```bash
+python3 scripts/serve_dashboard.py
+```
 Open your web browser to:
-👉 **[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)**  
-*(You will see the live interactive Swagger API where you can query scans, baselines, and incidents!)*
+👉 **[http://localhost:3000](http://localhost:3000)**  
+*(You can also visit **[http://localhost:8000/docs](http://localhost:8000/docs)** to explore the live interactive Swagger REST API!)*
 
 ---
 
@@ -433,7 +437,7 @@ Open your terminal and run this 60-second experiment:
    docker run -d --name lab-target alpine:3.19 sh -c 'while true; do sleep 5; done'
    ```
 
-2. **Check its baseline profile:**
+2. **Check stored baseline profiles:**
    ```bash
    ./scripts/porygon_baseline.py list
    ```
@@ -446,12 +450,12 @@ Open your terminal and run this 60-second experiment:
    docker exec -it lab-target nc -h || true
    ```
 
-4. **Ask Porygon to compute the anomaly score:**
+4. **Ask Porygon to classify the runtime threat and TreeSHAP attributions:**
    ```bash
    CONTAINER_ID=$(docker ps -qf "name=lab-target")
-   ./scripts/porygon_score.py evaluate --container-id "$CONTAINER_ID"
+   curl -s -X POST "http://127.0.0.1:8000/api/v1/ml/classify-container/$CONTAINER_ID" | jq .
    ```
-   * **Look at the output:** The Jensen-Shannon distance will spike from `0.00` to over `0.70`!
+   * **Look at the output:** The Tree Ensemble categorizes the activity as `suspicious_tooling` and breaks down exact feature attributions!
 
 5. **View the detected security incident:**
    ```bash
@@ -482,4 +486,4 @@ Open your terminal and run this 60-second experiment:
 
 ---
 
-*Written by Anurup R Krishnan | [Porygon on GitHub](https://github.com/Anurup-R-Krishnan/Porygon)*
+*Written by Anurup R Krishnan | [Porygon on GitHub](https://github.com/Porygon-Real/Porygon)*

@@ -98,7 +98,7 @@ Porygon operates across three interconnected layers: the **Kernel & Ingestion Pl
 | `porygon-collector` | Ring-buffer reader, Falco event parser, container metadata resolver | Python / Go, Unix Sockets | `N/A` | Docker host socket (read-only) |
 | `porygon-responder` | Containment executor, cryptographic clearance validator | Python 3.14, Docker SDK | `8002` | Docker host socket (write-gated) |
 | `porygon-scanner` | Image SBOM extraction (Syft) & vulnerability scanner (Grype) | Syft, Grype, Python worker | `N/A` | Image registry / local daemon |
-| `porygon-dashboard` | Newsprint operational frontend, attack simulator, analytics | Vanilla JS, Alpine.js, Tailwind CSS, Chart.js | `8080` | `http://localhost:8080` |
+| `porygon-dashboard` | Newsprint operational frontend, attack simulator, analytics | Vanilla JS, Alpine.js, Tailwind CSS, Chart.js | `3000` | `http://localhost:3000` |
 | `postgres` | Central relational storage with indexed telemetry & profiles | PostgreSQL 17.10 (Bookworm) | `5432` | Internal isolated bridge |
 
 ---
