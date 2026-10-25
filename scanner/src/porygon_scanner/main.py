@@ -51,7 +51,7 @@ async def heartbeat_loop(app: FastAPI) -> None:
                 "observed_at": _now().isoformat(),
                 "metadata": {
                     "version": settings.version,
-                    "phase": "8-sbom-vulnerability-enrichment",
+                    "phase": "vulnerability-enrichment",
                     "trivy_version": settings.trivy_version,
                     "docker_connected": state["docker_connected"],
                     "last_claim_at": state["last_claim_at"],

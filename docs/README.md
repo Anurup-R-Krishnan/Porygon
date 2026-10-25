@@ -27,7 +27,7 @@ docs/
 │   ├── protocol-deviations.md     # Protocol deviations log and non-destructive errata
 │   ├── live-malware-trials.md     # Real malware execution trials (XMRig & Shell droppers)
 │   ├── related-work.md            # Systematic literature survey (last 5 years)
-│   ├── development-roadmap.md     # Comprehensive development roadmap (Phases 1–8)
+│   ├── development-roadmap.md     # Comprehensive development roadmap and milestones
 │   └── schemas/                   # Event & provenance schema specifications
 │       ├── behavior-schema.md
 │       └── calibrated-rarity-schema.md

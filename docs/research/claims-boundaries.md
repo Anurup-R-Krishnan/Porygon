@@ -17,8 +17,8 @@ and digest-plus-context profile scopes under the frozen protocol.
 - `CLM-A002`: The current implementation can build versioned digest-bound
   profiles, persist explainable distance evidence, apply deterministic rules,
   and retain an auditable incident lifecycle.
-- `CLM-A003`: Phase 2 acceptance measured equality from Docker's retained event
-  API to PostgreSQL for its bounded canary; Phase 3 measured equality from the
+- `CLM-A003`: Event ingestion acceptance measured equality from Docker's retained event
+  API to PostgreSQL for its bounded canary; eBPF telemetry measured equality from the
   Falco JSON file to PostgreSQL for its bounded canary. Neither result proves
   zero loss before those measured boundaries.
 - `CLM-A004`: Anomaly outputs are rarity/distance evidence and are **not an

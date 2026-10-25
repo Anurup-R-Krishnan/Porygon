@@ -22,7 +22,7 @@ docs/research/
 ├── protocol-deviations.md         <-- Protocol Deviations Audit & Non-Destructive Errata
 ├── live-malware-trials.md         <-- Real Malware Execution Trials (XMRig & Shell droppers)
 ├── related-work.md                <-- Systematic Literature Review (Last 5 Years)
-├── development-roadmap.md         <-- Development Roadmap & Engineering Gate Checklist (Phases 1–8)
+├── development-roadmap.md         <-- Development Roadmap & Engineering Gate Checklist
 └── schemas/                       <-- Formal Schema Specifications
     ├── behavior-schema.md         <-- Behaviour Feature Schema Specification (porygon.behaviour.v1)
     └── calibrated-rarity-schema.md<-- Calibrated Provenance Schema Specification

@@ -48,7 +48,6 @@ base_url="http://127.0.0.1:${backend_port}"
 
 curl --fail --silent --show-error "${base_url}/api/v1/response-policy" \
   > artifacts/containment-response-policy.json
-cp artifacts/containment-response-policy.json artifacts/phase7-response-policy.json 2>/dev/null || true
 python3 - <<'PY' || fail "Response policy or runtime safety controls are invalid"
 import json
 p=json.load(open('artifacts/containment-response-policy.json'))
@@ -66,21 +65,16 @@ http_code="$(curl --silent --output artifacts/containment-token-separation.json 
   -X POST \
   -H "X-Porygon-Operator-Token: ${internal_token}" \
   "${base_url}/operator/v1/incidents/not-a-real-incident/response-recommendations")"
-cp artifacts/containment-token-separation.json artifacts/phase7-token-separation.json 2>/dev/null || true
 [[ "$http_code" == "401" ]] || fail "Internal token was not rejected by the operator boundary (HTTP $http_code)"
 pass "Automated-service and human/operator credentials are separated"
 
-if [[ -f artifacts/profiling-selected-digest.txt ]]; then
-  digest="$(cat artifacts/profiling-selected-digest.txt)"
-else
-  digest="$(cat artifacts/phase4-selected-digest.txt)"
-fi
+[[ -f artifacts/profiling-selected-digest.txt ]] || fail "artifacts/profiling-selected-digest.txt is missing"
+digest="$(cat artifacts/profiling-selected-digest.txt)"
 [[ "$digest" == *@sha256:* ]] || fail "Behavior profiling did not provide an immutable repository digest"
 
 curl --fail --silent --show-error --get \
   --data-urlencode "image_digest=${digest}" \
   "${base_url}/api/v1/baselines/active" > artifacts/containment-active-profile.json
-cp artifacts/containment-active-profile.json artifacts/phase7-active-profile.json 2>/dev/null || true
 readarray -t profile_values < <(python3 - <<'PY'
 import json
 p=json.load(open('artifacts/containment-active-profile.json'))
@@ -154,13 +148,11 @@ print(json.dumps({
   'profile_id': os.environ['PROFILE_ID'],
 }))
 PY
-cp artifacts/containment-score-request.json artifacts/phase7-score-request.json 2>/dev/null || true
 curl --fail --silent --show-error \
   -X POST -H 'Content-Type: application/json' \
   -H "X-Porygon-Internal-Token: ${internal_token}" \
   --data-binary @artifacts/containment-score-request.json \
   "${base_url}/internal/v1/anomaly-scores/compute" > artifacts/containment-score.json
-cp artifacts/containment-score.json artifacts/phase7-score.json 2>/dev/null || true
 score_id="$(python3 - <<'PY'
 import json
 s=json.load(open('artifacts/containment-score.json'))
@@ -173,13 +165,11 @@ SCORE_ID="$score_id" python3 - <<'PY' > artifacts/containment-detection-request.
 import json, os
 print(json.dumps({'anomaly_score_id': os.environ['SCORE_ID']}))
 PY
-cp artifacts/containment-detection-request.json artifacts/phase7-detection-request.json 2>/dev/null || true
 curl --fail --silent --show-error \
   -X POST -H 'Content-Type: application/json' \
   -H "X-Porygon-Internal-Token: ${internal_token}" \
   --data-binary @artifacts/containment-detection-request.json \
   "${base_url}/internal/v1/detections/run" > artifacts/containment-detection.json
-cp artifacts/containment-detection.json artifacts/phase7-detection.json 2>/dev/null || true
 readarray -t detection_values < <(EXPECTED_CONTAINER="$full_container_id" python3 - <<'PY'
 import json, os
 r=json.load(open('artifacts/containment-detection.json'))
@@ -200,7 +190,6 @@ curl --fail --silent --show-error \
   -X POST -H "X-Porygon-Operator-Token: ${operator_token}" \
   "${base_url}/operator/v1/incidents/${incident_id}/response-recommendations" \
   > artifacts/containment-recommendations.json
-cp artifacts/containment-recommendations.json artifacts/phase7-recommendations.json 2>/dev/null || true
 readarray -t recommendation_values < <(EXPECTED_CONTAINER="$full_container_id" python3 - <<'PY'
 import json, os
 r=json.load(open('artifacts/containment-recommendations.json'))
@@ -227,14 +216,12 @@ print(json.dumps({
   'acknowledge_disruption':True,
 }))
 PY
-cp artifacts/containment-approval-request.json artifacts/phase7-approval-request.json 2>/dev/null || true
 curl --fail --silent --show-error \
   -X POST -H 'Content-Type: application/json' \
   -H "X-Porygon-Operator-Token: ${operator_token}" \
   --data-binary @artifacts/containment-approval-request.json \
   "${base_url}/operator/v1/response-recommendations/${recommendation_id}/approve" \
   > artifacts/containment-approved-execution.json
-cp artifacts/containment-approved-execution.json artifacts/phase7-approved-execution.json 2>/dev/null || true
 execution_id="$(python3 - <<'PY'
 import json
 r=json.load(open('artifacts/containment-approved-execution.json'))
@@ -249,7 +236,6 @@ for _ in $(seq 1 60); do
   curl --fail --silent --show-error \
     "${base_url}/api/v1/response-executions/${execution_id}" \
     > artifacts/containment-execution.json
-  cp artifacts/containment-execution.json artifacts/phase7-execution.json 2>/dev/null || true
   state="$(python3 - <<'PY'
 import json
 print(json.load(open('artifacts/containment-execution.json'))['status'])
@@ -281,7 +267,6 @@ curl --fail --silent --show-error \
   --data-binary @artifacts/containment-approval-request.json \
   "${base_url}/operator/v1/response-recommendations/${recommendation_id}/approve" \
   > artifacts/containment-approval-retry.json
-cp artifacts/containment-approval-retry.json artifacts/phase7-approval-retry.json 2>/dev/null || true
 FIRST_EXECUTION="$execution_id" python3 - <<'PY' || fail "Repeated approval was not idempotent"
 import json, os
 r=json.load(open('artifacts/containment-approval-retry.json'))
@@ -296,21 +281,18 @@ cat > artifacts/containment-rollback-request.json <<'JSON'
   "acknowledge_limitations": true
 }
 JSON
-cp artifacts/containment-rollback-request.json artifacts/phase7-rollback-request.json 2>/dev/null || true
 curl --fail --silent --show-error \
   -X POST -H 'Content-Type: application/json' \
   -H "X-Porygon-Operator-Token: ${operator_token}" \
   --data-binary @artifacts/containment-rollback-request.json \
   "${base_url}/operator/v1/response-executions/${execution_id}/rollback" \
   > artifacts/containment-rollback-queued.json
-cp artifacts/containment-rollback-queued.json artifacts/phase7-rollback-queued.json 2>/dev/null || true
 
 rollback_complete=false
 for _ in $(seq 1 60); do
   curl --fail --silent --show-error \
     "${base_url}/api/v1/response-executions/${execution_id}" \
     > artifacts/containment-rolled-back-execution.json
-  cp artifacts/containment-rolled-back-execution.json artifacts/phase7-rolled-back-execution.json 2>/dev/null || true
   state="$(python3 - <<'PY'
 import json
 print(json.load(open('artifacts/containment-rolled-back-execution.json'))['status'])
@@ -331,7 +313,6 @@ pass "Pause rollback unpaused the target and verified its running state"
 curl --fail --silent --show-error \
   "${base_url}/api/v1/incidents/${incident_id}/response-audit" \
   > artifacts/containment-response-audit.json
-cp artifacts/containment-response-audit.json artifacts/phase7-response-audit.json 2>/dev/null || true
 python3 - <<'PY' || fail "Response audit trail is incomplete or out of order"
 import json
 events=json.load(open('artifacts/containment-response-audit.json'))
@@ -355,11 +336,10 @@ pass "Recommendation, approval, execution, verification, and rollback are chrono
 
 curl --fail --silent --show-error "${base_url}/api/v1/system/info" \
   > artifacts/containment-system-info.json
-cp artifacts/containment-system-info.json artifacts/phase7-system-info.json 2>/dev/null || true
 python3 - <<'PY' || fail "Containment response system counters are inconsistent"
 import json
 info=json.load(open('artifacts/containment-system-info.json'))
-assert int(info['phase'].split()[1].rstrip(':')) >= 7
+assert info['phase']
 assert info['response_recommendations'] >= 1
 assert info['approved_response_recommendations'] >= 1
 assert info['response_executions'] >= 1
@@ -368,5 +348,4 @@ PY
 pass "System API reports cumulative containment response state"
 
 docker compose ps > artifacts/containment-services.txt
-cp artifacts/containment-services.txt artifacts/phase7-services.txt 2>/dev/null || true
 printf '\nContainment response verification complete. Reset PORYGON_RESPONSE_EXECUTION_MODE=disabled after this controlled test.\n'

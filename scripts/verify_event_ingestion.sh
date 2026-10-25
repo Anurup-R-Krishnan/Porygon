@@ -7,7 +7,7 @@ RUN_ID="${PORYGON_VERIFY_RUN_ID:-$(date -u +%Y%m%dt%H%M%Sz)-$$}"
 PROBE_NAME="porygon-ingest-${RUN_ID}"
 PROBE_NETWORK="porygon-ingest-net-${RUN_ID}"
 PROBE_IMAGE="alpine:3.20"
-PROBE_EXECUTIONS="${PORYGON_INGEST_EXECUTIONS:-${PORYGON_PHASE2_EXECUTIONS:-40}}"
+PROBE_EXECUTIONS="${PORYGON_INGEST_EXECUTIONS:-40}"
 COLLECTOR_CONSTRAINED=false
 LOCAL_ARTIFACT_DIR="artifacts/local"
 PROBE_EVENTS_PATH="${LOCAL_ARTIFACT_DIR}/ingest-${RUN_ID}-events.json"
@@ -331,7 +331,7 @@ SPOOL_LIMIT="$configured_spool_limit" \
 OVERFLOW_DELTA="$overflow_delta" \
 INSERTED_COUNT="$inserted_count" \
 REPLAY_ROW_GROWTH="$replay_row_growth" \
-python3 - <<'PY' | tee artifacts/phase2-capture-integrity.json > artifacts/event-ingestion-capture-integrity.json
+python3 - <<'PY' > artifacts/event-ingestion-capture-integrity.json
 import json, os
 
 daemon=json.loads(os.environ['DAEMON_METRICS'])

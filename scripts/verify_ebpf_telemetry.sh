@@ -369,7 +369,7 @@ REPLAY_ROW_GROWTH="$((count_after - count_before))" \
 DEAD_LETTERS="$dead_letters" \
 CORRELATION_METRICS="$correlation_metrics" \
 TELEMETRY_STATUS_PATH="$TELEMETRY_STATUS_PATH" \
-python3 - <<'PY' | tee artifacts/phase3-capture-integrity.json > artifacts/ebpf-capture-integrity.json
+python3 - <<'PY' > artifacts/ebpf-capture-integrity.json
 import json, os
 from pathlib import Path
 

@@ -18,7 +18,7 @@ PROTOCOL_PATH = ROOT / "docs" / "research" / "research-protocol.md"
 THREAT_PATH = ROOT / "docs" / "research" / "threat-model.md"
 CLAIMS_PATH = ROOT / "docs" / "research" / "claims-boundaries.md"
 SCOPE_PATH = ROOT / "docs" / "research" / "profile-scope-experiment.md"
-FINAL_PHASES_PATH = ROOT / "docs" / "research" / "development-roadmap.md"
+ROADMAP_PATH = ROOT / "docs" / "research" / "development-roadmap.md"
 FEATURE_SCHEMA_PATH = ROOT / "docs" / "research" / "schemas" / "behavior-schema.md"
 
 REQUIRED_ARMS = {"ARM-GLOBAL", "ARM-TAG", "ARM-DIGEST", "ARM-CONTEXT"}
@@ -340,7 +340,7 @@ def validate_documents(manifest: dict[str, Any]) -> list[str]:
     threat = _read(THREAT_PATH)
     claims = _read(CLAIMS_PATH)
     scope = _read(SCOPE_PATH)
-    final_phases = _read(FINAL_PHASES_PATH)
+    roadmap_doc = _read(ROADMAP_PATH)
     feature_schema = _read(FEATURE_SCHEMA_PATH)
 
     required_files = {
@@ -389,7 +389,7 @@ def validate_documents(manifest: dict[str, Any]) -> list[str]:
         errors.append("conditional claim IDs differ between claims document and protocol manifest")
 
     for name in ("research-protocol.md", "threat-model.md", "claims-boundaries.md", "profile-scope-experiment.md"):
-        if name not in final_phases:
+        if name not in roadmap_doc:
             errors.append(f"development-roadmap.md does not link {name}")
     if "current v1 implementation" not in feature_schema.lower() or "profile-scope experiment" not in feature_schema.lower():
         errors.append("behavior-schema.md does not distinguish current implementation from experiment arms")
