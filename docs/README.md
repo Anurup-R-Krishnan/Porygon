@@ -13,7 +13,7 @@ docs/
 │   ├── ebpf-telemetry.md          # Kernel tracepoint capture, ring buffers, zero-drop loss accounting
 │   ├── behavioral-profiling.md    # Digest-bound profiling, rarity formulas, and drift calculation
 │   ├── containment-engine.md      # Non-destructive cgroup freezing & cryptographic clearance
-│   ├── sbom-vulnerability.md      # Syft/Grype digest binding & dynamic runtime CVE reachability
+│   ├── sbom-vulnerability.md      # Trivy digest binding & dynamic runtime CVE reachability
 │   └── ml-threat-classifier.md    # Pure-Python Tree Ensemble (Random Forest) & TreeSHAP attributions
 │
 ├── research/                      # Academic Pre-Registration & Scientific Protocol

@@ -33,7 +33,7 @@ sensor (`RQ-003`).
 ## Scope and safety
 
 The authoritative threat, trust, telemetry, ethics, and safety boundary is
-[`THREAT_MODEL_V1.md`](THREAT_MODEL_V1.md). Only disposable local containers,
+[`threat-model.md`](threat-model.md). Only disposable local containers,
 synthetic data, and deterministic safe actions are permitted. Real malware,
 public targets, destructive actions, unauthorized destinations, and automated
 disruptive response are prohibited.
@@ -44,7 +44,7 @@ privilege-transition claims are excluded.
 
 ## Profile-scope arms
 
-[`PROFILE_SCOPE_EXPERIMENT_V1.md`](PROFILE_SCOPE_EXPERIMENT_V1.md) defines the
+[`profile-scope-experiment.md`](profile-scope-experiment.md) defines the
 four primary arms and `porygon.runtime-context.v1` canonicalization:
 
 - `ARM-GLOBAL`: global;

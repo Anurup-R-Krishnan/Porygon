@@ -134,7 +134,7 @@ correction; see `docs/presentation/README.md` for which deck is current.
    detection for Kubernetes microservices (monitoring, data processing,
    fault injection modules). Useful to situate Porygon's single-host scope
    honestly against the multi-node Kubernetes literature -- a gap already
-   disclosed in `docs/ADVERSARIAL_SCENARIOS_V1.md` and the README.
+   disclosed in [`adversarial-scenarios.md`](adversarial-scenarios.md) and the README.
    **Verified:** confirmed via arXiv API, exact matching title.
 
 7. **"Mutating the 'Immutable': A Large-Scale Study of Git Tag

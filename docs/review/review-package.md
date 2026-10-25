@@ -8,9 +8,8 @@ step that is deliberately a human decision.
 
 ## What the reviewer is approving
 
-- Protocol: `docs/RESEARCH_PROTOCOL_V1.md`
+- Protocol: [`docs/research/research-protocol.md`](../research/research-protocol.md)
 - Protocol SHA-256: `af5db33ca2fe153dbbe5dfe1f563890b0e6c9c224c191b18fea111dc93584759`
-- Repository commit: `a7749ef251ab724d7e2b90530a15c19d876e7fc9`  (working tree has uncommitted changes)
 
 A decision applies to the exact protocol bytes above. If the protocol changes
 afterwards, the review is re-run against the new digest.
@@ -24,12 +23,13 @@ afterwards, the review is re-run against the new digest.
 
 Supporting documents:
 
-- `docs/THREAT_MODEL_V1.md` — assets, trust boundaries, attacker capabilities
-- `docs/CLAIMS_V1.md` — what may and may not be claimed
-- `docs/PROFILE_SCOPE_EXPERIMENT_V1.md` — profile arms and the context identity
-- `docs/design-decisions.md` — why each decision was taken and what it costs
-- `docs/execution-status.md` — measured state of every module
-- `docs/final-verification-report.md` — gate results and measured findings
+- [`docs/research/threat-model.md`](../research/threat-model.md) — assets, trust boundaries, attacker capabilities
+- [`docs/research/claims-boundaries.md`](../research/claims-boundaries.md) — what may and may not be claimed
+- [`docs/research/profile-scope-experiment.md`](../research/profile-scope-experiment.md) — profile arms and the context identity
+- [`docs/research/adversarial-scenarios.md`](../research/adversarial-scenarios.md) — attacker evasion stress tests
+- [`docs/research/empirical-results.md`](../research/empirical-results.md) — measured trial findings and pilot data
+- [`artifacts/verification-manifest.json`](../../artifacts/verification-manifest.json) — automated verification gate manifest
+- [`artifacts/results.json`](../../artifacts/results.json) — measured run findings and statistics
 
 ## Security reviewer checklist
 

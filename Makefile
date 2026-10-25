@@ -87,4 +87,4 @@ experiment-validate:
 	python3 experiments/validate_artifacts.py "$(RUN_DIR)"
 
 experiment-confirmatory:
-	python3 -m experiments.run confirmatory --protocol "$(or $(PROTOCOL),docs/RESEARCH_PROTOCOL_V1.md)"
+	python3 -m experiments.run confirmatory --protocol "$(or $(PROTOCOL),docs/research/research-protocol.md)"

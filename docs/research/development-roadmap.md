@@ -16,12 +16,12 @@ below, recorded `evidence_class: pilot`, `research_eligible: false` after a
 mislabeling bug in the study-summary step (now fixed) was found and
 corrected. Confirmatory-grade collection additionally requires
 protocol-conformance machinery that has not been built yet; see
-`docs/CONFIRMATORY_RESULT_V1.md` for the current evidence-class status.
+[`empirical-results.md`](empirical-results.md) for the current evidence-class status.
 
-- [`RESEARCH_PROTOCOL_V1.md`](RESEARCH_PROTOCOL_V1.md)
-- [`THREAT_MODEL_V1.md`](THREAT_MODEL_V1.md)
-- [`CLAIMS_V1.md`](CLAIMS_V1.md)
-- [`PROFILE_SCOPE_EXPERIMENT_V1.md`](PROFILE_SCOPE_EXPERIMENT_V1.md)
+- [`research-protocol.md`](research-protocol.md) (protocol: `RESEARCH_PROTOCOL_V1.md`)
+- [`threat-model.md`](threat-model.md) (protocol: `THREAT_MODEL_V1.md`)
+- [`claims-boundaries.md`](claims-boundaries.md) (protocol: `CLAIMS_V1.md`)
+- [`profile-scope-experiment.md`](profile-scope-experiment.md) (protocol: `PROFILE_SCOPE_EXPERIMENT_V1.md`)
 
 Deliverables:
 
@@ -172,7 +172,7 @@ Implemented:
 - Chronological response audit events
 - No automatic deletion, command execution, or arbitrary Docker operation
 
-Network disconnection is not implemented because the current evidence pipeline does not yet collect enough network telemetry to recommend it defensibly. Auto-execution without human approval remains deliberately out of scope; see [`CLAIMS_V1.md`](CLAIMS_V1.md) for the reasoning.
+Network disconnection is not implemented because the current evidence pipeline does not yet collect enough network telemetry to recommend it defensibly. Auto-execution without human approval remains deliberately out of scope; see [`claims-boundaries.md`](claims-boundaries.md) for the reasoning.
 
 Exit condition: `./scripts/verify_phase7.sh` proves credential separation, no action before approval, exact-target pause, idempotent approval, verified rollback, and complete audit evidence.
 
@@ -212,7 +212,7 @@ Exit condition: `./scripts/verify_phase8.sh` proves exact digest/image binding, 
 
 **Goal:** produce defensible results.
 
-Real progress: `docs/CONFIRMATORY_RESULT_V1.md` records the first real pilot
+Real progress: [`empirical-results.md`](empirical-results.md) records the first real pilot
 result (`study-20260905t181654Z`, 144 real trials,
 `evidence_class: pilot`, `research_eligible: false`): `ARM-CONTEXT` vs `ARM-GLOBAL` shows a 100%
 relative FPR reduction (35/35 → 0/35 false positives), exact McNemar
@@ -243,7 +243,7 @@ Still open:
 - Two files this section previously linked
   (`EXPERIMENT_ACCEPTANCE.md`, `EXPERIMENT_REPRODUCIBILITY.md`) do not exist
   in this repository; the links have been removed rather than left broken.
-  Reproduction steps live in `docs/CONFIRMATORY_RESULT_V1.md` and
+  Reproduction steps live in [`empirical-results.md`](empirical-results.md) and
   `experiments/study.py`'s own docstrings until a dedicated document is
   written.
 

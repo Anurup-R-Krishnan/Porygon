@@ -84,18 +84,14 @@ Headers: { "X-Porygon-Operator-Clearance": "<HMAC_TOKEN>" }
 
 ## 4. Protected Workload Safeguards
 
-Porygon enforces hardcoded safety filters in `porygon-responder`:
+Porygon enforces hardcoded safety filters in `porygon_responder/executor.py`:
 
 ```python
-# From porygon_responder/safety.py
-PROTECTED_CONTAINERS: frozenset[str] = frozenset({
-    "porygon-backend",
-    "porygon-telemetry",
-    "porygon-collector",
-    "porygon-responder",
-    "porygon-postgres",
-    "porygon-dashboard"
-})
+# From porygon_responder/executor.py & config.py
+# Configured via PROTECTED_LABEL (default: "com.porygon.protected")
+value = str(labels.get(self.protected_label, "")).lower()
+if value in {"1", "true", "yes"}:
+    raise PermissionError("target container is protected by Porygon policy")
 ```
 
-- Any attempt to target a container carrying `com.porygon.protected: "true"` or matching infrastructure service names is rejected with `HTTP 403 Forbidden` and flagged as an adversarial tamper attempt.
+- Any attempt to target an infrastructure container carrying the Docker label `com.porygon.protected: "true"` (configured on `backend`, `postgres`, `collector`, `telemetry`, etc.) is immediately rejected with `protected_target` error code and logged as an unauthorized action.

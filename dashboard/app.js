@@ -172,7 +172,7 @@ document.addEventListener('alpine:init', () => {
         icon: 'ph-cpu',
         tag: 'KERNEL HOOK',
         badgeColor: 'text-cyan-400 bg-cyan-400/10 border-cyan-400/20',
-        summary: 'Falco\'s modern-eBPF driver attaches to process-execution tracepoints without modifying container binaries or kernel source. It observes execve/execveat only in v1 -- no network, file, or socket syscalls are captured (see docs/THREAT_MODEL_V1.md).',
+        summary: 'Falco\'s modern-eBPF driver attaches to process-execution tracepoints without modifying container binaries or kernel source. It observes execve/execveat only in v1 -- no network, file, or socket syscalls are captured (see docs/research/threat-model.md).',
         technicalHook: 'evt.type in (execve, execveat)  [falco/porygon_rules.yaml]',
         inputSource: 'Process-execution syscalls from containerized processes.',
         outputArtifact: 'Process-exec records (process name, executable path, full command line, ppid, uid/gid, parent context) -- see falco/porygon_rules.yaml for the exact output fields.',
@@ -1494,7 +1494,7 @@ document.addEventListener('alpine:init', () => {
       // NOTE: A "System Call Flow Deviation Radar" chart previously lived here,
       // rendering hardcoded per-syscall frequency data (epoll_wait/read/write/etc)
       // as if it were live telemetry. Porygon's sensor is execve/execveat-only
-      // (see docs/THREAT_MODEL_V1.md) — it never captures per-syscall frequency
+      // (see docs/research/threat-model.md) — it never captures per-syscall frequency
       // data, so there was no real signal behind that chart. Removed rather than
       // relabeled, since there's no backing data source to show instead.
     },

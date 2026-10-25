@@ -149,5 +149,5 @@ the kernel or clock are outside the primary empirical claim.
 
 Before status changes to **frozen**, one human security reviewer and one human
 methodology reviewer must record name, date, decision, and notes in
-`RESEARCH_PROTOCOL_V1.md`. Reviewers must not inspect confirmatory outcomes;
+[`research-protocol.md`](research-protocol.md). Reviewers must not inspect confirmatory outcomes;
 none may be collected while this document remains review pending.

@@ -176,7 +176,7 @@ Porygon pairs deterministic eBPF process execution capture with a supervised **T
 - See [`docs/architecture/ml-threat-classifier.md`](docs/architecture/ml-threat-classifier.md).
 
 ### 4. Dynamic SBOM & Runtime Vulnerability Reachability
-- **Static Ingestion:** Generates SPDX/CycloneDX SBOMs with Anchore Syft and extracts known CVEs with Anchore Grype.
+- **Static Ingestion:** Generates CycloneDX SBOMs and scans known CVEs using Aqua Security Trivy, enriched with real-time FIRST EPSS exploit predictions and CISA KEV exploitation catalogs.
 - **Runtime Reachability:** Dynamically joins intercepted runtime `execve` events against the container's known package manifest.
 - **Dynamic Severity Elevation:** If an anomalous process execution matches an unpatched High/Critical CVE in the container filesystem, incident severity is immediately escalated to **Critical**.
 - See [`docs/architecture/sbom-vulnerability.md`](docs/architecture/sbom-vulnerability.md).
@@ -202,8 +202,8 @@ Porygon pairs deterministic eBPF process execution capture with a supervised **T
 | **`porygon-dashboard`** | Newsprint UI, simulator, telemetry stream | Alpine.js, Chart.js, Tailwind | `3000` | `http://localhost:3000` |
 | **`porygon-telemetry`** | Kernel event ingestion & spooling | FastAPI, PostgreSQL | `8001` | Internal bridge |
 | **`porygon-responder`** | Containment execution & lease verification | Python 3.14, Docker SDK | `8002` | Docker socket (gated) |
-| **`porygon-collector`** | eBPF event normalizer & metadata resolver | Go / Python, Unix socket | `N/A` | Docker socket (read-only) |
-| **`porygon-scanner`** | SBOM generation & Grype vulnerability scans | Syft, Grype, Python | `N/A` | Internal bridge |
+| **`porygon-collector`** | eBPF event normalizer & metadata resolver | Python 3.14, Unix socket | `N/A` | Docker socket (read-only) |
+| **`porygon-scanner`** | SBOM generation & Trivy vulnerability scans | Aqua Security Trivy, Python | `N/A` | Internal bridge |
 | **`porygon-postgres`** | Relational event and profile storage | PostgreSQL 17.10 Bookworm | `5432` | Internal isolated |
 
 ---

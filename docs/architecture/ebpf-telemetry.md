@@ -42,7 +42,7 @@ Porygon hooks raw kernel tracepoints rather than kprobes to ensure portability a
 ```
 
 ### Tracepoint Selection: Why Execve Only in v1?
-As formalized in `docs/research/THREAT_MODEL_V1.md`:
+As formalized in [`docs/research/threat-model.md`](../research/threat-model.md):
 - Per-packet network sniffing or per-syscall tracking (`read`, `write`, `openat`) produces overwhelming telemetry volume (>100,000 events/sec per host), causing severe cache churn and high false-positive rates.
 - Container attack workflows (initial access, privilege escalation, defense evasion, command and control) inevitably manifest as **process execution transitions** (e.g., executing `/bin/sh`, invoking `curl`, launching `sudo` or compilers).
 - Tracking `execve` and `execveat` captures 100% of distinct binary executions while maintaining sub-1% CPU consumption.

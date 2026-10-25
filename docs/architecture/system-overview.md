@@ -29,7 +29,7 @@ Porygon operates across three interconnected layers: the **Kernel & Ingestion Pl
                                              | Unix Domain Socket / FIFO stream
                                              v
                +-----------------------------------------------------------+
-               |              porygon-collector (Go / Python)              |
+               |                 porygon-collector (Python)                |
                |   - Normalizes raw tracepoint telemetry                   |
                |   - Resolves cgroup ID -> Docker Container ID -> Digest   |
                |   - Enforces zero-drop queue with backpressure accounting |
@@ -95,9 +95,9 @@ Porygon operates across three interconnected layers: the **Kernel & Ingestion Pl
 |---|---|---|---|---|
 | `porygon-telemetry` | Ingestion, event validation, schema enforcement, time-series storage | Python 3.14, FastAPI, SQLAlchemy | `8001` | Internal network |
 | `porygon-backend` | Core API, statistical profiler, ML threat classifier, vulnerability join | Python 3.14, FastAPI, Uvicorn | `8000` | `http://localhost:8000` |
-| `porygon-collector` | Ring-buffer reader, Falco event parser, container metadata resolver | Python / Go, Unix Sockets | `N/A` | Docker host socket (read-only) |
+| `porygon-collector` | Ring-buffer reader, Falco event parser, container metadata resolver | Python 3.14, Unix Sockets | `N/A` | Docker host socket (read-only) |
 | `porygon-responder` | Containment executor, cryptographic clearance validator | Python 3.14, Docker SDK | `8002` | Docker host socket (write-gated) |
-| `porygon-scanner` | Image SBOM extraction (Syft) & vulnerability scanner (Grype) | Syft, Grype, Python worker | `N/A` | Image registry / local daemon |
+| `porygon-scanner` | Image SBOM generation & vulnerability scanning | Aqua Security Trivy, Python | `N/A` | Image registry / local daemon |
 | `porygon-dashboard` | Newsprint operational frontend, attack simulator, analytics | Vanilla JS, Alpine.js, Tailwind CSS, Chart.js | `3000` | `http://localhost:3000` |
 | `postgres` | Central relational storage with indexed telemetry & profiles | PostgreSQL 17.10 (Bookworm) | `5432` | Internal isolated bridge |
 
@@ -118,7 +118,7 @@ Porygon operates across three interconnected layers: the **Kernel & Ingestion Pl
 3. The Tree Ensemble classifies activity into one of 5 MITRE tactics (`benign`, `reconnaissance`, `privilege_escalation`, `shell_escape`, `suspicious_tooling`) and calculates TreeSHAP feature attributions explaining *why* the prediction was made.
 
 ### 3. Vulnerability Reachability Correlation (Phase 8)
-1. Concurrently, `porygon-scanner` runs static SBOM analysis via Syft and CVE vulnerability assessment via Grype on the container's immutable image digest.
+1. Concurrently, `porygon-scanner` runs static SBOM analysis and CVE vulnerability assessment via Aqua Security Trivy (v0.72.0), enriched by FIRST EPSS and CISA KEV intelligence on the container's immutable image digest.
 2. When runtime anomaly events occur, Porygon correlates executed binaries against known CVE vulnerabilities in the package manifest.
 3. If an anomalous binary corresponds to a vulnerable library (e.g., vulnerable OpenSSL or curl binary), the incident severity is dynamically elevated to Critical.
 
