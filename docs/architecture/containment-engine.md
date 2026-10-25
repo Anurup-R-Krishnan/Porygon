@@ -1,7 +1,7 @@
 # Automated & Human-Gated Containment Architecture
 
-> **Component:** `porygon-responder`, `porygon-dashboard` (Phase 7)  
-> **Containment Actions:** `PAUSE`, `NETWORK_ISOLATE`, `STOP`, `OBSERVE_ONLY`  
+> **Component:** `porygon-responder`, `porygon-dashboard` (Containment Response)  
+> **Containment Actions:** `pause_container`, `stop_container`, `observe_only`  
 > **Security Model:** Cryptographic Lease Clearance, No Autonomous Destructive Actions
 
 ---
@@ -14,24 +14,23 @@ In container security, fully autonomous remediation presents a severe availabili
 2. **Forensic Destruction:** Blindly killing a compromised container destroys ephemeral memory, running network sockets, and file handles, erasing the forensic evidence needed for incident response.
 
 To solve this, Porygon introduces a **Dual-Mode Containment Architecture**:
-- **Non-Destructive Freezing (`PAUSE`):** Freezes CPU cgroups instantly without destroying RAM or sockets.
-- **Cryptographic Human Clearance:** Destructive or service-impacting containment actions require human approval authenticated by a time-bound cryptographic token.
+- **Non-Destructive Freezing (`pause_container`):** Freezes CPU cgroups instantly without destroying RAM or sockets.
+- **Cryptographic Human Clearance:** Destructive or service-impacting containment actions require human approval authenticated by a time-bound operator token.
 
 ---
 
 ## 2. Containment Action Taxonomy
 
 ```
-+-----------------------------------------------------------------------------------+
-|                            PORYGON CONTAINMENT TAXONOMY                           |
-+-----------------------------------------------------------------------------------+
-| Action            | Execution Mechanism       | Memory State  | Reversible? | SLA |
-+-------------------+---------------------------+---------------+-------------+-----+
-| PAUSE (Default)   | cgroup freezer (SIGSTOP)  | Preserved     | Yes         | <1s |
-| NETWORK_ISOLATE   | docker network disconnect | Preserved     | Yes         | <2s |
-| STOP              | SIGTERM followed by KILL  | Destroyed     | No          | <5s |
-| OBSERVE_ONLY      | Elevate telemetry capture | Preserved     | N/A         | 0s  |
-+-----------------------------------------------------------------------------------+
++-----------------------------------------------------------------------------------------+
+|                               PORYGON CONTAINMENT TAXONOMY                              |
++-----------------------------------------------------------------------------------------+
+| Action                    | Execution Mechanism       | Memory State  | Reversible? | SLA |
++---------------------------+---------------------------+---------------+-------------+-----+
+| pause_container (Default) | cgroup freezer (SIGSTOP)  | Preserved     | Yes         | <1s |
+| stop_container            | SIGTERM followed by KILL  | Destroyed     | No          | <5s |
+| observe_only              | Elevate telemetry capture | Preserved     | N/A         | 0s  |
++-----------------------------------------------------------------------------------------+
 ```
 
 ### Why `PAUSE` is the Default Containment Primitive

@@ -1,6 +1,6 @@
 # Digest-Bound Behavioral Profiling & Rarity Scoring
 
-> **Component:** `porygon-backend` (Phases 4, 5, 6)  
+> **Component:** `porygon-backend` (Behavioral Profiling, Anomaly Scoring, Detection Engine)  
 > **Schema:** `porygon.behaviour.v1`, `porygon.rarity.provenance.calibrated`  
 > **Core Concept:** Provenance-bound statistical baselines vs naive heuristic alerts
 
@@ -30,7 +30,7 @@ A Porygon baseline profile is generated during an explicitly approved observatio
 
 ```
        +--------------------------------------------------------------+
-       |             Training Window Ingestion (Phase 4)              |
+       |          Training Window Ingestion (Baseline Profiling)       |
        |  - 500+ benign transactions exercised across container      |
        |  - Extract every distinct process execution (exe, cmd, user) |
        |  - Record parent-child lineage (ppid_comm -> child_comm)     |

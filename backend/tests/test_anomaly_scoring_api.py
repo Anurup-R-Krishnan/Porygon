@@ -3,7 +3,7 @@ from __future__ import annotations
 from porygon_api.main import app, get_anomaly_scoring_config
 
 
-def test_phase5_routes_are_exposed_in_openapi() -> None:
+def test_anomaly_scoring_routes_are_exposed_in_openapi() -> None:
     paths = app.openapi()["paths"]
 
     assert "/internal/v1/anomaly-scores/compute" in paths

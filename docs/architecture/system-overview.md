@@ -113,17 +113,17 @@ Porygon operates across three interconnected layers: the **Kernel & Ingestion Pl
 5. Events are batched and posted into `porygon-telemetry`, which verifies schemas and writes them to PostgreSQL.
 
 ### 2. Behavioral Baseline & ML Threat Scoring
-1. **Statistical Profiler (Phase 4):** Evaluates whether the executed binary, command arguments, and parent-child process relationship were observed during the container's approved baseline training window.
+1. **Statistical Profiler:** Evaluates whether the executed binary, command arguments, and parent-child process relationship were observed during the container's approved baseline training window.
 2. **Explainable ML Classifier:** Extracts 12 continuous metrics over rolling 60-second observation windows (e.g., shell command ratios, privilege escalation indicators, compiler executions, Jensen-Shannon distribution drift).
 3. The Tree Ensemble classifies activity into one of 5 MITRE tactics (`benign`, `reconnaissance`, `privilege_escalation`, `shell_escape`, `suspicious_tooling`) and calculates TreeSHAP feature attributions explaining *why* the prediction was made.
 
-### 3. Vulnerability Reachability Correlation (Phase 8)
+### 3. Vulnerability Reachability Correlation
 1. Concurrently, `porygon-scanner` runs static SBOM analysis and CVE vulnerability assessment via Aqua Security Trivy (v0.72.0), enriched by FIRST EPSS and CISA KEV intelligence on the container's immutable image digest.
 2. When runtime anomaly events occur, Porygon correlates executed binaries against known CVE vulnerabilities in the package manifest.
 3. If an anomalous binary corresponds to a vulnerable library (e.g., vulnerable OpenSSL or curl binary), the incident severity is dynamically elevated to Critical.
 
-### 4. Human-Approved Containment (Phase 7)
-1. If an incident exceeds threat thresholds, the Incident Correlation Engine issues a **Containment Recommendation** (`PAUSE`, `STOP`, or `ISOLATE`).
+### 4. Human-Approved Containment
+1. If an incident exceeds threat thresholds, the Incident Correlation Engine issues a **Containment Recommendation** (`pause_container`, `stop_container`, or `observe_only`).
 2. The recommendation is queued in `porygon-dashboard`.
 3. An authorized human operator reviews the behavioral evidence, TreeSHAP attributions, and CVE reachability graph.
 4. The operator approves the action using a cryptographically validated lease token.

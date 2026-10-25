@@ -351,7 +351,7 @@ def extract_features_from_document(
 def _softmax(probs: list[float], temperature: float = 0.35) -> list[float]:
     logits = [math.log(max(1e-6, p)) / temperature for p in probs]
     max_l = max(logits)
-    exp_l = [math.exp(l - max_l) for l in logits]
+    exp_l = [math.exp(val - max_l) for val in logits]
     s = sum(exp_l) or 1.0
     return [round(e / s, 4) for e in exp_l]
 

@@ -147,7 +147,7 @@ make reset       # Stop services and remove volumes (clean database)
 All configuration is controlled via `.env` (created from `.env.example` during `make init`).
 
 Key settings:
-- `PORYGON_RESPONSE_EXECUTION_MODE`: Set to `disabled`, `observe_only`, or `live` (for active containment).
+- `PORYGON_RESPONSE_EXECUTION_MODE`: Set to `disabled` (safe default, approvals queued) or `live` (for active containment).
 - `PORYGON_LOG_LEVEL`: Logging verbosity (`DEBUG`, `INFO`, `WARNING`).
 - `PORYGON_OPERATOR_API_TOKEN`: Secret token used for operator actions in the dashboard and API.
 
