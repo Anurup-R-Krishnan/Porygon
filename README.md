@@ -148,14 +148,14 @@ Porygon pairs deterministic eBPF process execution capture with a supervised **T
 - **Tracepoints Hooked:** `sys_enter_execve`, `sys_exit_execve`, `sys_enter_execveat`, `sys_exit_execveat`.
 - **Zero Workload Mutation:** No application modification, no sidecar proxies, and no `LD_PRELOAD` wrappers.
 - **Identity Resolution:** Maps kernel cgroup IDs to Docker container UUIDs and extracts immutable image content digests in real time.
-- See [`docs/architecture/EBPF_TELEMETRY.md`](docs/architecture/EBPF_TELEMETRY.md).
+- See [`docs/architecture/ebpf-telemetry.md`](docs/architecture/ebpf-telemetry.md).
 
 ### 2. Digest-Bound Behavioral Baselines & Anomaly Scoring
 - **Deterministic Baseline Creation:** Records complete process trees, binary paths, arguments, and execution frequency histograms during approved training intervals.
 - **Rarity Scoring ($S_{freq}$):** Laplace-smoothed logarithmic frequency evaluation flags executions that are mathematically rare.
 - **Lineage Tree Validation:** Flags valid binaries executed by unauthorized parents (e.g. `nginx -> sh` vs `sshd -> sh`).
 - **Drift Detection:** Computes Jensen-Shannon Divergence ($D_{JS}$) across rolling process distributions to detect slow-burn attacks.
-- See [`docs/architecture/BEHAVIORAL_PROFILING.md`](docs/architecture/BEHAVIORAL_PROFILING.md).
+- See [`docs/architecture/behavioral-profiling.md`](docs/architecture/behavioral-profiling.md).
 
 ### 3. Explainable ML Threat Classifier (Random Forest + TreeSHAP)
 - **12-Dimensional Extracted Feature Vector:**
@@ -173,19 +173,19 @@ Porygon pairs deterministic eBPF process execution capture with a supervised **T
   12. `jensen_shannon_drift` - Continuous statistical baseline drift.
 - **MITRE ATT&CK Classification:** Categorizes activity into `benign`, `reconnaissance`, `privilege_escalation`, `shell_escape`, and `suspicious_tooling`.
 - **Pure-Python Architecture:** Implemented in pure Python (`ml_classifier.py`) without native C-dependencies or bulky ML frameworks.
-- See [`docs/architecture/ML_THREAT_CLASSIFIER.md`](docs/architecture/ML_THREAT_CLASSIFIER.md).
+- See [`docs/architecture/ml-threat-classifier.md`](docs/architecture/ml-threat-classifier.md).
 
 ### 4. Dynamic SBOM & Runtime Vulnerability Reachability
 - **Static Ingestion:** Generates SPDX/CycloneDX SBOMs with Anchore Syft and extracts known CVEs with Anchore Grype.
 - **Runtime Reachability:** Dynamically joins intercepted runtime `execve` events against the container's known package manifest.
 - **Dynamic Severity Elevation:** If an anomalous process execution matches an unpatched High/Critical CVE in the container filesystem, incident severity is immediately escalated to **Critical**.
-- See [`docs/architecture/SBOM_VULNERABILITY.md`](docs/architecture/SBOM_VULNERABILITY.md).
+- See [`docs/architecture/sbom-vulnerability.md`](docs/architecture/sbom-vulnerability.md).
 
 ### 5. Cryptographic Human-in-the-Loop Containment
 - **Non-Destructive Freezing:** Pauses container cgroups (`docker pause`), stopping execution instantaneously without terminating RAM, network sockets, or open file descriptors.
 - **Operator Leases:** All containment actions require HMAC-SHA256 signed operator tokens with 30-second TTLs to prevent unauthorized automated destruction.
 - **Protected Service Whitelist:** Hardcoded protection prevents containment from targeting Porygon infrastructure containers (`backend`, `postgres`, `collector`).
-- See [`docs/architecture/CONTAINMENT_ENGINE.md`](docs/architecture/CONTAINMENT_ENGINE.md).
+- See [`docs/architecture/containment-engine.md`](docs/architecture/containment-engine.md).
 
 ### 6. Interactive Newsprint Dashboard
 - Real-time incident triage and TreeSHAP attribution visualizations.
@@ -327,22 +327,26 @@ Verification status is dynamically generated into [`artifacts/verification-manif
 
 Explore the complete documentation in [`docs/`](docs/):
 
+- **Hands-On Explainer:**
+  - [Interactive Walkthrough & Architecture Guide](EXPLAINER.md)
 - **Architecture:**
-  - [System Overview](docs/architecture/OVERVIEW.md)
-  - [eBPF Kernel Telemetry](docs/architecture/EBPF_TELEMETRY.md)
-  - [Digest-Bound Behavioral Profiling](docs/architecture/BEHAVIORAL_PROFILING.md)
-  - [Explainable ML Threat Classifier](docs/architecture/ML_THREAT_CLASSIFIER.md)
-  - [Containment Engine & Safety Leases](docs/architecture/CONTAINMENT_ENGINE.md)
-  - [SBOM & Vulnerability Reachability](docs/architecture/SBOM_VULNERABILITY.md)
+  - [System Overview](docs/architecture/system-overview.md)
+  - [eBPF Kernel Telemetry](docs/architecture/ebpf-telemetry.md)
+  - [Digest-Bound Behavioral Profiling](docs/architecture/behavioral-profiling.md)
+  - [Explainable ML Threat Classifier](docs/architecture/ml-threat-classifier.md)
+  - [Containment Engine & Safety Leases](docs/architecture/containment-engine.md)
+  - [SBOM & Vulnerability Reachability](docs/architecture/sbom-vulnerability.md)
 - **Academic Research & Protocol:**
   - [Research Protocol Archive](docs/research/README.md)
-  - [Frozen Research Protocol v1](docs/research/RESEARCH_PROTOCOL_V1.md)
-  - [Threat Model v1](docs/research/THREAT_MODEL_V1.md)
-  - [Claims Boundaries v1](docs/research/CLAIMS_V1.md)
-  - [Adversarial Scenarios Stress Tests](docs/research/ADVERSARIAL_SCENARIOS_V1.md)
-  - [Development Roadmap (Phases 1–8)](docs/research/FINAL_PHASES.md)
+  - [Frozen Research Protocol](docs/research/research-protocol.md)
+  - [Threat Model](docs/research/threat-model.md)
+  - [Claims Boundaries & Falsification](docs/research/claims-boundaries.md)
+  - [Profile Scope Experiment (4 Arms)](docs/research/profile-scope-experiment.md)
+  - [Adversarial Scenarios Stress Tests](docs/research/adversarial-scenarios.md)
+  - [Empirical Results (Pilots & Trials)](docs/research/empirical-results.md)
+  - [Development Roadmap (Phases 1–8)](docs/research/development-roadmap.md)
 - **Defense Presentations:**
   - [Presentation Guide & Slides](docs/presentation/README.md)
-  - [Presentation Spoken Script](docs/presentation/PRESENTATION_SCRIPT.md)
+  - [Presentation Spoken Script](docs/presentation/presentation-script.md)
 - **Reviews:**
-  - [Review Package](docs/review/REVIEW_PACKAGE.md)
+  - [Review Package](docs/review/review-package.md)

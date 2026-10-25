@@ -13,18 +13,19 @@ This directory preserves the complete formal academic package for the Porygon co
 ```
 docs/research/
 ├── README.md                      <-- This document
-├── RESEARCH_PROTOCOL_V1.md        <-- Master Frozen Research Protocol (Hypotheses, arms, variables)
-├── THREAT_MODEL_V1.md             <-- Formal Threat Model (Attacker capabilities, trust boundaries)
-├── CLAIMS_V1.md                   <-- Claim Boundaries (Strict positive & negative claim limits)
-├── ADVERSARIAL_SCENARIOS_V1.md    <-- 18 Adversarial Scenarios (Novelty, evasion, stealth tests)
-├── PROFILE_SCOPE_EXPERIMENT_V1.md <-- The 4 Profile Arms (Global, Tag, Digest, Context)
-├── FEATURE_SCHEMA_V1.md           <-- Behaviour Feature Schema Specification (porygon.behaviour.v1)
-├── FEATURE_SCHEMA_CALIBRATED.md   <-- Calibrated Provenance Schema Specification
-├── CONFIRMATORY_RESULT_V1.md      <-- Pilot & Confirmatory Results Record
-├── DEVIATIONS_V1.md               <-- Protocol Deviations Audit & Non-Destructive Errata
-├── LIVE_DEMO_RECORD_V1.md         <-- Real Malware Execution Trials (XMRig & Shell droppers)
-├── RELATED_WORK_RECENT.md         <-- Systematic Literature Review (Last 5 Years)
-└── FINAL_PHASES.md                <-- Development Roadmap & Engineering Gate Checklist
+├── research-protocol.md           <-- Master Frozen Research Protocol (Hypotheses, arms, variables)
+├── threat-model.md                <-- Formal Threat Model (Attacker capabilities, trust boundaries)
+├── claims-boundaries.md           <-- Claim Boundaries (Strict positive & negative claim limits)
+├── profile-scope-experiment.md    <-- The 4 Profile Arms (Global, Tag, Digest, Context)
+├── adversarial-scenarios.md       <-- 18 Adversarial Scenarios (Novelty, evasion, stealth tests)
+├── empirical-results.md           <-- Pilot & Confirmatory Results Record
+├── protocol-deviations.md         <-- Protocol Deviations Audit & Non-Destructive Errata
+├── live-malware-trials.md         <-- Real Malware Execution Trials (XMRig & Shell droppers)
+├── related-work.md                <-- Systematic Literature Review (Last 5 Years)
+├── development-roadmap.md         <-- Development Roadmap & Engineering Gate Checklist (Phases 1–8)
+└── schemas/                       <-- Formal Schema Specifications
+    ├── behavior-schema.md         <-- Behaviour Feature Schema Specification (porygon.behaviour.v1)
+    └── calibrated-rarity-schema.md<-- Calibrated Provenance Schema Specification
 ```
 
 ---
@@ -44,7 +45,7 @@ docs/research/
 
 ## 3. Scientific Hygiene & Non-Goals
 
-As formalized in [`CLAIMS_V1.md`](CLAIMS_V1.md):
+As formalized in [`claims-boundaries.md`](claims-boundaries.md):
 - **Not an attack probability:** Porygon outputs statistical rarity metrics and explainable classification attributions, never an unsubstantiated "probability of compromise."
 - **Deterministic rule matches are evidence, not proof:** A matching rule or statistical drift flag is an anomaly indicator prompting investigation or containment, not a courtroom conviction.
 - **Negative Result Obligation:** If digest-scoping fails to achieve a statistically significant false-positive reduction ($p < 0.05$) under controlled trials, Porygon protocol requires reporting the negative result without data dredging.
