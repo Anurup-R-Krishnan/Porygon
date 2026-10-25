@@ -65,7 +65,7 @@ async def heartbeat_loop(state: TelemetryState, store: TelemetryStore) -> None:
                 "metadata": {
                     "version": settings.version,
                     "environment": settings.environment,
-                    "phase": "process-telemetry",
+                    "capability": "process-telemetry",
                     "runtime_event_source": "falco-modern-ebpf",
                     "falco_log_path": settings.falco_log_path,
                     "source_running": snapshot["source_running"],

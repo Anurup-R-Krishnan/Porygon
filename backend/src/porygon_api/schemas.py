@@ -263,7 +263,7 @@ class EventSummary(BaseModel):
 class SystemInfo(BaseModel):
     name: str
     version: str
-    phase: str
+    capability: str
     environment: str
     registered_services: int
     runtime_events: int

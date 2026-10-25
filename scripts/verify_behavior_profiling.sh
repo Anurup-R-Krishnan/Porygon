@@ -178,7 +178,7 @@ import json
 info=json.load(open('artifacts/profiling-system-info.json'))
 assert info['behavior_profiles'] >= 3
 assert info['active_behavior_profiles'] >= 1
-assert info['phase']
+assert info['capability']
 PY
 pass "System API reports stored and active behaviour profiles"
 

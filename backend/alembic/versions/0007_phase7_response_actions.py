@@ -1,4 +1,4 @@
-"""phase 7 response recommendations and controlled execution
+"""Response recommendations and controlled execution
 
 Revision ID: 0007_phase7
 Revises: 0006_phase6

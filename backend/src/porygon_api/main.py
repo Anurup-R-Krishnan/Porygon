@@ -178,7 +178,7 @@ def _require_calibrated_enabled() -> None:
         )
 
 APP_VERSION = "0.8.0"
-PHASE_ID = "vulnerability-enrichment"
+CAPABILITY_ID = "vulnerability-enrichment"
 
 app = FastAPI(
     title=settings.app_name,
@@ -195,7 +195,7 @@ def root() -> dict[str, str]:
     return {
         "name": settings.app_name,
         "version": APP_VERSION,
-        "phase": PHASE_ID,
+        "capability": CAPABILITY_ID,
         "docs": "/docs",
     }
 
@@ -1630,7 +1630,7 @@ def get_anomaly_scoring_config() -> dict[str, object]:
         "scoring_config": SCORING_CONFIG,
         "interpretation": (
             "Bands are provisional distance labels, not validated attack thresholds. "
-            "Threshold selection belongs to the evaluation phase."
+            "Threshold selection belongs to empirical evaluation."
         ),
     }
 
@@ -2904,7 +2904,7 @@ def system_info(db: Session = Depends(get_db)) -> SystemInfo:
     return SystemInfo(
         name="Porygon",
         version=APP_VERSION,
-        phase="Digest-bound SBOM, vulnerability, and exposure enrichment",
+        capability="Digest-bound SBOM, vulnerability, and exposure enrichment",
         environment=settings.environment,
         registered_services=registered_services,
         runtime_events=runtime_events,
