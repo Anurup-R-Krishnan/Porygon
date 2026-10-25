@@ -7,7 +7,20 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 from typing import Any
+
+
+def _load_env() -> None:
+    env_file = Path(__file__).resolve().parents[1] / ".env"
+    if env_file.is_file():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                k, v = k.strip(), v.strip().strip('"').strip("'")
+                if k not in os.environ:
+                    os.environ[k] = v
 
 
 def request(
@@ -22,6 +35,7 @@ def request(
     if payload is not None:
         headers["Content-Type"] = "application/json"
     if operator:
+        _load_env()
         token = os.getenv("PORYGON_OPERATOR_API_TOKEN", "")
         if len(token) < 32:
             raise SystemExit("Set PORYGON_OPERATOR_API_TOKEN to the operator token used by the stack")

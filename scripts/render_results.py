@@ -9,6 +9,7 @@ new run; nothing is hand-edited.
 """
 from __future__ import annotations
 
+import argparse
 import html
 import json
 import sys
@@ -248,13 +249,28 @@ Kernel-to-eBPF and Falco userspace drops remain unmeasured by design.</footer>
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Render pilot experiment results as a single self-contained HTML page and JSON summary."
+    )
+    parser.add_argument(
+        "output",
+        nargs="?",
+        default=str(ROOT / "artifacts/results.html"),
+        help="Target HTML output path (default: artifacts/results.html)",
+    )
+    args = parser.parse_args()
+
     data = collect()
     (ROOT / "artifacts/results.json").write_text(
-        json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    out = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "artifacts/results.html"
+        json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    out = Path(args.output)
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(render(data), encoding="utf-8")
-    print(f"wrote {out} and artifacts/results.json "
-          f"({data['totals']['trials']} trials across {data['totals']['runs']} runs)")
+    print(
+        f"wrote {out} and artifacts/results.json "
+        f"({data['totals']['trials']} trials across {data['totals']['runs']} runs)"
+    )
     return 0
 
 

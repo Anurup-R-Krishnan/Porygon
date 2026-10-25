@@ -50,7 +50,26 @@ DEFAULT_STATE_FILE = ROOT / "artifacts" / "incident_alert_state.json"
 SEVERITY_ORDER = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 
 
+_env_loaded = False
+
+def _load_env() -> None:
+    global _env_loaded
+    if _env_loaded:
+        return
+    _env_loaded = True
+    env_file = ROOT / ".env"
+    if env_file.is_file():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                k, v = k.strip(), v.strip().strip('"').strip("'")
+                if k not in os.environ:
+                    os.environ[k] = v
+
+
 def _env(name: str, default: str | None = None) -> str | None:
+    _load_env()
     return os.environ.get(name, default)
 
 

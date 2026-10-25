@@ -50,7 +50,7 @@ import json, re
 from pathlib import Path
 from experiments.context import context_hash
 
-_scope_path = Path("docs/research/profile-scope-experiment.md") if Path("docs/research/profile-scope-experiment.md").exists() else Path("docs/PROFILE_SCOPE_EXPERIMENT_V1.md")
+_scope_path = Path("docs/research/profile-scope-experiment.md")
 text = _scope_path.read_text(encoding="utf-8")
 def example(name):
     match = re.search(rf"```json {name}\n(.*?)```", text, re.DOTALL)

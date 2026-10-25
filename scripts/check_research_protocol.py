@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import copy
 import hashlib
 import json
@@ -457,6 +458,11 @@ def run_negative_self_tests(manifest: dict[str, Any]) -> list[str]:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Validate the frozen Porygon research protocol and traceability graph."
+    )
+    parser.parse_args()
+
     protocol_text = _read(PROTOCOL_PATH)
     try:
         manifest = _extract_json_fence(protocol_text, "protocol-manifest")

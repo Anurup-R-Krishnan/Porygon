@@ -7,6 +7,7 @@ and provides an endpoint for interactive attack simulation scenarios.
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import http.server
 import json
@@ -562,9 +563,20 @@ class ThreadingDashboardServer(socketserver.ThreadingMixIn, socketserver.TCPServ
 
 
 def main() -> None:
-    with ThreadingDashboardServer(("127.0.0.1", PORT), DashboardHandler) as httpd:
-        print(f"[*] Porygon Dashboard listening at http://127.0.0.1:{PORT}")
-        print(f"[*] Proxying API requests to {API_BASE}")
+    global PORT, API_BASE
+
+    parser = argparse.ArgumentParser(description="Porygon Dashboard Web Server & Scenario Runner.")
+    parser.add_argument("--port", type=int, default=PORT, help=f"Port to bind web server (default: {PORT})")
+    parser.add_argument("--host", default="127.0.0.1", help="Host IP to bind web server (default: 127.0.0.1)")
+    parser.add_argument("--api-base", default=API_BASE, help=f"Target Porygon API gateway URL (default: {API_BASE})")
+    args = parser.parse_args()
+
+    PORT = args.port
+    API_BASE = args.api_base
+
+    with ThreadingDashboardServer((args.host, args.port), DashboardHandler) as httpd:
+        print(f"[*] Porygon Dashboard listening at http://{args.host}:{args.port}")
+        print(f"[*] Proxying API requests to {args.api_base}")
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
