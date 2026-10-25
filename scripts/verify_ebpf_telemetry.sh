@@ -4,17 +4,17 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 RUN_ID="${PORYGON_VERIFY_RUN_ID:-$(date -u +%Y%m%dt%H%M%Sz)-$$}"
-PROBE_NAME="porygon-phase3-${RUN_ID}"
+PROBE_NAME="porygon-telemetry-${RUN_ID}"
 PROBE_IMAGE="alpine:3.20"
 LOCAL_ARTIFACT_DIR="artifacts/local"
-CONTAINERS_PATH="${LOCAL_ARTIFACT_DIR}/phase3-${RUN_ID}-containers.json"
-PROCESS_EVENTS_PATH="${LOCAL_ARTIFACT_DIR}/phase3-${RUN_ID}-process.json"
-UNAME_EVENTS_PATH="${LOCAL_ARTIFACT_DIR}/phase3-${RUN_ID}-uname.json"
-ID_BEFORE_PATH="${LOCAL_ARTIFACT_DIR}/phase3-${RUN_ID}-id-before.json"
-ID_EVENTS_PATH="${LOCAL_ARTIFACT_DIR}/phase3-${RUN_ID}-id.json"
-ALL_BEFORE_PATH="${LOCAL_ARTIFACT_DIR}/phase3-${RUN_ID}-all-before.json"
-ALL_AFTER_PATH="${LOCAL_ARTIFACT_DIR}/phase3-${RUN_ID}-all-after.json"
-EVIDENCE_DIR="${LOCAL_ARTIFACT_DIR}/phase3-${RUN_ID}"
+CONTAINERS_PATH="${LOCAL_ARTIFACT_DIR}/telemetry-${RUN_ID}-containers.json"
+PROCESS_EVENTS_PATH="${LOCAL_ARTIFACT_DIR}/telemetry-${RUN_ID}-process.json"
+UNAME_EVENTS_PATH="${LOCAL_ARTIFACT_DIR}/telemetry-${RUN_ID}-uname.json"
+ID_BEFORE_PATH="${LOCAL_ARTIFACT_DIR}/telemetry-${RUN_ID}-id-before.json"
+ID_EVENTS_PATH="${LOCAL_ARTIFACT_DIR}/telemetry-${RUN_ID}-id.json"
+ALL_BEFORE_PATH="${LOCAL_ARTIFACT_DIR}/telemetry-${RUN_ID}-all-before.json"
+ALL_AFTER_PATH="${LOCAL_ARTIFACT_DIR}/telemetry-${RUN_ID}-all-after.json"
+EVIDENCE_DIR="${LOCAL_ARTIFACT_DIR}/telemetry-${RUN_ID}"
 TELEMETRY_STATUS_PATH="${EVIDENCE_DIR}/telemetry-status.json"
 
 fail() {
@@ -93,8 +93,8 @@ expected_repo_digest="$(docker image inspect "$PROBE_IMAGE" --format '{{index .R
 
 docker run --detach \
   --name "$PROBE_NAME" \
-  --label io.porygon.phase3.probe=true \
-  --label "io.porygon.phase3.run=${RUN_ID}" \
+  --label io.porygon.telemetry.probe=true \
+  --label "io.porygon.telemetry.run=${RUN_ID}" \
   "$PROBE_IMAGE" sh -c 'sleep 300' >/dev/null
 full_container_id="$(docker inspect "$PROBE_NAME" --format '{{.Id}}')"
 reported_container_id="${full_container_id:0:12}"
@@ -108,7 +108,7 @@ import json, os, sys
 try:
     with open(os.environ['CONTAINERS_PATH'], encoding='utf-8') as handle:
         items=json.load(handle)
-except Exception:
+except (OSError, json.JSONDecodeError):
     sys.exit(1)
 match=next((x for x in items if x.get('container_name') == os.environ['PROBE_NAME']), None)
 if not match:
@@ -134,7 +134,7 @@ PY
 pass "Probe container identity is bound to the immutable image digest"
 
 # Force a visible process tree: outer sh -> inner sh -> sleep.
-docker exec "$PROBE_NAME" sh -c 'sh -c "sleep 4 & child=$!; wait $child" porygon-phase3-inner' porygon-phase3-outer
+docker exec "$PROBE_NAME" sh -c 'sh -c "sleep 4 & child=$!; wait $child" porygon-telemetry-inner' porygon-telemetry-outer
 
 for _ in $(seq 1 90); do
   curl --fail --silent --show-error --get \
@@ -147,7 +147,7 @@ import json, os, sys
 try:
     with open(os.environ['PROCESS_EVENTS_PATH'], encoding='utf-8') as handle:
         events=json.load(handle)
-except Exception:
+except (OSError, json.JSONDecodeError):
     sys.exit(1)
 if not events:
     sys.exit(1)
@@ -204,7 +204,7 @@ with open(os.environ['PROCESS_EVENTS_PATH'], encoding='utf-8') as handle:
 PY
 )"
 docker compose stop telemetry >/dev/null
-docker exec "$PROBE_NAME" sh -c 'uname -a >/tmp/porygon-phase3-replay'
+docker exec "$PROBE_NAME" sh -c 'uname -a >/tmp/porygon-telemetry-replay'
 sleep 2
 docker compose up --detach --wait telemetry >/dev/null
 
@@ -220,7 +220,7 @@ import json, os
 try:
     with open(os.environ['PROCESS_EVENTS_PATH'], encoding='utf-8') as handle:
         print(len(json.load(handle)))
-except Exception:
+except (OSError, json.JSONDecodeError):
     print(-1)
 PY
 )"
@@ -271,7 +271,7 @@ import json, os
 try:
     with open(os.environ['PROCESS_EVENTS_PATH'], encoding='utf-8') as handle:
         print(len(json.load(handle)))
-except Exception:
+except (OSError, json.JSONDecodeError):
     print(-1)
 PY
 )"
@@ -369,7 +369,7 @@ REPLAY_ROW_GROWTH="$((count_after - count_before))" \
 DEAD_LETTERS="$dead_letters" \
 CORRELATION_METRICS="$correlation_metrics" \
 TELEMETRY_STATUS_PATH="$TELEMETRY_STATUS_PATH" \
-python3 - <<'PY' > artifacts/phase3-capture-integrity.json
+python3 - <<'PY' | tee artifacts/phase3-capture-integrity.json > artifacts/ebpf-capture-integrity.json
 import json, os
 from pathlib import Path
 

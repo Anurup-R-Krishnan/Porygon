@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Sequence
 
 from experiments.analysis import exact_mcnemar_p
-from experiments.artifacts import load_json, sha256_file, write_versioned_json
+from experiments.artifacts import ArtifactError, load_json, sha256_file, write_versioned_json
 from experiments.scope import SCOPES, compare_scopes
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -477,7 +477,7 @@ def _study_manifest_evidence_classes() -> list[str]:
     for path in manifests:
         try:
             doc = load_json(path)
-        except Exception:
+        except (ArtifactError, OSError):
             continue
         evidence_class = doc.get("evidence_class") if isinstance(doc, dict) else None
         if evidence_class is not None:
@@ -570,7 +570,7 @@ def _discover_pilot_run_dirs() -> list[Path]:
             continue
         try:
             doc = load_json(manifest)
-        except Exception:
+        except (ArtifactError, OSError):
             continue
         if doc.get("kind") == "real_container_pilot" and doc.get("research_eligible") is False:
             found.append(run_dir)

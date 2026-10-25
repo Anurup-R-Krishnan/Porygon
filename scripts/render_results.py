@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+from contextlib import suppress
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -23,13 +24,11 @@ def collect() -> dict:
     existing_runs_by_id: dict[str, dict] = {}
     results_json = ROOT / "artifacts/results.json"
     if results_json.is_file():
-        try:
+        with suppress(Exception):
             prior_data = json.loads(results_json.read_text(encoding="utf-8"))
             for r in prior_data.get("runs", []):
                 if isinstance(r, dict) and "run_id" in r:
                     existing_runs_by_id[r["run_id"]] = r
-        except Exception:
-            pass
 
     local_runs_by_id: dict[str, dict] = {}
     for run_json in sorted(RUNS.glob("*/run.json")):

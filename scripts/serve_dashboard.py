@@ -174,7 +174,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         body = self.rfile.read(length) if length > 0 else b"{}"
         try:
             payload = json.loads(body.decode("utf-8"))
-        except Exception:
+        except (json.JSONDecodeError, UnicodeDecodeError):
             payload = {}
 
         scenario_id = payload.get("scenario_id", "unseen_shell")
