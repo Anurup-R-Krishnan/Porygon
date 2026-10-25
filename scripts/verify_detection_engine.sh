@@ -22,10 +22,11 @@ token="$(grep -E '^PORYGON_INTERNAL_API_TOKEN=' .env | tail -1 | cut -d= -f2- ||
 [[ ${#token} -ge 32 ]] || fail "PORYGON_INTERNAL_API_TOKEN is missing or too short"
 
 curl --fail --silent --show-error "${base_url}/api/v1/detection-rules/config" \
-  > artifacts/phase6-ruleset.json
+  > artifacts/detection-ruleset.json
+cp artifacts/detection-ruleset.json artifacts/phase6-ruleset.json 2>/dev/null || true
 python3 - <<'PY' || fail "Detection ruleset metadata is invalid"
 import json
-cfg=json.load(open('artifacts/phase6-ruleset.json'))
+cfg=json.load(open('artifacts/detection-ruleset.json'))
 assert cfg['ruleset_version']=='porygon.detection.v1'
 assert cfg['matcher_revision']=='porygon.detection.matcher.v4'
 assert len(cfg['ruleset_hash'])==64
@@ -45,26 +46,37 @@ PY
 run_detection() {
   local score_id="$1"
   local output="$2"
-  SCORE_ID="$score_id" python3 - <<'PY' > artifacts/phase6-request.json
+  SCORE_ID="$score_id" python3 - <<'PY' > artifacts/detection-request.json
 import json, os
 print(json.dumps({'anomaly_score_id': os.environ['SCORE_ID']}))
 PY
+  cp artifacts/detection-request.json artifacts/phase6-request.json 2>/dev/null || true
   curl --fail --silent --show-error \
     -X POST \
     -H 'Content-Type: application/json' \
     -H "X-Porygon-Internal-Token: ${token}" \
-    --data-binary @artifacts/phase6-request.json \
+    --data-binary @artifacts/detection-request.json \
     "${base_url}/internal/v1/detections/run" > "$output"
+  local legacy_output="${output/detection-/phase6-}"
+  if [[ "$legacy_output" != "$output" ]]; then
+    cp "$output" "$legacy_output" 2>/dev/null || true
+  fi
 }
 
-empty_score_id="$(read_score_id artifacts/phase5-empty-score.json)"
-normal_score_id="$(read_score_id artifacts/phase5-normal-score.json)"
-novel_score_id="$(read_score_id artifacts/phase5-novel-score.json)"
+if [[ -f artifacts/scoring-empty-score.json ]]; then
+  empty_score_id="$(read_score_id artifacts/scoring-empty-score.json)"
+  normal_score_id="$(read_score_id artifacts/scoring-normal-score.json)"
+  novel_score_id="$(read_score_id artifacts/scoring-novel-score.json)"
+else
+  empty_score_id="$(read_score_id artifacts/phase5-empty-score.json)"
+  normal_score_id="$(read_score_id artifacts/phase5-normal-score.json)"
+  novel_score_id="$(read_score_id artifacts/phase5-novel-score.json)"
+fi
 
-run_detection "$empty_score_id" artifacts/phase6-empty-detection.json
+run_detection "$empty_score_id" artifacts/detection-empty-detection.json
 python3 - <<'PY' || fail "Insufficient score created an invalid detection outcome"
 import json
-r=json.load(open('artifacts/phase6-empty-detection.json'))
+r=json.load(open('artifacts/detection-empty-detection.json'))
 assert r['run']['status']=='insufficient_data'
 assert r['run']['incident_created'] is False
 assert r['incident'] is None
@@ -72,20 +84,20 @@ assert r['timeline']==[]
 PY
 pass "Insufficient telemetry cannot produce an incident"
 
-run_detection "$normal_score_id" artifacts/phase6-normal-detection.json
+run_detection "$normal_score_id" artifacts/detection-normal-detection.json
 python3 - <<'PY' || fail "Baseline-like window produced an incident"
 import json
-r=json.load(open('artifacts/phase6-normal-detection.json'))
+r=json.load(open('artifacts/detection-normal-detection.json'))
 assert r['run']['status'] in {'no_findings','findings_only'}
 assert r['run']['incident_created'] is False
 assert r['incident'] is None
 PY
 pass "Baseline-like evidence produced no incident"
 
-run_detection "$novel_score_id" artifacts/phase6-novel-detection.json
+run_detection "$novel_score_id" artifacts/detection-novel-detection.json
 python3 - <<'PY' || fail "Novel workload did not create a deterministic incident"
 import json
-r=json.load(open('artifacts/phase6-novel-detection.json'))
+r=json.load(open('artifacts/detection-novel-detection.json'))
 assert r['run']['status']=='incident_created'
 assert r['run']['incident_created'] is True
 incident=r['incident']
@@ -105,19 +117,19 @@ pass "Novel runtime evidence created an explainable incident with a chronologica
 
 incident_id="$(python3 - <<'PY'
 import json
-print(json.load(open('artifacts/phase6-novel-detection.json'))['incident']['incident_id'])
+print(json.load(open('artifacts/detection-novel-detection.json'))['incident']['incident_id'])
 PY
 )"
 run_id="$(python3 - <<'PY'
 import json
-print(json.load(open('artifacts/phase6-novel-detection.json'))['run']['run_id'])
+print(json.load(open('artifacts/detection-novel-detection.json'))['run']['run_id'])
 PY
 )"
 
-run_detection "$novel_score_id" artifacts/phase6-novel-detection-retry.json
+run_detection "$novel_score_id" artifacts/detection-novel-detection-retry.json
 FIRST_RUN="$run_id" python3 - <<'PY' || fail "Detection rerun was not idempotent"
 import json, os
-r=json.load(open('artifacts/phase6-novel-detection-retry.json'))
+r=json.load(open('artifacts/detection-novel-detection-retry.json'))
 assert r['run']['run_id']==os.environ['FIRST_RUN']
 PY
 pass "Exact detection rerun returned the original run and incident"
@@ -125,9 +137,9 @@ pass "Exact detection rerun returned the original run and incident"
 # Build exact, digest-scoped exceptions only for the process findings observed in this
 # controlled maintenance window. High anomaly distance remains visible but is not
 # independently incident-eligible.
-python3 - <<'PY' > artifacts/phase6-allowlist-candidates.json
+python3 - <<'PY' > artifacts/detection-allowlist-candidates.json
 import json
-r=json.load(open('artifacts/phase6-novel-detection.json'))
+r=json.load(open('artifacts/detection-novel-detection.json'))
 incident=r['incident']
 items=[]
 seen=set()
@@ -154,12 +166,13 @@ for finding in incident['findings']:
 assert items, 'novel workload did not produce an allowlistable exact process finding'
 print(json.dumps(items))
 PY
+cp artifacts/detection-allowlist-candidates.json artifacts/phase6-allowlist-candidates.json 2>/dev/null || true
 
 BASE_URL="$base_url" TOKEN="$token" python3 - <<'PY'
 import json, os, urllib.request
 base=os.environ['BASE_URL']
 token=os.environ['TOKEN']
-items=json.load(open('artifacts/phase6-allowlist-candidates.json'))
+items=json.load(open('artifacts/detection-allowlist-candidates.json'))
 created=[]
 for item in items:
     req=urllib.request.Request(
@@ -170,19 +183,20 @@ for item in items:
     )
     with urllib.request.urlopen(req, timeout=30) as response:
         created.append(json.load(response))
+open('artifacts/detection-created-allowlists.json','w').write(json.dumps(created, indent=2, sort_keys=True))
 open('artifacts/phase6-created-allowlists.json','w').write(json.dumps(created, indent=2, sort_keys=True))
 PY
 
-run_detection "$novel_score_id" artifacts/phase6-allowlisted-detection.json
+run_detection "$novel_score_id" artifacts/detection-allowlisted-detection.json
 python3 - <<'PY' || fail "Digest-scoped maintenance allowlists did not suppress exact findings"
 import json
-r=json.load(open('artifacts/phase6-allowlisted-detection.json'))
+r=json.load(open('artifacts/detection-allowlisted-detection.json'))
 assert r['run']['status'] in {'no_findings','findings_only'}
 assert r['run']['incident_created'] is False
 assert r['incident'] is None
 assert r['run']['result']['suppressed_matches']
 assert all(item['suppressed_by_allowlist_id'] for item in r['run']['result']['suppressed_matches'])
-assert r['run']['allowlist_set_hash'] != json.load(open('artifacts/phase6-novel-detection.json'))['run']['allowlist_set_hash']
+assert r['run']['allowlist_set_hash'] != json.load(open('artifacts/detection-novel-detection.json'))['run']['allowlist_set_hash']
 PY
 pass "Exact digest-scoped maintenance allowlists suppressed matching findings without hiding behavioural distance"
 
@@ -190,11 +204,11 @@ BASE_URL="$base_url" TOKEN="$token" python3 - <<'PY'
 import json, os, urllib.request
 base=os.environ['BASE_URL']
 token=os.environ['TOKEN']
-items=json.load(open('artifacts/phase6-created-allowlists.json'))
+items=json.load(open('artifacts/detection-created-allowlists.json'))
 for item in items:
     req=urllib.request.Request(
         base+f"/internal/v1/detection-allowlists/{item['allowlist_id']}/deactivate",
-        data=json.dumps({'actor':'phase6-verifier'}).encode(),
+        data=json.dumps({'actor':'detection-verifier'}).encode(),
         headers={'Content-Type':'application/json','X-Porygon-Internal-Token':token},
         method='POST',
     )
@@ -209,47 +223,55 @@ status_update() {
   local actor="$2"
   local note="$3"
   local output="$4"
-  NEW_STATUS="$new_status" ACTOR="$actor" NOTE="$note" python3 - <<'PY' > artifacts/phase6-status-request.json
+  NEW_STATUS="$new_status" ACTOR="$actor" NOTE="$note" python3 - <<'PY' > artifacts/detection-status-request.json
 import json, os
 print(json.dumps({'status':os.environ['NEW_STATUS'],'actor':os.environ['ACTOR'],'note':os.environ['NOTE']}))
 PY
+  cp artifacts/detection-status-request.json artifacts/phase6-status-request.json 2>/dev/null || true
   curl --fail --silent --show-error \
     -X POST -H 'Content-Type: application/json' \
     -H "X-Porygon-Internal-Token: ${token}" \
-    --data-binary @artifacts/phase6-status-request.json \
+    --data-binary @artifacts/detection-status-request.json \
     "${base_url}/internal/v1/incidents/${incident_id}/status" > "$output"
+  local legacy_output="${output/detection-/phase6-}"
+  if [[ "$legacy_output" != "$output" ]]; then
+    cp "$output" "$legacy_output" 2>/dev/null || true
+  fi
 }
 
-status_update acknowledged phase6-verifier "Evidence reviewed" artifacts/phase6-acknowledged.json
-status_update resolved phase6-verifier "Controlled experiment completed" artifacts/phase6-resolved.json
+status_update acknowledged detection-verifier "Evidence reviewed" artifacts/detection-acknowledged.json
+status_update resolved detection-verifier "Controlled experiment completed" artifacts/detection-resolved.json
 python3 - <<'PY' || fail "Incident lifecycle fields were not persisted"
 import json
-ack=json.load(open('artifacts/phase6-acknowledged.json'))
-resolved=json.load(open('artifacts/phase6-resolved.json'))
+ack=json.load(open('artifacts/detection-acknowledged.json'))
+resolved=json.load(open('artifacts/detection-resolved.json'))
 assert ack['status']=='acknowledged'
-assert ack['acknowledged_by']=='phase6-verifier'
+assert ack['acknowledged_by']=='detection-verifier'
 assert resolved['status']=='resolved'
-assert resolved['closed_by']=='phase6-verifier'
+assert resolved['closed_by']=='detection-verifier'
 assert resolved['closure_note']=='Controlled experiment completed'
 PY
 pass "Human incident acknowledgement and resolution were persisted"
 
-http_code="$(curl --silent --output artifacts/phase6-invalid-transition.json --write-out '%{http_code}' \
+http_code="$(curl --silent --output artifacts/detection-invalid-transition.json --write-out '%{http_code}' \
   -X POST -H 'Content-Type: application/json' \
   -H "X-Porygon-Internal-Token: ${token}" \
-  --data '{"status":"acknowledged","actor":"phase6-verifier","note":"invalid reopen"}' \
+  --data '{"status":"acknowledged","actor":"detection-verifier","note":"invalid reopen"}' \
   "${base_url}/internal/v1/incidents/${incident_id}/status")"
+cp artifacts/detection-invalid-transition.json artifacts/phase6-invalid-transition.json 2>/dev/null || true
 [[ "$http_code" == "409" ]] || fail "Terminal incident transition returned HTTP $http_code instead of 409"
 pass "Terminal incidents cannot be reopened through an invalid state transition"
 
 curl --fail --silent --show-error "${base_url}/api/v1/incidents/${incident_id}/timeline" \
-  > artifacts/phase6-final-timeline.json
+  > artifacts/detection-final-timeline.json
+cp artifacts/detection-final-timeline.json artifacts/phase6-final-timeline.json 2>/dev/null || true
 curl --fail --silent --show-error "${base_url}/api/v1/system/info" \
-  > artifacts/phase6-system-info.json
+  > artifacts/detection-system-info.json
+cp artifacts/detection-system-info.json artifacts/phase6-system-info.json 2>/dev/null || true
 python3 - <<'PY' || fail "Detection engine system counters or status evidence are inconsistent"
 import json
-timeline=json.load(open('artifacts/phase6-final-timeline.json'))
-info=json.load(open('artifacts/phase6-system-info.json'))
+timeline=json.load(open('artifacts/detection-final-timeline.json'))
+info=json.load(open('artifacts/detection-system-info.json'))
 assert timeline[-2]['details']['status']=='acknowledged'
 assert timeline[-1]['details']['status']=='resolved'
 assert int(info['phase'].split()[1].rstrip(':')) >= 6
@@ -261,5 +283,6 @@ assert info['open_incidents'] == 0
 PY
 pass "System counters and complete evidence timeline remain consistent"
 
-docker compose ps > artifacts/phase6-services.txt
+docker compose ps > artifacts/detection-services.txt
+cp artifacts/detection-services.txt artifacts/phase6-services.txt 2>/dev/null || true
 printf '\nDetection engine verification complete. Incident severity and confidence are evidence-oriented research signals, not compromise probabilities.\n'

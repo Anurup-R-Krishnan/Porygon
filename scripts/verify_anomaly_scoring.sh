@@ -4,9 +4,9 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 RUN_ID="${PORYGON_VERIFY_RUN_ID:-$(date -u +%Y%m%dt%H%M%Sz)-$$}"
-PROBE_NAME="porygon-phase5-${RUN_ID}"
+PROBE_NAME="porygon-scoring-${RUN_ID}"
 PROBE_IMAGE="alpine:3.20"
-CONTAINERS_PATH="artifacts/local/phase5-${RUN_ID}-containers.json"
+CONTAINERS_PATH="artifacts/local/scoring-${RUN_ID}-containers.json"
 
 fail() {
   echo "[FAIL] $*" >&2
@@ -44,14 +44,19 @@ base_url="http://127.0.0.1:${backend_port}"
 token="$(grep -E '^PORYGON_INTERNAL_API_TOKEN=' .env | tail -1 | cut -d= -f2- || true)"
 [[ ${#token} -ge 32 ]] || fail "PORYGON_INTERNAL_API_TOKEN is missing or too short"
 
-digest="$(cat artifacts/phase4-selected-digest.txt)"
+if [[ -f artifacts/profiling-selected-digest.txt ]]; then
+  digest="$(cat artifacts/profiling-selected-digest.txt)"
+else
+  digest="$(cat artifacts/phase4-selected-digest.txt)"
+fi
 [[ "$digest" == *@sha256:* ]] || fail "Behavior profiling did not provide an immutable repository digest"
 
 curl --fail --silent --show-error \
-  "${base_url}/api/v1/anomaly-scores/config" > artifacts/phase5-scoring-config.json
+  "${base_url}/api/v1/anomaly-scores/config" > artifacts/scoring-config.json
+cp artifacts/scoring-config.json artifacts/phase5-scoring-config.json 2>/dev/null || true
 python3 - <<'PY' || fail "Scoring configuration is missing reproducibility metadata"
 import json
-cfg=json.load(open('artifacts/phase5-scoring-config.json'))
+cfg=json.load(open('artifacts/scoring-config.json'))
 assert cfg['algorithm_version']=='porygon.distance.v1'
 assert cfg['feature_schema_version']=='porygon.behaviour.v1'
 assert abs(sum(cfg['scoring_config']['top_level_weights'].values())-1.0) < 1e-12
@@ -61,11 +66,12 @@ pass "Public API exposes the immutable scoring definition and provisional-band w
 
 curl --fail --silent --show-error --get \
   --data-urlencode "image_digest=${digest}" \
-  "${base_url}/api/v1/baselines/active" > artifacts/phase5-active-profile.json
+  "${base_url}/api/v1/baselines/active" > artifacts/scoring-active-profile.json
+cp artifacts/scoring-active-profile.json artifacts/phase5-active-profile.json 2>/dev/null || true
 
 readarray -t profile_values < <(python3 - <<'PY'
 import json
-p=json.load(open('artifacts/phase5-active-profile.json'))
+p=json.load(open('artifacts/scoring-active-profile.json'))
 print(p['profile_id'])
 print(p['window_seconds'])
 print(p['training_start'])
@@ -82,8 +88,8 @@ expected_repo_digest="$(docker image inspect "$PROBE_IMAGE" --format '{{index .R
 [[ "$expected_repo_digest" == "$digest" ]] || fail "Probe image digest changed between profiling and scoring"
 docker run --detach \
   --name "$PROBE_NAME" \
-  --label io.porygon.phase5.probe=true \
-  --label "io.porygon.phase5.run=${RUN_ID}" \
+  --label io.porygon.scoring.probe=true \
+  --label "io.porygon.scoring.run=${RUN_ID}" \
   "$PROBE_IMAGE" sh -c 'sleep 600' >/dev/null
 full_container_id="$(docker inspect "$PROBE_NAME" --format '{{.Id}}')"
 
@@ -97,7 +103,7 @@ import json, os, sys
 try:
     with open(os.environ['CONTAINERS_PATH'], encoding='utf-8') as handle:
         items=json.load(handle)
-except Exception:
+except (OSError, json.JSONDecodeError):
     sys.exit(1)
 match=next((item for item in items if item.get('container_name')==os.environ['PROBE_NAME']), None)
 if not match or match.get('image_digest') != os.environ['EXPECTED_DIGEST']:
@@ -145,6 +151,10 @@ payload={
 }
 open(os.environ['OUTPUT'],'w').write(json.dumps(payload, indent=2, sort_keys=True))
 PY
+  local legacy_output="${output/scoring-/phase5-}"
+  if [[ "$legacy_output" != "$output" ]]; then
+    cp "$output" "$legacy_output" 2>/dev/null || true
+  fi
 }
 
 compute_score() {
@@ -156,16 +166,20 @@ compute_score() {
     -H "X-Porygon-Internal-Token: ${token}" \
     --data-binary "@${payload}" \
     "${base_url}/internal/v1/anomaly-scores/compute" > "$output"
+  local legacy_output="${output/scoring-/phase5-}"
+  if [[ "$legacy_output" != "$output" ]]; then
+    cp "$output" "$legacy_output" 2>/dev/null || true
+  fi
 }
 
 # Completed window with no new process execution. This must not be called normal.
 empty_start="$(utc_now)"
 sleep_until_window_complete "$empty_start" "$window_seconds"
-write_payload "$empty_start" artifacts/phase5-empty-payload.json
-compute_score artifacts/phase5-empty-payload.json artifacts/phase5-empty-score.json
+write_payload "$empty_start" artifacts/scoring-empty-payload.json
+compute_score artifacts/scoring-empty-payload.json artifacts/scoring-empty-score.json
 python3 - <<'PY' || fail "An empty telemetry window was not marked insufficient_data"
 import json
-s=json.load(open('artifacts/phase5-empty-score.json'))
+s=json.load(open('artifacts/scoring-empty-score.json'))
 assert s['status']=='insufficient_data'
 assert s['score_band']=='insufficient_data'
 assert s['total_score'] is None
@@ -175,13 +189,13 @@ pass "Missing process evidence is persisted as insufficient_data, never assumed 
 
 # Baseline-like process tree: sh -> sh -> sleep, matching the controlled training pattern.
 normal_start="$(utc_now)"
-docker exec "$PROBE_NAME" sh -c 'sh -c "sleep 1 & child=$!; wait $child" phase5-normal-inner' phase5-normal-outer
+docker exec "$PROBE_NAME" sh -c 'sh -c "sleep 1 & child=$!; wait $child" scoring-normal-inner' scoring-normal-outer
 sleep_until_window_complete "$normal_start" "$window_seconds"
-write_payload "$normal_start" artifacts/phase5-normal-payload.json
-compute_score artifacts/phase5-normal-payload.json artifacts/phase5-normal-score.json
+write_payload "$normal_start" artifacts/scoring-normal-payload.json
+compute_score artifacts/scoring-normal-payload.json artifacts/scoring-normal-score.json
 python3 - <<'PY' || fail "Baseline-like window did not produce a bounded explainable score"
 import json
-s=json.load(open('artifacts/phase5-normal-score.json'))
+s=json.load(open('artifacts/scoring-normal-score.json'))
 assert s['status']=='scored'
 assert 0.0 <= s['total_score'] <= 1.0
 assert s['score_band'] in {'baseline_like','elevated','high','extreme'}
@@ -206,22 +220,22 @@ docker exec "$PROBE_NAME" sh -c '
   cksum /etc/passwd >/dev/null
 '
 sleep_until_window_complete "$anomaly_start" "$window_seconds"
-write_payload "$anomaly_start" artifacts/phase5-novel-payload.json
-compute_score artifacts/phase5-novel-payload.json artifacts/phase5-novel-score.json
+write_payload "$anomaly_start" artifacts/scoring-novel-payload.json
+compute_score artifacts/scoring-novel-payload.json artifacts/scoring-novel-score.json
 
 NORMAL_SCORE="$(python3 - <<'PY'
 import json
-print(json.load(open('artifacts/phase5-normal-score.json'))['total_score'])
+print(json.load(open('artifacts/scoring-normal-score.json'))['total_score'])
 PY
 )" NOVEL_SCORE="$(python3 - <<'PY'
 import json
-print(json.load(open('artifacts/phase5-novel-score.json'))['total_score'])
+print(json.load(open('artifacts/scoring-novel-score.json'))['total_score'])
 PY
 )" python3 - <<'PY' || fail "Novel workload did not produce stronger explainable deviation"
 import json, os
 normal=float(os.environ['NORMAL_SCORE'])
 novel=float(os.environ['NOVEL_SCORE'])
-s=json.load(open('artifacts/phase5-novel-score.json'))
+s=json.load(open('artifacts/scoring-novel-score.json'))
 assert s['status']=='scored'
 assert 0.0 <= novel <= 1.0
 assert novel > normal
@@ -232,11 +246,11 @@ PY
 pass "A deliberately novel workload scored farther from the profile than the baseline-like workload"
 
 # Exact retry must return the same persisted record.
-compute_score artifacts/phase5-novel-payload.json artifacts/phase5-novel-score-retry.json
+compute_score artifacts/scoring-novel-payload.json artifacts/scoring-novel-score-retry.json
 python3 - <<'PY' || fail "Exact rescoring was not idempotent"
 import json
-first=json.load(open('artifacts/phase5-novel-score.json'))
-retry=json.load(open('artifacts/phase5-novel-score-retry.json'))
+first=json.load(open('artifacts/scoring-novel-score.json'))
+retry=json.load(open('artifacts/scoring-novel-score-retry.json'))
 assert retry['score_id']==first['score_id']
 assert retry['observation_key']==first['observation_key']
 assert retry['total_score']==first['total_score']
@@ -251,26 +265,30 @@ payload={
     'window_start': os.environ['TRAINING_START'],
     'profile_id': os.environ['PROFILE_ID'],
 }
+open('artifacts/scoring-overlap-payload.json','w').write(json.dumps(payload, indent=2, sort_keys=True))
 open('artifacts/phase5-overlap-payload.json','w').write(json.dumps(payload, indent=2, sort_keys=True))
 PY
-http_code="$(curl --silent --output artifacts/phase5-overlap-response.json --write-out '%{http_code}' \
+http_code="$(curl --silent --output artifacts/scoring-overlap-response.json --write-out '%{http_code}' \
   -X POST -H 'Content-Type: application/json' \
   -H "X-Porygon-Internal-Token: ${token}" \
-  --data-binary @artifacts/phase5-overlap-payload.json \
+  --data-binary @artifacts/scoring-overlap-payload.json \
   "${base_url}/internal/v1/anomaly-scores/compute")"
+cp artifacts/scoring-overlap-response.json artifacts/phase5-overlap-response.json 2>/dev/null || true
 [[ "$http_code" == "409" ]] || fail "Training-overlap score returned HTTP $http_code instead of 409"
 pass "Training and evaluation windows are kept separate"
 
 curl --fail --silent --show-error --get \
   --data-urlencode "image_digest=${digest}" \
-  "${base_url}/api/v1/anomaly-scores" > artifacts/phase5-scores.json
+  "${base_url}/api/v1/anomaly-scores" > artifacts/scoring-scores.json
+cp artifacts/scoring-scores.json artifacts/phase5-scores.json 2>/dev/null || true
 curl --fail --silent --show-error "${base_url}/api/v1/system/info" \
-  > artifacts/phase5-system-info.json
+  > artifacts/scoring-system-info.json
+cp artifacts/scoring-system-info.json artifacts/phase5-system-info.json 2>/dev/null || true
 
 python3 - <<'PY' || fail "Stored score and system invariants failed"
 import json
-scores=json.load(open('artifacts/phase5-scores.json'))
-info=json.load(open('artifacts/phase5-system-info.json'))
+scores=json.load(open('artifacts/scoring-scores.json'))
+info=json.load(open('artifacts/scoring-system-info.json'))
 assert len(scores) >= 3
 assert sum(item['status']=='insufficient_data' for item in scores) >= 1
 assert sum(item['status']=='scored' for item in scores) >= 2
@@ -282,5 +300,6 @@ assert info['insufficient_observations'] >= 1
 PY
 pass "System API reports unique scored and insufficient observations"
 
-docker compose ps > artifacts/phase5-services.txt
+docker compose ps > artifacts/scoring-services.txt
+cp artifacts/scoring-services.txt artifacts/phase5-services.txt 2>/dev/null || true
 printf '\nAnomaly scoring verification complete. Scores are behavioural distances, not attack verdicts.\n'

@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from contextlib import suppress
 from datetime import datetime, timezone
 
 import docker
@@ -35,10 +36,8 @@ class DockerEventSource:
     def stop(self) -> None:
         self.stop_event.set()
         if self.client is not None:
-            try:
+            with suppress(Exception):
                 self.client.close()
-            except Exception:
-                pass
         self.thread.join(timeout=5)
 
     def _connect(self) -> tuple[docker.APIClient, str]:
@@ -168,8 +167,6 @@ class DockerEventSource:
             finally:
                 self.state.set(event_stream_connected=False)
                 if self.client is not None:
-                    try:
+                    with suppress(Exception):
                         self.client.close()
-                    except Exception:
-                        pass
                     self.client = None

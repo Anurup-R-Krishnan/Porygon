@@ -4,16 +4,16 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 RUN_ID="${PORYGON_VERIFY_RUN_ID:-$(date -u +%Y%m%dt%H%M%Sz)-$$}"
-PROBE_NAME="porygon-phase2-${RUN_ID}"
-PROBE_NETWORK="porygon-phase2-net-${RUN_ID}"
+PROBE_NAME="porygon-ingest-${RUN_ID}"
+PROBE_NETWORK="porygon-ingest-net-${RUN_ID}"
 PROBE_IMAGE="alpine:3.20"
-PROBE_EXECUTIONS="${PORYGON_PHASE2_EXECUTIONS:-40}"
+PROBE_EXECUTIONS="${PORYGON_INGEST_EXECUTIONS:-${PORYGON_PHASE2_EXECUTIONS:-40}}"
 COLLECTOR_CONSTRAINED=false
 LOCAL_ARTIFACT_DIR="artifacts/local"
-PROBE_EVENTS_PATH="${LOCAL_ARTIFACT_DIR}/phase2-${RUN_ID}-events.json"
-PROBE_EVENTS_AFTER_PATH="${LOCAL_ARTIFACT_DIR}/phase2-${RUN_ID}-events-after.json"
-DAEMON_EVENTS_PATH="${LOCAL_ARTIFACT_DIR}/phase2-${RUN_ID}-docker-events.jsonl"
-EVIDENCE_DIR="${LOCAL_ARTIFACT_DIR}/phase2-${RUN_ID}"
+PROBE_EVENTS_PATH="${LOCAL_ARTIFACT_DIR}/ingest-${RUN_ID}-events.json"
+PROBE_EVENTS_AFTER_PATH="${LOCAL_ARTIFACT_DIR}/ingest-${RUN_ID}-events-after.json"
+DAEMON_EVENTS_PATH="${LOCAL_ARTIFACT_DIR}/ingest-${RUN_ID}-docker-events.jsonl"
+EVIDENCE_DIR="${LOCAL_ARTIFACT_DIR}/ingest-${RUN_ID}"
 
 fail() {
   echo "[FAIL] $*" >&2
@@ -116,13 +116,13 @@ docker compose stop backend >/dev/null
 
 docker create \
   --name "$PROBE_NAME" \
-  --label io.porygon.phase2.probe=true \
-  --label "io.porygon.phase2.run=${RUN_ID}" \
+  --label io.porygon.ingest.probe=true \
+  --label "io.porygon.ingest.run=${RUN_ID}" \
   "$PROBE_IMAGE" sleep 300 >/dev/null
 full_container_id="$(docker inspect "$PROBE_NAME" --format '{{.Id}}')"
 docker start "$PROBE_NAME" >/dev/null
 for execution in $(seq 1 "$PROBE_EXECUTIONS"); do
-  docker exec "$PROBE_NAME" sh -c "echo porygon-phase2-${RUN_ID}-${execution}" >/dev/null
+  docker exec "$PROBE_NAME" sh -c "echo porygon-ingest-${RUN_ID}-${execution}" >/dev/null
 done
 docker network connect "$PROBE_NETWORK" "$PROBE_NAME"
 docker network disconnect "$PROBE_NETWORK" "$PROBE_NAME"
@@ -331,7 +331,7 @@ SPOOL_LIMIT="$configured_spool_limit" \
 OVERFLOW_DELTA="$overflow_delta" \
 INSERTED_COUNT="$inserted_count" \
 REPLAY_ROW_GROWTH="$replay_row_growth" \
-python3 - <<'PY' > artifacts/phase2-capture-integrity.json
+python3 - <<'PY' | tee artifacts/phase2-capture-integrity.json > artifacts/event-ingestion-capture-integrity.json
 import json, os
 
 daemon=json.loads(os.environ['DAEMON_METRICS'])
