@@ -75,6 +75,16 @@ All contributors and AI pairing assistants must adhere strictly to every rule de
   alembic upgrade head --dry-run
   ```
 
+### 3.3 Prohibition of Arbitrary Version Suffixes (`v1`, `v2`, `0.0.1`, `v1.0.0`)
+* **Prohibited Ad-Hoc Version Tagging:** Do **NOT** introduce or append arbitrary, premature, or ad-hoc version suffixes (e.g., `v1`, `v2`, `0.0.1`, `v1.0.0`, `v0.8.0`) to filenames, documentation files, directories, UI headers, schemas, or script names.
+* **Canonical & Purpose-Driven Naming:**
+  * Use descriptive, canonical, and functional identifiers instead of proliferating version-stamped duplicates (e.g., prefer `pilot-dataset` or `adversarial-scenarios.md` over juggling `pilot-v1` vs. `pilot-v1.0.0`).
+  * Avoid naming files or test scripts with superficial version appendages (e.g., avoid `PROTOCOL_V1.md`, `test_v2.py`, `script_v1.sh`).
+* **UI & Presentation Cleanliness:**
+  * Do not clutter UI headers, mastheads, or dashboard footers with artificial release tags like `Vol. I`, `v1.0.0`, or `v0.0.1`. Keep system branding clean, authoritative, and stable.
+* **Preservation of Established Historical Protocols:**
+  * Pre-existing frozen protocol files verified by automated protocol checkers (such as `threat-model-claims-v1.md` or `protocol-v1/`) remain immutable per Section 2.2, but no *new* arbitrary `v1`/`0.0.1` tags may be introduced across code, docs, or UI.
+
 ---
 
 ## 4. Codebase Auditing, Tooling & Verification Workflow
@@ -135,3 +145,4 @@ Before committing any changes or concluding a task, run the full verification ba
 * **Project Homepage:** Provide a clean, modern landing interface introducing Porygon's container security research architecture, with seamless navigation to the interactive dashboard.
 * **Visual Excellence:** Follow modern, high-contrast dark themes with clean typography (Inter / Roboto), subtle micro-animations, structured metrics, and accessible data visualizations.
 * **Testing IDs:** Ensure all interactive elements have unique, descriptive IDs for browser automation and automated verification.
+* **Clean, Uncluttered Editorial Typography:** Never clutter UI headers, titles, or mastheads with ad-hoc version badges (`v1`, `0.0.1`, `Vol. I`); maintain clean, authoritative publication standards.
