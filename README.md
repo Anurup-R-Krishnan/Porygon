@@ -183,4 +183,4 @@ Explore the complete documentation in [`docs/`](docs/):
 
 ## Pilot dataset
 
-[Dataset v1.0.0](datasets/porygon-pilot-v1.0.0/readme.md): 216 controlled-container trial metadata records with labels, provenance and offline validation. Raw process events are not included; licensed under CC BY 4.0, with public release pending.
+[Dataset v1.0.0](datasets/porygon-pilot-v1.0.0/readme.md): 216 controlled-container trial metadata records with labels, provenance and offline validation. Raw process events are not included; licensed under CC BY 4.0. [Public release](https://github.com/Anurup-R-Krishnan/Porygon/tree/codex/technical-enrichment/datasets/porygon-pilot-v1.0.0).

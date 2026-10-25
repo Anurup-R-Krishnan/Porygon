@@ -1,0 +1,24 @@
+{
+  "dataset_version": "1.0.0",
+  "evidence_class": "pilot",
+  "historical_conflicts": [
+    "Run identifier contains confirmatory despite pilot evidence class.",
+    "Nested study stages retain historical confirmatory flags; release metadata overrides eligibility.",
+    "Study stage reports fit/calibration/test counts but source trials all declare pilot.",
+    "Analysis denominators (53 benign, 96 scenario) are subsets, not all 216 trials; membership is not provided here."
+  ],
+  "label_counts": {
+    "controlled_attack_like": 144,
+    "controlled_non_attack_like": 72
+  },
+  "license": "CC-BY-4.0",
+  "license_status": "owner_authorized_2026-10-25",
+  "public_repository": "https://github.com/Anurup-R-Krishnan/Porygon/tree/codex/technical-enrichment/datasets/porygon-pilot-v1.0.0",
+  "raw_process_events_included": false,
+  "research_eligible": false,
+  "source_run": "study-confirmatory-200-20260906t071234Z",
+  "split_policy": "All records are pilot; no confirmatory train/test split is claimed.",
+  "status": "release",
+  "title": "Porygon controlled-container pilot trial metadata",
+  "trial_count": 216
+}

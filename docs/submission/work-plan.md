@@ -1,11 +1,13 @@
 # Individual contribution submission work plan
 
-Scope: only Anurup R Krishnan’s contribution. No presentation or paper. Activities 3/5/8 remain group-marked under the PDF.
+Scope: Anurup R Krishnan's certification and contribution evidence. Activities 3, 5 and 8 receive group marks under the college rubric. Presentation and paper preparation remain outside this submission task.
 
-- [completed, high] Extract exact deliverables; no mandatory page layout specified.
-- [completed, high] Locate original Cisco certificate, course details and one-page relevance summary.
-- [in-progress, high] Apply CC BY 4.0 to Dataset v1.0.0 and verify package.
-- [in-progress, high] Attempt controlled live demo; Falco BPF verifier rejects signal_deliver on host kernel 7.2.7-1-cachyos.
-- [pending, high] Prepare personal evidence index and activity documents in PDF/DOCX.
-- [pending, medium] Package certification, dataset and repository evidence in private local ZIP.
-- [pending, high] Verify document layout, archive, integrity and remaining requirements.
+- Completed: map required deliverables and preserve original Cisco documents.
+- Completed: package and verify 216 trial records under CC BY 4.0.
+- Completed: capture successful end-to-end demonstration and render a 124-second 1080p video.
+- Completed: provide offline metric reproduction, sample outputs and recorded configuration/model identifiers.
+- Completed: prepare installation instructions, repository source snapshot and commit history.
+- Completed: generate and visually inspect the eight-page consolidated PDF and editable evidence document.
+- Final verification: publish the dedicated public submission branch and check the final archive.
+- College handoff: guide verifies the selected activities and uploads the consolidated files to the designated OneDrive.
+- Deferred: broad project improvements and existing repository-wide style failures.
