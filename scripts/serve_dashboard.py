@@ -43,8 +43,6 @@ if env_file.is_file():
                 os.environ[k] = v
 
 DEMO_MODE_ENV = "PORYGON_DEMO_MODE"
-if DEMO_MODE_ENV not in os.environ:
-    os.environ[DEMO_MODE_ENV] = "1"
 OPERATOR_TOKEN_ENV = "PORYGON_OPERATOR_API_TOKEN"
 OPERATOR_TOKEN_HEADER = "X-Porygon-Operator-Token"
 
@@ -70,6 +68,12 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Pragma", "no-cache")
         self.send_header("Expires", "0")
         super().end_headers()
+
+    def do_HEAD(self) -> None:
+        if self._is_backend_path():
+            self.proxy_api()
+        else:
+            super().do_HEAD()
 
     def do_GET(self) -> None:
         if self._is_backend_path():
