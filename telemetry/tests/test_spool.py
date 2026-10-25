@@ -153,3 +153,26 @@ def test_old_dead_letter_schema_is_upgraded_without_retaining_raw_line(tmp_path)
     assert row["raw_byte_length"] == len(b"api_key=legacy-secret")
     assert "legacy-secret" not in row["excerpt"]
     assert store.dead_letter_count() == 1
+
+
+def test_batch_and_cursor_rollback_together_when_capacity_is_exceeded(tmp_path):
+    import pytest
+    from porygon_telemetry.spool import SpoolFullError
+    store=TelemetryStore(str(tmp_path/'atomic.db'),max_events=2)
+    assert store.enqueue_batch([{'event_id':'a'}],inode=12,offset=100)==(1,1)
+    with pytest.raises(SpoolFullError):
+        store.enqueue_batch([{'event_id':'b'},{'event_id':'c'}],inode=12,offset=300)
+    assert store.get_file_cursor()==(12,100)
+    assert [x['event_id'] for x in store.fetch_due(10)]==['a']
+    store.acknowledge(['a'])
+    assert store.enqueue_batch([{'event_id':'b'},{'event_id':'c'}],inode=12,offset=300)==(2,2)
+    reopened=TelemetryStore(str(store.path),max_events=2)
+    assert reopened.get_file_cursor()==(12,300)
+    assert reopened.count()==2
+
+
+def test_batch_duplicate_ids_consume_capacity_once(tmp_path):
+    store=TelemetryStore(str(tmp_path/'duplicates.db'),max_events=1)
+    assert store.enqueue_batch([{'event_id':'a'},{'event_id':'a'}],inode=1,offset=20)==(1,1)
+    assert store.enqueue_batch([{'event_id':'a'}],inode=1,offset=30)==(0,1)
+    assert store.get_file_cursor()==(1,30)

@@ -475,6 +475,7 @@ def ingest_runtime_events(
             _upsert_container_identity(db, event, observed_at)
 
         db.commit()
+        _reconcile_process_identities(db)
     except SQLAlchemyError as exc:
         db.rollback()
         logger.exception("Runtime event batch failed")
@@ -547,6 +548,64 @@ def _find_parent_event_id(
     return db.scalar(statement.order_by(desc(ProcessExecEvent.time_nano)).limit(1))
 
 
+def _reconcile_process_identities(db: Session, limit: int = 1000) -> int:
+    """Repair out-of-order telemetry once one unambiguous identity is committed.
+
+    Both ingestion paths call this after committing their batch. The second
+    committer therefore sees the first even when lifecycle and exec ingestion
+    race. Unmatchable records do not consume the bounded repair batch.
+    """
+    matching = select(func.count()).select_from(ContainerIdentity).where(
+        ContainerIdentity.container_id.startswith(ProcessExecEvent.reported_container_id),
+        or_(ProcessExecEvent.reported_docker_host_id.is_(None),
+            ContainerIdentity.docker_host_id == ProcessExecEvent.reported_docker_host_id),
+    ).correlate(ProcessExecEvent).scalar_subquery()
+    known_digest = select(func.max(ContainerIdentity.image_digest)).where(
+        ContainerIdentity.container_id.startswith(ProcessExecEvent.reported_container_id),
+        or_(ProcessExecEvent.reported_docker_host_id.is_(None),
+            ContainerIdentity.docker_host_id == ProcessExecEvent.reported_docker_host_id),
+    ).correlate(ProcessExecEvent).scalar_subquery()
+    rows = list(db.scalars(select(ProcessExecEvent).where(
+        or_(ProcessExecEvent.correlation_status != "resolved", ProcessExecEvent.image_digest.is_(None)),
+        ProcessExecEvent.reported_container_id.is_not(None),
+        ProcessExecEvent.reported_container_id != "",
+        ProcessExecEvent.reported_container_id != "host",
+        matching == 1,
+        known_digest.is_not(None),
+    ).order_by(ProcessExecEvent.time_nano, ProcessExecEvent.event_id).limit(limit)))
+    repaired = 0
+    for event in rows:
+        correlation, identity = _resolve_container_identity(
+            db, event.reported_container_id, event.reported_docker_host_id,
+        )
+        if correlation != "resolved" or identity is None or not identity.image_digest:
+            continue
+        event.docker_host_id = identity.docker_host_id
+        event.container_id = identity.container_id
+        event.container_name = identity.container_name
+        event.image_id = identity.image_id
+        event.image_ref = identity.image_ref
+        event.image_digest = identity.image_digest
+        event.correlation_status = "resolved"
+        db.flush()
+        event.parent_event_id = _find_parent_event_id(
+            db, sensor_instance_id=event.sensor_instance_id,
+            docker_host_id=identity.docker_host_id, container_id=identity.container_id,
+            process_ppid=event.process_ppid, occurred_at=event.occurred_at,
+            time_nano=event.time_nano,
+        )
+        repaired += 1
+    db.commit()
+    return repaired
+
+
+@app.post("/internal/v1/process-events/reconcile", tags=["internal"],
+          dependencies=[Depends(require_internal_token)])
+def reconcile_process_events(db: Session = Depends(get_db)) -> dict[str, int]:
+    """Bounded recovery for retained events collected before lifecycle identity."""
+    return {"repaired": _reconcile_process_identities(db)}
+
+
 @app.post(
     "/internal/v1/process-events/batch",
     response_model=ProcessExecEventBatchOut,
@@ -612,6 +671,7 @@ def ingest_process_events(
             inserted += int(result.rowcount or 0)
 
         db.commit()
+        _reconcile_process_identities(db)
     except SQLAlchemyError as exc:
         db.rollback()
         logger.exception("Process event batch failed")

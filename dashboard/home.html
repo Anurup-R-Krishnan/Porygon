@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Porygon — eBPF Runtime Security &amp; Anomaly Intelligence</title>
-  <meta name="description" content="Porygon is a research-grade container security platform combining eBPF telemetry, ML anomaly detection, vulnerability enrichment, and autonomous containment response.">
+  <meta name="description"
+    content="Porygon is a research-grade container security platform combining eBPF telemetry, ML anomaly detection, vulnerability enrichment, and autonomous containment response.">
 
   <!-- Favicon matching the dashboard -->
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23111111'/%3E%3Cpath d='M8 6h16v20H8z' fill='%23F9F9F7'/%3E%3Cpath d='M11 10h10M11 14h10M11 18h6' stroke='%23111111' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23111111'/%3E%3Cpath d='M8 6h16v20H8z' fill='%23F9F9F7'/%3E%3Cpath d='M11 10h10M11 14h10M11 18h6' stroke='%23111111' stroke-width='2'/%3E%3C/svg%3E">
 
   <!-- Newsprint Design System Stylesheet -->
   <link rel="stylesheet" href="style.css?v=2.5">
@@ -34,8 +37,11 @@
       margin: 0 auto;
       padding: 0 1.5rem;
     }
+
     @media (min-width: 640px) {
-      .home-root { padding: 0 2rem; }
+      .home-root {
+        padding: 0 2rem;
+      }
     }
 
     /* Utility Top Nav */
@@ -44,6 +50,7 @@
       background-color: #FFFFFF;
       padding: 0.5rem 1.5rem;
     }
+
     .top-utility-inner {
       max-width: 1400px;
       margin: 0 auto;
@@ -53,6 +60,7 @@
       gap: 1rem;
       flex-wrap: wrap;
     }
+
     .top-utility-tag {
       font-family: var(--font-mono);
       font-size: 0.6875rem;
@@ -60,6 +68,7 @@
       letter-spacing: 0.14em;
       color: #737373;
     }
+
     .top-utility-nav {
       display: inline-flex;
       align-items: center;
@@ -71,28 +80,32 @@
       text-transform: uppercase;
       letter-spacing: 0.1em;
     }
+
     .top-utility-nav a {
       padding: 0.35rem 0.85rem;
       color: var(--color-ink);
       text-decoration: none;
       transition: background-color 120ms ease, color 120ms ease;
     }
+
     .top-utility-nav a:not(:last-child) {
       border-right: 1px solid var(--color-ink);
     }
+
     .top-utility-nav a.active {
       background-color: var(--color-ink);
       color: var(--color-paper);
     }
+
     .top-utility-nav a:hover:not(.active) {
       background-color: #EFEFEA;
     }
 
     /* Masthead */
     .masthead {
-      border-bottom: 5px double var(--color-ink);
       padding: 1.25rem 0 0.85rem;
     }
+
     .masthead-pub-line {
       font-family: var(--font-ui);
       font-size: 0.6875rem;
@@ -107,6 +120,7 @@
       gap: 0.5rem;
       margin-bottom: 0.5rem;
     }
+
     .masthead-title-wrap {
       display: flex;
       align-items: center;
@@ -114,14 +128,19 @@
       gap: 1.5rem;
       margin: 0.25rem 0;
     }
+
     .masthead-rule {
       flex: 1;
       height: 2px;
       background-color: var(--color-ink);
     }
+
     @media (max-width: 680px) {
-      .masthead-rule { display: none; }
+      .masthead-rule {
+        display: none;
+      }
     }
+
     .masthead-title {
       font-family: var(--font-display);
       font-size: clamp(3.2rem, 8.5vw, 7rem);
@@ -132,6 +151,7 @@
       margin: 0;
       color: var(--color-ink);
     }
+
     .masthead-subtitle {
       font-family: var(--font-ui);
       font-size: 0.8125rem;
@@ -141,6 +161,7 @@
       color: #525252;
       margin: 0.5rem 0 0;
     }
+
     .masthead-edition-bar {
       display: flex;
       align-items: center;
@@ -165,6 +186,7 @@
       position: relative;
       border-bottom: 2px solid var(--color-ink);
     }
+
     .ticker-label {
       position: absolute;
       left: 0;
@@ -182,28 +204,41 @@
       align-items: center;
       z-index: 5;
       border-right: 2px solid var(--color-paper);
-      box-shadow: 2px 0 6px rgba(0,0,0,0.25);
+      box-shadow: 2px 0 6px rgba(0, 0, 0, 0.25);
     }
+
     .ticker-viewport {
       padding-left: 6.5rem;
       overflow: hidden;
       white-space: nowrap;
     }
+
     .ticker-track {
       display: inline-flex;
       width: max-content;
       animation: tickerLoop 42s linear infinite;
     }
+
     .ticker-banner:hover .ticker-track {
       animation-play-state: paused;
     }
+
     @keyframes tickerLoop {
-      0%   { transform: translate3d(0, 0, 0); }
-      100% { transform: translate3d(-50%, 0, 0); }
+      0% {
+        transform: translate3d(0, 0, 0);
+      }
+
+      100% {
+        transform: translate3d(-50%, 0, 0);
+      }
     }
+
     @media (prefers-reduced-motion: reduce) {
-      .ticker-track { animation: none !important; }
+      .ticker-track {
+        animation: none !important;
+      }
     }
+
     .ticker-group {
       display: inline-flex;
       align-items: center;
@@ -212,11 +247,13 @@
       font-weight: 500;
       letter-spacing: 0.04em;
     }
+
     .ticker-item {
       display: inline-flex;
       align-items: center;
       padding: 0 1rem;
     }
+
     .ticker-sep {
       color: var(--color-accent-red);
       margin-left: 1rem;
@@ -243,8 +280,11 @@
       border-top: 2px solid var(--color-ink);
       margin-top: 1.5rem;
     }
+
     @media (max-width: 960px) {
-      .hero-grid { grid-template-columns: 1fr; }
+      .hero-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     .hero-main {
@@ -252,6 +292,7 @@
       border-right: 2px solid var(--color-ink);
       position: relative;
     }
+
     @media (max-width: 960px) {
       .hero-main {
         border-right: none;
@@ -265,6 +306,7 @@
       position: relative;
       overflow: hidden;
     }
+
     .scan-beam::after {
       content: '';
       position: absolute;
@@ -276,11 +318,25 @@
       pointer-events: none;
       opacity: 0.85;
     }
+
     @keyframes scanSweep {
-      0%   { top: -2px; opacity: 0; }
-      10%  { opacity: 0.8; }
-      90%  { opacity: 0.8; }
-      100% { top: 100%; opacity: 0; }
+      0% {
+        top: -2px;
+        opacity: 0;
+      }
+
+      10% {
+        opacity: 0.8;
+      }
+
+      90% {
+        opacity: 0.8;
+      }
+
+      100% {
+        top: 100%;
+        opacity: 0;
+      }
     }
 
     .hero-headline {
@@ -291,10 +347,12 @@
       margin: 0 0 1.25rem;
       color: var(--color-ink);
     }
+
     .hero-headline em {
       font-style: italic;
       color: var(--color-accent-red);
     }
+
     .hero-body {
       font-family: var(--font-body);
       font-size: 1.0625rem;
@@ -303,6 +361,7 @@
       max-width: 58ch;
       margin-bottom: 1.75rem;
     }
+
     .hero-body strong {
       color: var(--color-ink);
       font-weight: 700;
@@ -333,6 +392,7 @@
       transition: all 140ms var(--ease-snappy);
       box-shadow: 4px 4px 0 var(--color-ink);
     }
+
     .btn-cta-primary:hover {
       background-color: var(--color-accent-red);
       color: #FFFFFF;
@@ -340,6 +400,7 @@
       transform: translate(-2px, -2px);
       box-shadow: 6px 6px 0 var(--color-ink);
     }
+
     .btn-cta-primary:active {
       transform: translate(1px, 1px);
       box-shadow: 2px 2px 0 var(--color-ink);
@@ -362,6 +423,7 @@
       gap: 0.5rem;
       transition: all 140ms var(--ease-snappy);
     }
+
     .btn-cta-secondary:hover {
       background-color: var(--color-ink);
       color: var(--color-paper);
@@ -376,6 +438,7 @@
       gap: 0.45rem;
       margin-top: 1.5rem;
     }
+
     .badge-tag {
       font-family: var(--font-mono);
       font-size: 0.625rem;
@@ -387,10 +450,12 @@
       color: var(--color-ink);
       background-color: #FFFFFF;
     }
+
     .badge-tag.filled {
       background-color: var(--color-ink);
       color: var(--color-paper);
     }
+
     .badge-tag.red {
       background-color: var(--color-accent-red);
       color: #FFFFFF;
@@ -401,8 +466,11 @@
     .hero-side {
       padding: 2rem 0 2rem 2rem;
     }
+
     @media (max-width: 960px) {
-      .hero-side { padding: 2rem 0; }
+      .hero-side {
+        padding: 2rem 0;
+      }
     }
 
     .stat-card {
@@ -413,10 +481,12 @@
       position: relative;
       transition: transform 140ms var(--ease-snappy), box-shadow 140ms var(--ease-snappy);
     }
+
     .stat-card:hover {
       transform: translate(-2px, -2px);
       box-shadow: 4px 4px 0 var(--color-ink);
     }
+
     .stat-card-accent {
       position: absolute;
       top: 0;
@@ -425,9 +495,11 @@
       height: 100%;
       background-color: var(--color-ink);
     }
+
     .stat-card-accent.red {
       background-color: var(--color-accent-red);
     }
+
     .stat-card-value {
       font-family: var(--font-display);
       font-size: 2.25rem;
@@ -439,6 +511,7 @@
       align-items: baseline;
       gap: 0.35rem;
     }
+
     .stat-card-label {
       font-family: var(--font-mono);
       font-size: 0.6875rem;
@@ -446,6 +519,7 @@
       letter-spacing: 0.12em;
       color: #737373;
     }
+
     .stat-card-sub {
       font-family: var(--font-ui);
       font-size: 0.6875rem;
@@ -458,9 +532,11 @@
       padding: 2.5rem 0;
       border-bottom: 2px solid var(--color-ink);
     }
+
     .arch-header {
       margin-bottom: 1.25rem;
     }
+
     .arch-title {
       font-family: var(--font-display);
       font-size: 1.625rem;
@@ -468,6 +544,7 @@
       margin: 0 0 0.3rem;
       color: var(--color-ink);
     }
+
     .arch-sub {
       font-family: var(--font-body);
       font-size: 0.9375rem;
@@ -480,17 +557,20 @@
       overflow-x: auto;
       padding: 10px 4px 18px 4px;
     }
+
     .pipeline-grid {
       display: flex;
       align-items: stretch;
       min-width: 820px;
     }
+
     .pipe-node-link {
       flex: 1;
       display: flex;
       text-decoration: none;
       color: inherit;
     }
+
     .pipe-node-box {
       flex: 1;
       border: 2px solid var(--color-ink);
@@ -500,9 +580,11 @@
       transition: transform 140ms var(--ease-snappy), box-shadow 140ms var(--ease-snappy), background-color 140ms ease, color 140ms ease;
       cursor: pointer;
     }
+
     .pipe-node-link:not(:first-child) .pipe-node-box {
       border-left: none;
     }
+
     .pipe-node-box:hover {
       background-color: var(--color-ink);
       color: var(--color-paper);
@@ -510,10 +592,22 @@
       box-shadow: 0 8px 0 var(--color-ink);
       z-index: 10;
     }
-    .pipe-node-box:hover .pipe-node-num { color: #888888; }
-    .pipe-node-box:hover .pipe-node-icon { color: var(--color-paper); }
-    .pipe-node-box:hover .pipe-node-desc { color: #D1D1D1; }
-    .pipe-node-box:hover .pipe-node-tech { color: #E5E5E0; }
+
+    .pipe-node-box:hover .pipe-node-num {
+      color: #888888;
+    }
+
+    .pipe-node-box:hover .pipe-node-icon {
+      color: var(--color-paper);
+    }
+
+    .pipe-node-box:hover .pipe-node-desc {
+      color: #D1D1D1;
+    }
+
+    .pipe-node-box:hover .pipe-node-tech {
+      color: #E5E5E0;
+    }
 
     .pipe-node-num {
       font-family: var(--font-mono);
@@ -523,6 +617,7 @@
       color: #999999;
       margin-bottom: 0.35rem;
     }
+
     .pipe-node-icon {
       font-size: 1.5rem;
       color: var(--color-ink);
@@ -530,6 +625,7 @@
       margin-bottom: 0.45rem;
       transition: color 140ms;
     }
+
     .pipe-node-name {
       font-family: var(--font-ui);
       font-size: 0.8125rem;
@@ -538,6 +634,7 @@
       letter-spacing: 0.1em;
       margin-bottom: 0.35rem;
     }
+
     .pipe-node-desc {
       font-family: var(--font-body);
       font-size: 0.75rem;
@@ -545,6 +642,7 @@
       color: #555555;
       margin-bottom: 0.5rem;
     }
+
     .pipe-node-tech {
       font-family: var(--font-mono);
       font-size: 0.625rem;
@@ -553,6 +651,7 @@
       letter-spacing: 0.08em;
       font-weight: 600;
     }
+
     .pipe-chevron {
       position: absolute;
       right: -8px;
@@ -571,9 +670,11 @@
       padding: 2.5rem 0;
       border-bottom: 2px solid var(--color-ink);
     }
+
     .capabilities-header {
       margin-bottom: 1.25rem;
     }
+
     .cap-grid-boxed {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -581,11 +682,17 @@
       background-color: var(--color-ink);
       gap: 1px;
     }
+
     @media (max-width: 1024px) {
-      .cap-grid-boxed { grid-template-columns: repeat(2, 1fr); }
+      .cap-grid-boxed {
+        grid-template-columns: repeat(2, 1fr);
+      }
     }
+
     @media (max-width: 640px) {
-      .cap-grid-boxed { grid-template-columns: 1fr; }
+      .cap-grid-boxed {
+        grid-template-columns: 1fr;
+      }
     }
 
     .cap-box {
@@ -596,6 +703,7 @@
       position: relative;
       transition: background-color 140ms ease, color 140ms ease;
     }
+
     .cap-box::before {
       content: '';
       position: absolute;
@@ -608,17 +716,21 @@
       transform-origin: left;
       transition: transform 180ms var(--ease-snappy);
     }
+
     .cap-box:hover::before {
       transform: scaleX(1);
     }
+
     .cap-box:hover {
       background-color: #FFFFFF;
     }
+
     .cap-icon {
       font-size: 1.85rem;
       color: var(--color-ink);
       margin-bottom: 0.75rem;
     }
+
     .cap-capability-tag {
       font-family: var(--font-mono);
       font-size: 0.625rem;
@@ -628,6 +740,7 @@
       margin-bottom: 0.5rem;
       font-weight: 700;
     }
+
     .cap-title {
       font-family: var(--font-display);
       font-size: 1.1875rem;
@@ -636,6 +749,7 @@
       margin: 0 0 0.5rem;
       color: var(--color-ink);
     }
+
     .cap-body {
       font-family: var(--font-body);
       font-size: 0.875rem;
@@ -644,6 +758,7 @@
       flex-grow: 1;
       margin-bottom: 1.25rem;
     }
+
     .cap-action-link {
       font-family: var(--font-ui);
       font-size: 0.75rem;
@@ -660,6 +775,7 @@
       align-self: flex-start;
       transition: color 120ms ease, border-color 120ms ease;
     }
+
     .cap-action-link:hover {
       color: var(--color-accent-red);
       border-color: var(--color-accent-red);
@@ -670,6 +786,7 @@
       padding: 2.25rem 0;
       border-bottom: 2px solid var(--color-ink);
     }
+
     .sim-card {
       border: 2px solid var(--color-ink);
       background-color: #FFFFFF;
@@ -680,15 +797,20 @@
       align-items: center;
       box-shadow: 4px 4px 0 var(--color-ink);
     }
+
     @media (max-width: 880px) {
-      .sim-card { grid-template-columns: 1fr; }
+      .sim-card {
+        grid-template-columns: 1fr;
+      }
     }
+
     .sim-scenarios-pills {
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
       margin-top: 1rem;
     }
+
     .sim-pill {
       font-family: var(--font-mono);
       font-size: 0.6875rem;
@@ -706,24 +828,34 @@
       grid-template-columns: 1fr 1fr;
       border-bottom: 2px solid var(--color-ink);
     }
+
     @media (max-width: 820px) {
-      .governance-strip { grid-template-columns: 1fr; }
+      .governance-strip {
+        grid-template-columns: 1fr;
+      }
     }
+
     .gov-col {
       padding: 2.25rem 2rem 2.25rem 0;
     }
+
     .gov-col.right {
       padding: 2.25rem 0 2.25rem 2rem;
       border-left: 2px solid var(--color-ink);
     }
+
     @media (max-width: 820px) {
-      .gov-col { padding: 2rem 0; }
+      .gov-col {
+        padding: 2rem 0;
+      }
+
       .gov-col.right {
         border-left: none;
         border-top: 2px solid var(--color-ink);
         padding: 2rem 0;
       }
     }
+
     .gov-title {
       font-family: var(--font-display);
       font-size: 1.25rem;
@@ -731,6 +863,7 @@
       margin: 0 0 0.75rem;
       color: var(--color-ink);
     }
+
     .gov-body {
       font-family: var(--font-body);
       font-size: 0.9rem;
@@ -745,6 +878,7 @@
       padding: 3rem 0;
       border-top: 2px solid var(--color-ink);
     }
+
     .cta-band-inner {
       display: flex;
       align-items: center;
@@ -752,6 +886,7 @@
       gap: 2rem;
       flex-wrap: wrap;
     }
+
     .cta-band-title {
       font-family: var(--font-display);
       font-size: clamp(1.6rem, 3.2vw, 2.5rem);
@@ -759,10 +894,12 @@
       line-height: 1.1;
       margin: 0;
     }
+
     .cta-band-title em {
       font-style: italic;
       color: #D1D1D1;
     }
+
     .cta-band-sub {
       font-family: var(--font-body);
       font-size: 0.9375rem;
@@ -770,6 +907,7 @@
       margin: 0.5rem 0 0;
       max-width: 52ch;
     }
+
     .btn-cta-inverted {
       background-color: var(--color-paper);
       color: var(--color-ink);
@@ -786,16 +924,18 @@
       align-items: center;
       gap: 0.6rem;
       transition: all 140ms var(--ease-snappy);
-      box-shadow: 4px 4px 0 rgba(249,249,247,0.3);
+      box-shadow: 4px 4px 0 rgba(249, 249, 247, 0.3);
       white-space: nowrap;
     }
+
     .btn-cta-inverted:hover {
       background-color: var(--color-accent-red);
       color: #FFFFFF;
       border-color: var(--color-accent-red);
       transform: translate(-2px, -2px);
-      box-shadow: 6px 6px 0 rgba(249,249,247,0.4);
+      box-shadow: 6px 6px 0 rgba(249, 249, 247, 0.4);
     }
+
     .btn-cta-inverted:active {
       transform: translate(1px, 1px);
     }
@@ -810,12 +950,14 @@
       flex-wrap: wrap;
       gap: 0.75rem;
     }
+
     .home-footer-nav {
       display: flex;
       gap: 1.5rem;
       align-items: center;
       flex-wrap: wrap;
     }
+
     .home-footer-nav a {
       color: var(--color-ink);
       text-decoration: none;
@@ -826,15 +968,24 @@
       border-bottom: 1px solid transparent;
       transition: border-color 120ms;
     }
+
     .home-footer-nav a:hover {
       border-bottom-color: var(--color-ink);
     }
 
     /* Blinking Pulse */
     @keyframes blinkDot {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.2; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.2;
+      }
     }
+
     .blink-pulse {
       animation: blinkDot 1.4s ease-in-out infinite;
     }
@@ -846,7 +997,7 @@
   <aside class="top-utility-bar" aria-label="System Identity and Quick Switcher">
     <div class="top-utility-inner">
       <div class="top-utility-tag">
-        23CSE498 &middot; Final Year Project &middot; Team 75 &middot; Panel Review 1
+        23CSE498 &middot; Final Year Project &middot; Team 75
       </div>
       <nav class="top-utility-nav" aria-label="Primary Navigation">
         <a href="home.html" class="active">Home Overview</a>
@@ -858,15 +1009,8 @@
     </div>
   </aside>
 
-  <!-- MASTHEAD -->
   <div class="home-root">
     <header class="masthead">
-      <div class="masthead-pub-line">
-        <span>Vol. I &middot; Special Research Edition</span>
-        <span id="live-date">OCTOBER 2026 &middot; REGULAR DISPATCH</span>
-        <span>Runtime Security &amp; Anomaly Intelligence</span>
-      </div>
-
       <div class="masthead-title-wrap">
         <div class="masthead-rule" aria-hidden="true"></div>
         <h1 class="masthead-title">PORYGON</h1>
@@ -875,51 +1019,10 @@
 
       <p class="masthead-subtitle">eBPF Runtime Security &amp; Autonomous Anomaly Defense</p>
 
-      <div class="masthead-edition-bar">
-        <span>Est. 2024 &middot; Kerala, India</span>
-        <span style="font-family: var(--font-display); font-size: 0.9375rem; color: var(--color-ink); font-style: italic;">
-          "Observe Everything. Profile Deviations. Contain Instantly."
-        </span>
-        <span id="ebpf-status-badge">
-          <span class="blink-pulse" style="color: var(--color-accent-red);">&#9679;</span>
-          &nbsp;<strong id="ebpf-status-text">eBPF ONLINE</strong>
-        </span>
-      </div>
     </header>
   </div>
 
-  <!-- SEAMLESS CONTINUOUS TICKER -->
-  <div class="ticker-banner" role="region" aria-label="System status ticker">
-    <span class="ticker-label">LIVE SYSTEM</span>
-    <div class="ticker-viewport">
-      <div class="ticker-track" id="ticker-track">
-        <!-- FIRST COPY -->
-        <span class="ticker-group">
-          <span class="ticker-item">eBPF probes attached to kernel syscall layer <span class="ticker-sep">&#10022;</span></span>
-          <span class="ticker-item">ML classifier active &middot; OCSVM + Isolation Forest ensemble <span class="ticker-sep">&#10022;</span></span>
-          <span class="ticker-item">Falco telemetry pipeline streaming process exec events <span class="ticker-sep">&#10022;</span></span>
-          <span class="ticker-item">Trivy CVE scanner enriched with EPSS &amp; CISA KEV feeds <span class="ticker-sep">&#10022;</span></span>
-          <span class="ticker-item">Autonomous container containment via Docker pause / net isolated <span class="ticker-sep">&#10022;</span></span>
-          <span class="ticker-item">FastAPI gateway with SQLAlchemy asynchronous spooling <span class="ticker-sep">&#10022;</span></span>
-          <span class="ticker-item">Deterministic 5-stage microservice pipeline active <span class="ticker-sep">&#10022;</span></span>
-          <span class="ticker-item">169+ passing test cases &middot; Pilot dataset v1.0.0 validated <span class="ticker-sep">&#10022;</span></span>
-        </span>
-        <!-- IDENTICAL SECOND COPY FOR ZERO-GLITCH SEAMLESS LOOP -->
-        <span class="ticker-group" aria-hidden="true">
-          <span class="ticker-item">eBPF probes attached to kernel syscall layer <span class="ticker-sep">&#10022;</span></span>
-          <span class="ticker-item">ML classifier active &middot; OCSVM + Isolation Forest ensemble <span class="ticker-sep">&#10022;</span></span>
-          <span class="ticker-item">Falco telemetry pipeline streaming process exec events <span class="ticker-sep">&#10022;</span></span>
-          <span class="ticker-item">Trivy CVE scanner enriched with EPSS &amp; CISA KEV feeds <span class="ticker-sep">&#10022;</span></span>
-          <span class="ticker-item">Autonomous container containment via Docker pause / net isolated <span class="ticker-sep">&#10022;</span></span>
-          <span class="ticker-item">FastAPI gateway with SQLAlchemy asynchronous spooling <span class="ticker-sep">&#10022;</span></span>
-          <span class="ticker-item">Deterministic 5-stage microservice pipeline active <span class="ticker-sep">&#10022;</span></span>
-          <span class="ticker-item">169+ passing test cases &middot; Pilot dataset v1.0.0 validated <span class="ticker-sep">&#10022;</span></span>
-        </span>
-      </div>
-    </div>
-  </div>
 
-  <!-- MAIN EDITORIAL CONTENT WRAPPER -->
   <main class="home-root">
 
     <!-- HERO SECTION -->
@@ -927,7 +1030,6 @@
 
       <!-- Hero Main Column -->
       <article class="hero-main scan-beam">
-        <p class="section-label">Investigation Report &middot; Lead Story</p>
         <h2 class="hero-headline">
           <em>Real-time</em> container<br>
           threat detection powered<br>
@@ -950,27 +1052,17 @@
             <i class="ph ph-tree-structure" aria-hidden="true"></i>
             Explore Pipeline
           </a>
-          <a href="#simulator" class="btn-cta-secondary" style="border-color: var(--color-accent-red); color: var(--color-accent-red);">
+          <a href="#simulator" class="btn-cta-secondary"
+            style="border-color: var(--color-accent-red); color: var(--color-accent-red);">
             <i class="ph ph-lightning" aria-hidden="true"></i>
             Attack Lab
           </a>
-        </div>
-
-        <div class="badge-strip" aria-label="Platform Technology Badges">
-          <span class="badge-tag filled">eBPF</span>
-          <span class="badge-tag filled">Falco</span>
-          <span class="badge-tag filled">OCSVM</span>
-          <span class="badge-tag filled">Isolation Forest</span>
-          <span class="badge-tag">Trivy</span>
-          <span class="badge-tag">FastAPI</span>
-          <span class="badge-tag">Docker Engine</span>
-          <span class="badge-tag red">Research Platform</span>
         </div>
       </article>
 
       <!-- Hero Side Column: Calibrated System Statistics -->
       <aside class="hero-side" aria-label="System Metrics">
-        <p class="section-label" style="text-align: right;">System Metrics &middot; At a Glance</p>
+        <p class="section-label" style="text-align: left;">At a Glance</p>
 
         <!-- Metric 1: Microservices -->
         <div class="stat-card">
@@ -1013,7 +1105,8 @@
         <p class="section-label">Pipeline Architecture</p>
         <h3 class="arch-title">Five-Stage Autonomous Threat Pipeline</h3>
         <p class="arch-sub">
-          Every container interaction flows through a deterministic, observable chain &mdash; from kernel probe to automated response.
+          Every container interaction flows through a deterministic, observable chain &mdash; from kernel probe to
+          automated response.
         </p>
       </div>
 
@@ -1026,7 +1119,8 @@
               <div class="pipe-node-num">01 / DISCOVER</div>
               <i class="ph ph-hard-drives pipe-node-icon" aria-hidden="true"></i>
               <div class="pipe-node-name">Collector</div>
-              <div class="pipe-node-desc">Streams Docker Engine lifecycle events, discovers new containers, and indexes workload manifests.</div>
+              <div class="pipe-node-desc">Streams Docker Engine lifecycle events, discovers new containers, and indexes
+                workload manifests.</div>
               <div class="pipe-node-tech">capability: event-ingestion</div>
               <span class="pipe-chevron" aria-hidden="true">&#9658;</span>
             </div>
@@ -1038,7 +1132,8 @@
               <div class="pipe-node-num">02 / OBSERVE</div>
               <i class="ph ph-eye pipe-node-icon" aria-hidden="true"></i>
               <div class="pipe-node-name">Telemetry</div>
-              <div class="pipe-node-desc">Attaches Falco eBPF probes into host kernel syscalls to capture process executions, sockets, and mounts.</div>
+              <div class="pipe-node-desc">Attaches Falco eBPF probes into host kernel syscalls to capture process
+                executions, sockets, and mounts.</div>
               <div class="pipe-node-tech">capability: process-telemetry</div>
               <span class="pipe-chevron" aria-hidden="true">&#9658;</span>
             </div>
@@ -1050,19 +1145,22 @@
               <div class="pipe-node-num">03 / SCORE</div>
               <i class="ph ph-brain pipe-node-icon" aria-hidden="true"></i>
               <div class="pipe-node-name">ML Classifier</div>
-              <div class="pipe-node-desc">Dual-model ensemble (OCSVM + Isolation Forest) flags behavioral drift against workload baseline profiles.</div>
+              <div class="pipe-node-desc">Dual-model ensemble (OCSVM + Isolation Forest) flags behavioral drift against
+                workload baseline profiles.</div>
               <div class="pipe-node-tech">scikit-learn &middot; SHAP</div>
               <span class="pipe-chevron" aria-hidden="true">&#9658;</span>
             </div>
           </a>
 
           <!-- Stage 4: Scanner -->
-          <a href="index.html#vulnerabilities" class="pipe-node-link" role="listitem" title="Scanner: vulnerability-enrichment">
+          <a href="index.html#vulnerabilities" class="pipe-node-link" role="listitem"
+            title="Scanner: vulnerability-enrichment">
             <div class="pipe-node-box">
               <div class="pipe-node-num">04 / ENRICH</div>
               <i class="ph ph-shield-warning pipe-node-icon" aria-hidden="true"></i>
               <div class="pipe-node-name">Scanner</div>
-              <div class="pipe-node-desc">Scans container images via Trivy, cross-referencing CVEs with live open ports and observed exec paths.</div>
+              <div class="pipe-node-desc">Scans container images via Trivy, cross-referencing CVEs with live open ports
+                and observed exec paths.</div>
               <div class="pipe-node-tech">capability: vulnerability-enrichment</div>
               <span class="pipe-chevron" aria-hidden="true">&#9658;</span>
             </div>
@@ -1074,7 +1172,8 @@
               <div class="pipe-node-num">05 / CONTAIN</div>
               <i class="ph ph-lightning pipe-node-icon" aria-hidden="true"></i>
               <div class="pipe-node-name">Responder</div>
-              <div class="pipe-node-desc">Executes deterministic containment: container pause, rogue process kill, or network egress quarantine.</div>
+              <div class="pipe-node-desc">Executes deterministic containment: container pause, rogue process kill, or
+                network egress quarantine.</div>
               <div class="pipe-node-tech">capability: containment-response</div>
             </div>
           </a>
@@ -1159,7 +1258,8 @@
       <div class="sim-card">
         <div>
           <p class="section-label">Interactive Adversarial Evaluation</p>
-          <h3 style="font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; margin: 0 0 0.5rem; color: var(--color-ink);">
+          <h3
+            style="font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; margin: 0 0 0.5rem; color: var(--color-ink);">
             Test Threat Responses in the Attack Simulator
           </h3>
           <p style="font-family: var(--font-body); font-size: 0.9375rem; line-height: 1.65; color: #444; margin: 0;">
@@ -1168,13 +1268,16 @@
           </p>
           <div class="sim-scenarios-pills">
             <span class="sim-pill"><i class="ph ph-cpu text-red-600"></i> Crypto-miner Execution</span>
-            <span class="sim-pill"><i class="ph ph-terminal-window text-amber-600"></i> Reverse Shell Infiltration</span>
+            <span class="sim-pill"><i class="ph ph-terminal-window text-amber-600"></i> Reverse Shell
+              Infiltration</span>
             <span class="sim-pill"><i class="ph ph-lock-key-open text-purple-600"></i> SUID Privilege Escalation</span>
             <span class="sim-pill"><i class="ph ph-shield-check text-blue-600"></i> Benign Batch Job Baseline</span>
           </div>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 0.75rem; justify-content: center; align-items: flex-start;">
-          <a href="index.html#simulator" class="btn-cta-primary" style="background-color: var(--color-accent-red); width: 100%; justify-content: center;">
+        <div
+          style="display: flex; flex-direction: column; gap: 0.75rem; justify-content: center; align-items: flex-start;">
+          <a href="index.html#simulator" class="btn-cta-primary"
+            style="background-color: var(--color-accent-red); width: 100%; justify-content: center;">
             <i class="ph ph-lightning"></i>
             Launch Attack Lab
           </a>
@@ -1208,8 +1311,10 @@
         <p class="section-label">Architecture Philosophy</p>
         <h4 class="gov-title">Observable by Default</h4>
         <p class="gov-body">
-          Every component follows strict capability modeling (<code>process-telemetry</code>, <code>event-ingestion</code>,
-          <code>vulnerability-enrichment</code>, <code>containment-response</code>). All events carry structured metadata,
+          Every component follows strict capability modeling (<code>process-telemetry</code>,
+          <code>event-ingestion</code>,
+          <code>vulnerability-enrichment</code>, <code>containment-response</code>). All events carry structured
+          metadata,
           all API responses include system info envelopes, and every automated action leaves an immutable audit trail.
         </p>
         <div style="margin-top: 1rem;">
@@ -1227,49 +1332,19 @@
     <div class="home-root">
       <div class="cta-band-inner">
         <div>
-          <h3 class="cta-band-title">
-            The <em>entire container security mesh</em>,<br>
-            in one live editorial dashboard.
-          </h3>
+
           <p class="cta-band-sub">
             Real-time eBPF event streams, machine learning classification matrices, CVE exploit path correlation,
             and policy containment actions &mdash; unified into a newsprint front page.
           </p>
         </div>
-        <div>
-          <a href="index.html#overview" class="btn-cta-inverted" id="cta-footer-dashboard">
-            <i class="ph ph-monitor-play" aria-hidden="true"></i>
-            Launch Live Dashboard
-          </a>
-        </div>
+
       </div>
     </div>
   </aside>
 
-  <!-- FOOTER -->
-  <footer class="home-root" role="contentinfo">
-    <div class="home-footer">
-      <div style="font-family: var(--font-mono); font-size: 0.6875rem; color: #737373; text-transform: uppercase; letter-spacing: 0.12em;">
-        &copy; 2024–2026 Porygon &middot; 23CSE498 Team 75 &middot; Anurup R Krishnan
-      </div>
-      <nav class="home-footer-nav" aria-label="Footer Navigation">
-        <a href="home.html">Home</a>
-        <a href="index.html#overview">Dashboard</a>
-        <a href="index.html#telemetry">Telemetry</a>
-        <a href="index.html#ml">ML Classifier</a>
-        <a href="index.html#simulator">Attack Simulator</a>
-        <a href="#pipeline">Pipeline</a>
-      </nav>
-      <div style="font-family: var(--font-mono); font-size: 0.6875rem; color: #737373; text-transform: uppercase; letter-spacing: 0.1em;">
-        <span class="blink-pulse" style="color: var(--color-accent-red);">&#9679;</span>
-        &nbsp;eBPF Runtime Secure
-      </div>
-    </div>
-  </footer>
 
-  <!-- LIGHTWEIGHT, NON-BLOCKING LIVE STATS FETCH SCRIPT -->
   <script>
-    // 1. Format Live Masthead Date
     (function initDate() {
       const el = document.getElementById('live-date');
       if (!el) return;
@@ -1336,4 +1411,5 @@
     })();
   </script>
 </body>
+
 </html>

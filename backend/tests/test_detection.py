@@ -330,7 +330,7 @@ def test_insufficient_score_never_creates_an_incident() -> None:
 
 def test_ruleset_and_run_keys_are_deterministic_and_versioned() -> None:
     assert RULESET_VERSION == "porygon.detection.v1"
-    assert MATCHER_REVISION == "porygon.detection.matcher.v4"
+    assert MATCHER_REVISION == "porygon.detection.matcher.v5"
     assert len(ruleset_hash()) == 64
     empty_hash = allowlist_set_hash([])
     first = build_detection_run_key("00000000-0000-0000-0000-000000000001", empty_hash)
@@ -821,3 +821,22 @@ def test_por_det_004_matches_are_capped_per_detection_window() -> None:
     det004_matches = [item for item in result["matches"] if item["rule_id"] == "POR-DET-004"]
     assert len(det004_matches) == 10
     assert result["metrics"]["additional_unseen_executables"] == 5
+
+
+@pytest.mark.parametrize('field,op,value,expected', [
+    ('executable','contains','/tmp/',True),
+    ('executable','equals','/tmp/nc',True),
+    ('executable','equals','nc',True),
+    ('executable','in',['curl','/tmp/nc'],True),
+    ('executable','not_in',['/tmp/nc'],False),
+    ('executable_path','equals','/tmp/nc',True),
+    ('executable_path','equals','/TMP/nc',False),
+    ('parent_executable_path','contains','/usr/bin/',True),
+])
+def test_custom_rules_match_full_paths_without_breaking_basename_rules(field,op,value,expected):
+    from porygon_api.detection import evaluate_custom_condition
+    event=ProcessEvent('p',Score().window_start,'container','nc','/tmp/nc',
+                       parent_executable='/usr/bin/bash')
+    condition={'field':field,'op':op,'value':value}
+    validate_custom_condition(condition,target='process')
+    assert evaluate_custom_condition(condition,event,{}) is expected

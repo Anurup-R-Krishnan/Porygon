@@ -180,3 +180,7 @@ Explore the complete documentation in [`docs/`](docs/):
   - [Presentation Spoken Script](docs/presentation/presentation-script.md)
 - **Reviews:**
   - [Review Package](docs/review/review-package.md)
+
+## Pilot dataset
+
+[Dataset v1.0.0](datasets/porygon-pilot-v1.0.0/readme.md): 216 controlled-container trial metadata records with labels, provenance and offline validation. Raw process events are not included; licensed under CC BY 4.0, with public release pending.

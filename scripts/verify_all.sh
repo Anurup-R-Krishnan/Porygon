@@ -267,7 +267,7 @@ PY
   docker run --rm \
     --volume "$ROOT_DIR/falco/porygon_rules.yaml:/etc/falco/porygon_rules.yaml:ro" \
     --entrypoint falco \
-    falcosecurity/falco:0.44.1 \
+    falcosecurity/falco:0.45.1@sha256:69e957f91b3a6beb5c82e2afae33ec3e4479dab2d4421475d288d0cd113cedf6 \
     --validate /etc/falco/porygon_rules.yaml || return $?
 }
 

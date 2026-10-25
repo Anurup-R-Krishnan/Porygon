@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Protocol
 
 import docker
@@ -59,6 +60,8 @@ class DockerResponseExecutor:
             "dead": bool(state.get("Dead")),
             "oom_killed": bool(state.get("OOMKilled")),
             "exit_code": state.get("ExitCode"),
+            "started_at": state.get("StartedAt"),
+            "finished_at": state.get("FinishedAt"),
             "restart_policy": restart_policy,
             "labels": labels,
         }
@@ -116,7 +119,7 @@ class DockerResponseExecutor:
 
             container.reload()
             post_state = self._state(container)
-            self._verify(action_type, operation, post_state)
+            self._verify(action_type, operation, post_state, pre_state)
             return ActionResult(
                 success=True,
                 pre_state=pre_state,
@@ -127,6 +130,10 @@ class DockerResponseExecutor:
                     "changed": changed,
                     "verification": "passed",
                     "verification_scope": "immediate Docker inspect state",
+                    "restart_completed": bool(
+                        action_type == "stop_container" and operation == "rollback"
+                        and not post_state["running"]
+                    ),
                 },
             )
         except NotFound as exc:
@@ -179,7 +186,10 @@ class DockerResponseExecutor:
         raise ValueError(f"unsupported rollback action_type: {action_type}")
 
     @staticmethod
-    def _verify(action_type: str, operation: str, state: dict[str, Any]) -> None:
+    def _verify(
+        action_type: str, operation: str, state: dict[str, Any],
+        pre_state: dict[str, Any] | None = None,
+    ) -> None:
         if action_type == "pause_container":
             expected = operation == "execute"
             if bool(state["paused"]) is not expected:
@@ -188,6 +198,20 @@ class DockerResponseExecutor:
                 raise APIError("container did not return to a running state after unpause")
         elif action_type == "stop_container":
             expected_running = operation == "rollback"
+            if expected_running and not state["running"] and pre_state is not None:
+                # A run-to-completion entrypoint can finish before inspect. A
+                # successful exit is accepted only with evidence of a new start,
+                # never merely because an old exited container has code zero.
+                started = state.get("started_at")
+                finished = state.get("finished_at")
+                if (started and finished and started != pre_state.get("started_at")
+                        and state.get("status") == "exited" and state.get("exit_code") == 0
+                        and not state.get("oom_killed") and not state.get("dead")):
+                    try:
+                        if datetime.fromisoformat(finished.replace("Z", "+00:00")) >= datetime.fromisoformat(started.replace("Z", "+00:00")):
+                            return
+                    except ValueError:
+                        pass
             if bool(state["running"]) is not expected_running:
                 raise APIError("post-action running state did not match the requested operation")
 

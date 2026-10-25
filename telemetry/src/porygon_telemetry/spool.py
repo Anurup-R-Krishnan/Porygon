@@ -5,6 +5,8 @@ import json
 import re
 import sqlite3
 import time
+from contextlib import contextmanager
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -67,13 +69,18 @@ class TelemetryStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
         connection = sqlite3.connect(self.path, timeout=10.0)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA journal_mode=WAL")
-        connection.execute("PRAGMA synchronous=FULL")
-        connection.execute("PRAGMA busy_timeout=10000")
-        return connection
+        try:
+            connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA journal_mode=WAL")
+            connection.execute("PRAGMA synchronous=FULL")
+            connection.execute("PRAGMA busy_timeout=10000")
+            with connection:
+                yield connection
+        finally:
+            connection.close()
 
     def _initialize(self) -> None:
         with self._connect() as connection:
@@ -240,6 +247,38 @@ class TelemetryStore:
                 (event_id, serialized, time.time()),
             )
         return True
+
+    def enqueue_batch(
+        self, payloads: list[dict[str, Any]], *, inode: int, offset: int,
+    ) -> tuple[int, int]:
+        """Durably commit events and their file checkpoint in one transaction.
+
+        Capacity failure rolls back the entire batch, including its checkpoint,
+        so the reader can retry the same bytes after delivery frees capacity.
+        """
+        unique = {str(item["event_id"]): item for item in payloads}
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            count = int(connection.execute("SELECT COUNT(*) FROM outbox").fetchone()[0])
+            existing: set[str] = set()
+            if unique:
+                placeholders = ",".join("?" for _ in unique)
+                existing = {str(row[0]) for row in connection.execute(
+                    f"SELECT event_id FROM outbox WHERE event_id IN ({placeholders})", list(unique),
+                )}
+            fresh = [(key, value) for key, value in unique.items() if key not in existing]
+            if count + len(fresh) > self.max_events:
+                raise SpoolFullError(f"Durable process outbox reached configured limit of {self.max_events} events")
+            now = time.time()
+            connection.executemany(
+                "INSERT INTO outbox(event_id,payload,enqueued_at,attempts,next_attempt_at) VALUES (?,?,?,0,0)",
+                [(key, json.dumps(value, sort_keys=True, separators=(",", ":")), now) for key, value in fresh],
+            )
+            connection.executemany(
+                "INSERT INTO metadata(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                [("falco_file_inode", str(inode)), ("falco_file_offset", str(offset))],
+            )
+            return len(fresh), count + len(fresh)
 
     def fetch_due(self, limit: int) -> list[dict[str, Any]]:
         with self._connect() as connection:

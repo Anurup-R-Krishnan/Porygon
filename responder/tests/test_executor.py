@@ -127,3 +127,40 @@ def test_exact_full_container_id_is_required() -> None:
     )
     assert result.success is False
     assert result.error_code == "invalid_request"
+
+
+class CompletedBatchContainer(FakeContainer):
+    started_at = '2026-10-25T01:00:00Z'
+    finished_at = '2026-10-25T01:00:01Z'
+    exit_code = 0
+
+    def reload(self):
+        super().reload()
+        self.attrs['State'].update(StartedAt=self.started_at,FinishedAt=self.finished_at,ExitCode=self.exit_code)
+
+    def start(self):
+        self.running=False
+        self.started_at='2026-10-25T02:00:00Z'
+        self.finished_at='2026-10-25T02:00:00.050Z'
+
+
+def test_batch_restart_that_completes_before_inspect_is_successful():
+    container=CompletedBatchContainer(running=False)
+    result=executor(container).execute(action_type='stop_container',target_container_id=container.id,operation='rollback')
+    assert result.success
+    assert result.result['restart_completed'] is True
+    assert result.post_state['running'] is False
+
+
+def test_old_successful_exit_does_not_prove_a_new_restart():
+    container=CompletedBatchContainer(running=False)
+    container.start=lambda: None
+    result=executor(container).execute(action_type='stop_container',target_container_id=container.id,operation='rollback')
+    assert result.success is False
+
+
+def test_batch_restart_with_nonzero_exit_is_failure():
+    container=CompletedBatchContainer(running=False)
+    container.exit_code=1
+    result=executor(container).execute(action_type='stop_container',target_container_id=container.id,operation='rollback')
+    assert result.success is False

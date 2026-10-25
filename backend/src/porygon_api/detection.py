@@ -7,7 +7,7 @@ from pathlib import PurePosixPath
 from typing import Any, Iterable
 
 RULESET_VERSION = "porygon.detection.v1"
-MATCHER_REVISION = "porygon.detection.matcher.v4"
+MATCHER_REVISION = "porygon.detection.matcher.v5"
 CORRELATION_WINDOW_SECONDS = 120
 
 SHELL_NAMES = {"sh", "bash", "dash", "ash", "zsh", "ksh", "fish"}
@@ -89,15 +89,17 @@ POR_DET_004_MATCH_CAP = 10
 
 _PROCESS_FIELDS = {
     "executable",
+    "executable_path",
     "process_name",
     "parent_executable",
+    "parent_executable_path",
     "parent_name",
     "command_line",
     "user_uid",
     "container_id",
 }
 _RUNTIME_FIELDS = {"action", "privileged", "image_digest", "container_id"}
-_CONTAINS_FIELDS = {"command_line", "executable"}
+_CONTAINS_FIELDS = {"command_line", "executable", "executable_path", "parent_executable_path"}
 _CONDITION_OPS = {"equals", "not_equals", "in", "not_in", "contains"}
 
 
@@ -355,6 +357,10 @@ def _process_chain_documents(event: Any, events_by_id: dict[str, Any]) -> list[d
 
 
 def _field_value(event: Any, field: str) -> Any:
+    if field == "executable_path":
+        return _event_executable(event) or ""
+    if field == "parent_executable_path":
+        return _parent_executable(event) or ""
     if field == "executable":
         return _basename(event)
     if field == "parent_executable":
@@ -403,6 +409,21 @@ def _leaf_matches(leaf: dict[str, Any], event: Any) -> bool:
     value = _field_value(event, field)
     expected = leaf["value"]
     op = leaf["op"]
+    # Keep existing basename rules working, while path-bearing conditions use
+    # the full case-sensitive Linux path rather than silently stripping it.
+    if field in {"executable", "parent_executable"}:
+        full_path = _field_value(event, field + "_path")
+        def matches(item: Any) -> bool:
+            actual = full_path if isinstance(item, str) and "/" in item else value
+            return actual == item
+        if op in {"equals", "not_equals"}:
+            result = matches(expected)
+            return result if op == "equals" else not result
+        if op in {"in", "not_in"}:
+            result = any(matches(item) for item in expected)
+            return result if op == "in" else not result
+        if op == "contains" and isinstance(expected, str) and "/" in expected:
+            return expected in full_path
     if field in NUMERIC_CONDITION_FIELDS:
         value = _coerce_numeric(value)
         if isinstance(expected, list):

@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     falco_log_path: str = "/var/log/porygon/falco-events.jsonl"
     falco_poll_seconds: float = Field(default=0.25, ge=0.05, le=10.0)
     falco_max_line_bytes: int = Field(default=1_048_576, ge=4096, le=16_777_216)
+    falco_rotate_bytes: int = Field(default=67_108_864, ge=1_048_576, le=10_737_418_240)
     falco_expected_rule: str = "Porygon Container Process Execution"
     docker_host_id: str | None = None
 

@@ -1,7 +1,14 @@
 name: ${COMPOSE_PROJECT_NAME:-porygon}
 
+x-service-logging: &service-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
+    logging: *service-logging
     labels:
       com.porygon.protected: "true"
     image: postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
@@ -26,6 +33,7 @@ services:
       - no-new-privileges:true
 
   backend:
+    logging: *service-logging
     labels:
       com.porygon.protected: "true"
     build:
@@ -74,6 +82,7 @@ services:
       - ALL
 
   gateway:
+    logging: *service-logging
     labels:
       com.porygon.protected: "true"
     image: nginxinc/nginx-unprivileged:1.29.3-alpine-slim@sha256:df9d99123d80117ea348470175f20abe85befd1ed361ea6207eaf49ab5a30ed9
@@ -113,6 +122,7 @@ services:
       - ALL
 
   collector:
+    logging: *service-logging
     labels:
       com.porygon.protected: "true"
     build:
@@ -168,11 +178,12 @@ services:
       - ALL
 
   falco-events-init:
+    logging: *service-logging
     image: alpine:3.22.2@sha256:4b7ce07002c69e8f3d704a9c5d6fd3053be500b7f1c69fc0d80990c2ad8dd412
     command:
       - sh
       - -ec
-      - chown 0:10003 /var/log/porygon && chmod 0770 /var/log/porygon
+      - chown 0:10003 /var/log/porygon && chmod 2770 /var/log/porygon
     network_mode: none
     volumes:
       - porygon_falco_events:/var/log/porygon
@@ -185,6 +196,7 @@ services:
       - CHOWN
 
   telemetry:
+    logging: *service-logging
     labels:
       com.porygon.protected: "true"
     build:
@@ -202,6 +214,7 @@ services:
       PORYGON_DOCKER_HOST_ID: ${PORYGON_DOCKER_HOST_ID:-auto}
       PORYGON_FALCO_LOG_PATH: /var/log/porygon/falco-events.jsonl
       PORYGON_FALCO_POLL_SECONDS: ${PORYGON_FALCO_POLL_SECONDS:-0.25}
+      PORYGON_FALCO_ROTATE_BYTES: ${PORYGON_FALCO_ROTATE_BYTES:-67108864}
       PORYGON_FALCO_MAX_LINE_BYTES: ${PORYGON_FALCO_MAX_LINE_BYTES:-1048576}
       PORYGON_SPOOL_PATH: /var/lib/porygon/process-outbox.db
       PORYGON_SPOOL_MAX_EVENTS: ${PORYGON_PROCESS_SPOOL_MAX_EVENTS:-250000}
@@ -220,7 +233,7 @@ services:
     networks:
       - porygon_internal
     volumes:
-      - porygon_falco_events:/var/log/porygon:ro
+      - porygon_falco_events:/var/log/porygon
       - porygon_telemetry_data:/var/lib/porygon
     healthcheck:
       test:
@@ -243,6 +256,7 @@ services:
       - ALL
 
   responder:
+    logging: *service-logging
     labels:
       com.porygon.protected: "true"
     build:
@@ -293,6 +307,7 @@ services:
       - ALL
 
   scanner:
+    logging: *service-logging
     labels:
       com.porygon.protected: "true"
     build:
@@ -350,9 +365,10 @@ services:
       - ALL
 
   falco:
+    logging: *service-logging
     labels:
       com.porygon.protected: "true"
-    image: falcosecurity/falco:0.44.1@sha256:d0cfe422d6ac0e0f20857798f46c7d7273210e1b064b22821e4e6e7f843cde6b
+    image: falcosecurity/falco:0.45.1@sha256:69e957f91b3a6beb5c82e2afae33ec3e4479dab2d4421475d288d0cd113cedf6
     restart: unless-stopped
     environment:
       HOST_ROOT: /host
@@ -396,7 +412,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "kill -0 1 && test -s /var/log/porygon/falco-events.jsonl",
+          "kill -0 1 && test -f /var/log/porygon/falco-events.jsonl",
         ]
       interval: 10s
       timeout: 5s
