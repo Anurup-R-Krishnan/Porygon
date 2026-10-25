@@ -281,8 +281,8 @@ unit_checks() {
 }
 
 live_safe_checks() {
-  ./scripts/verify_phase2.sh
-  ./scripts/verify_phase6.sh
+  ./scripts/verify_event_ingestion.sh
+  ./scripts/verify_detection_engine.sh
 }
 
 experiment_live_checks() {
@@ -290,7 +290,7 @@ experiment_live_checks() {
 }
 
 scanner_live_checks() {
-  ./scripts/verify_phase8.sh
+  ./scripts/verify_vulnerability_scanner.sh
 }
 
 write_manifest() {

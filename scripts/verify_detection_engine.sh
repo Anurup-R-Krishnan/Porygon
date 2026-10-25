@@ -12,8 +12,8 @@ pass() {
   echo "[PASS] $*"
 }
 
-./scripts/verify_phase5.sh
-pass "Cumulative Phase 1-5 live verification completed"
+./scripts/verify_anomaly_scoring.sh
+pass "Anomaly scoring verification completed"
 
 backend_port="$(grep -E '^BACKEND_PORT=' .env | tail -1 | cut -d= -f2 || true)"
 backend_port="${backend_port:-8000}"

@@ -35,8 +35,8 @@ done
 mkdir -p artifacts
 mkdir -p artifacts/local
 
-./scripts/verify_phase4.sh
-pass "Phases 1-4 remain valid and an active immutable-digest profile exists"
+./scripts/verify_behavior_profiling.sh
+pass "Behavior profiling remains valid and an active immutable-digest profile exists"
 
 backend_port="$(grep -E '^BACKEND_PORT=' .env | tail -1 | cut -d= -f2 || true)"
 backend_port="${backend_port:-8000}"

@@ -39,8 +39,8 @@ execution_mode="$(grep -E '^PORYGON_RESPONSE_EXECUTION_MODE=' .env | tail -1 | c
 [[ "$internal_token" != "$operator_token" ]] || fail "Internal and operator tokens must be different"
 [[ "$execution_mode" == "live" ]] || fail "Set PORYGON_RESPONSE_EXECUTION_MODE=live only for this controlled Phase 7 acceptance test"
 
-./scripts/verify_phase6.sh
-pass "Cumulative Phase 1-6 live verification completed"
+./scripts/verify_detection_engine.sh
+pass "Detection engine verification completed"
 
 backend_port="$(grep -E '^BACKEND_PORT=' .env | tail -1 | cut -d= -f2 || true)"
 backend_port="${backend_port:-8000}"

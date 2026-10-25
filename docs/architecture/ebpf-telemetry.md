@@ -116,7 +116,7 @@ When an event arrives from the ring buffer, `porygon-collector` resolves the ker
 
 ## 5. Lossless Saturation & Verification Protocol
 
-To mathematically verify that telemetry is not dropped under burst loads, Porygon executes an automated stress gate (`scripts/verify_phase3.sh` and `scripts/verify_all.sh`):
+To mathematically verify that telemetry is not dropped under burst loads, Porygon executes an automated stress gate (`scripts/verify_ebpf_telemetry.sh` and `scripts/verify_all.sh`):
 
 1. **Synthetic Burst Execution:** Generates 5,000 rapid container process executions within a 10-second burst.
 2. **Reconciliation Check:** Reconciles the count of executions recorded in container audit logs against the count of persisted events in the PostgreSQL database:

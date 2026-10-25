@@ -23,8 +23,8 @@ done
 
 mkdir -p artifacts
 
-./scripts/verify_phase3.sh
-pass "Phase 3 telemetry and correlation remain valid"
+./scripts/verify_ebpf_telemetry.sh
+pass "eBPF telemetry and correlation remain valid"
 
 backend_port="$(grep -E '^BACKEND_PORT=' .env | tail -1 | cut -d= -f2 || true)"
 backend_port="${backend_port:-8000}"
@@ -55,8 +55,8 @@ base={
     'training_end': end.isoformat(),
     'minimum_process_events': 1,
     'minimum_nonempty_windows': 1,
-    'approved_by': 'phase4-verifier',
-    'approval_reference': 'scripts/verify_phase4.sh',
+    'approved_by': 'behavior-profile-verifier',
+    'approval_reference': 'scripts/verify_behavior_profiling.sh',
 }
 for name, window, minimum in [('v1',60,1), ('bad',45,999999), ('v2',30,1)]:
     payload=dict(base)

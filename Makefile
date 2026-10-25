@@ -51,7 +51,7 @@ verify-experiment-live:
 # DISRUPTIVE: requires PORYGON_RESPONSE_EXECUTION_MODE=live in .env and may
 # pause or stop the disposable containment target. It is never part of `make verify`.
 verify-response-live:
-	./scripts/verify_phase7.sh
+	./scripts/verify_containment_response.sh
 
 test: verify-unit
 

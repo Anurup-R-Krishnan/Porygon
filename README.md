@@ -303,7 +303,7 @@ curl -s -X POST http://127.0.0.1:8000/api/v1/ml/classify-container/<container_id
 
 ## Verification & Quality Assurance Gates
 
-Porygon enforces an automated 8-phase verification harness (`scripts/verify_all.sh`):
+Porygon enforces an automated multi-layer verification harness (`scripts/verify_all.sh`) across infrastructure, ingestion, eBPF telemetry, profiling, scoring, detection, containment, and vulnerability scanning:
 
 ```bash
 # Run all static checks (syntax, types, linters, schemas)

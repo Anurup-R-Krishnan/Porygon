@@ -50,7 +50,7 @@ Components:
 - Alembic migrations
 - Health checks, persistent volume, service authentication, and verification script
 
-Exit condition: `./scripts/verify_phase1.sh` passes.
+Exit condition: `./scripts/verify_infrastructure.sh` passes.
 
 ## Docker Identity and Runtime Event Ingestion — Implemented
 
@@ -65,7 +65,7 @@ Work:
 - Add bounded retries and a local spool for backend outages
 - Treat Docker socket access as privileged and isolate it to the collector
 
-Exit condition: `./scripts/verify_phase2.sh` — controlled create/start/exec/stop/network actions produce exactly-once stored normalized events with the correct image digest.
+Exit condition: `./scripts/verify_event_ingestion.sh` — controlled create/start/exec/stop/network actions produce exactly-once stored normalized events with the correct image digest.
 
 ## eBPF Process-Execution Telemetry — Implemented
 
@@ -82,7 +82,7 @@ Implemented:
 
 Not included here: file-access telemetry, network-connection telemetry, anomaly scoring, or attack classification.
 
-Exit condition: `./scripts/verify_phase3.sh` captures a controlled process tree with correct PID/PPID linkage, full container identity, immutable digest, outage replay, and no duplicates.
+Exit condition: `./scripts/verify_ebpf_telemetry.sh` captures a controlled process tree with correct PID/PPID linkage, full container identity, immutable digest, outage replay, and no duplicates.
 
 ## Digest-Bound Behavioural Profiles — Implemented
 
@@ -102,7 +102,7 @@ Implemented:
 
 File, DNS, socket, and privilege-transition features are not claimed because the current sensor path only ingests process execution. The feature schema can be versioned when those evidence sources are implemented.
 
-Exit condition: `./scripts/verify_phase4.sh` proves deterministic profile generation, quality gating, duplicate rejection, version activation, retirement, and one-active-profile enforcement.
+Exit condition: `./scripts/verify_behavior_profiling.sh` proves deterministic profile generation, quality gating, duplicate rejection, version activation, retirement, and one-active-profile enforcement.
 
 ## Behavioural Distance and Anomaly Scoring — Implemented
 
@@ -124,7 +124,7 @@ Implemented:
 
 Optional algorithms such as Isolation Forest, One-Class SVM, and Local Outlier Factor are reserved for detector-comparison evaluation. They are not part of the primary v1 scoring path.
 
-Exit condition: `./scripts/verify_phase5.sh` proves insufficient-data handling, bounded explainable scoring, stronger deviation for a controlled novel workload, exact-retry idempotency, and training/evaluation separation.
+Exit condition: `./scripts/verify_anomaly_scoring.sh` proves insufficient-data handling, bounded explainable scoring, stronger deviation for a controlled novel workload, exact-retry idempotency, and training/evaluation separation.
 
 ## Detection, Correlation, and Explainable Incidents — Implemented
 
@@ -147,7 +147,7 @@ Implemented:
 
 Current sensor evidence is process execution plus Docker lifecycle events. File, DNS, and outbound socket correlation are not claimed — this is the concrete blind spot behind, e.g., an attacker using an already-known tool (`curl`) against a new destination.
 
-Exit condition: `./scripts/verify_phase6.sh` proves insufficient-data handling, baseline-like non-incidents, controlled process-based incident creation, exact digest-scoped suppression, idempotency, evidence ordering, and incident lifecycle enforcement.
+Exit condition: `./scripts/verify_detection_engine.sh` proves insufficient-data handling, baseline-like non-incidents, controlled process-based incident creation, exact digest-scoped suppression, idempotency, evidence ordering, and incident lifecycle enforcement.
 
 ## Human-Approved Response Recommendations — Implemented
 
@@ -174,7 +174,7 @@ Implemented:
 
 Network disconnection is not implemented because the current evidence pipeline does not yet collect enough network telemetry to recommend it defensibly. Auto-execution without human approval remains deliberately out of scope; see [`claims-boundaries.md`](claims-boundaries.md) for the reasoning.
 
-Exit condition: `./scripts/verify_phase7.sh` proves credential separation, no action before approval, exact-target pause, idempotent approval, verified rollback, and complete audit evidence.
+Exit condition: `./scripts/verify_containment_response.sh` proves credential separation, no action before approval, exact-target pause, idempotent approval, verified rollback, and complete audit evidence.
 
 ## Digest-Bound SBOM and Vulnerability Enrichment — Implemented
 
@@ -206,7 +206,7 @@ Not implemented or claimed:
 - static findings automatically creating incidents or response actions
 - VEX generation
 
-Exit condition: `./scripts/verify_phase8.sh` proves exact digest/image binding, scan idempotency, CycloneDX persistence, immutable enrichment snapshots, and the exploitation claim boundary on a real Docker host.
+Exit condition: `./scripts/verify_vulnerability_scanner.sh` proves exact digest/image binding, scan idempotency, CycloneDX persistence, immutable enrichment snapshots, and the exploitation claim boundary on a real Docker host.
 
 ## Experimental Evaluation and Paper — In progress
 
