@@ -32,7 +32,7 @@ verify:
 	./scripts/verify_all.sh all
 
 verify-static:
-	PATH="$(CURDIR)/.venv/bin:$$PATH" ./scripts/verify_all.sh static
+	./scripts/verify_all.sh static
 
 verify-unit:
 	./scripts/verify_all.sh unit

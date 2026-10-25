@@ -98,9 +98,10 @@ def main() -> int:
             }.items()
             if value is not None
         }
+        suffix = f"?{urllib.parse.urlencode(query)}" if query else ""
         result = _request(
             "GET",
-            f"{base_url}/api/v1/anomaly-scores?{urllib.parse.urlencode(query)}",
+            f"{base_url}/api/v1/anomaly-scores{suffix}",
         )
 
     print(json.dumps(result, indent=2, sort_keys=True))

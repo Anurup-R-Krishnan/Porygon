@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "porygon-api"
 version = "0.8.0"
-description = "Porygon Phase 8 digest-bound SBOM and vulnerability enrichment API"
+description = "Porygon core API, scoring engine, detection logic, and incident management"
 requires-python = ">=3.13"
 dependencies = [
   "alembic==1.18.5",

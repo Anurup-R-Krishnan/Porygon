@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "porygon-scanner"
 version = "0.8.0"
-description = "Porygon Phase 8 digest-bound Trivy scanner and vulnerability-intelligence enricher"
+description = "Porygon digest-bound Trivy scanner and vulnerability-intelligence enricher"
 requires-python = ">=3.13"
 dependencies = [
   "docker==7.2.0",

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "porygon-responder"
 version = "0.7.0"
-description = "Porygon Phase 7 human-approved Docker response executor"
+description = "Porygon human-approved container containment and response executor"
 requires-python = ">=3.13"
 dependencies = [
   "docker==7.2.0",
