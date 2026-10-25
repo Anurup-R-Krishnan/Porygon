@@ -1,7 +1,7 @@
 from porygon_api.main import app, get_response_policy
 
 
-def test_phase7_routes_are_exposed_in_openapi() -> None:
+def test_containment_response_routes_are_exposed_in_openapi() -> None:
     paths = app.openapi()["paths"]
     required = {
         "/api/v1/response-policy",

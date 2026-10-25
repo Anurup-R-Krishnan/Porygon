@@ -405,4 +405,4 @@ curl --fail --silent --show-error "${base_url}/api/v1/system/info" \
 docker compose logs --no-color falco > "${EVIDENCE_DIR}/falco.log"
 docker compose ps > "${EVIDENCE_DIR}/services.txt"
 
-printf '\nPhase 3 verification complete.\n'
+printf '\neBPF telemetry verification complete.\n'

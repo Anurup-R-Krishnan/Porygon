@@ -8,6 +8,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 
 def _request(method: str, url: str, token: str | None = None, payload: dict | None = None) -> object:
@@ -29,7 +30,20 @@ def _request(method: str, url: str, token: str | None = None, payload: dict | No
         raise SystemExit(f"Could not reach Porygon API: {exc.reason}") from exc
 
 
+def _load_env() -> None:
+    env_file = Path(__file__).resolve().parents[1] / ".env"
+    if env_file.is_file():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                k, v = k.strip(), v.strip().strip('"').strip("'")
+                if k not in os.environ:
+                    os.environ[k] = v
+
+
 def _token() -> str:
+    _load_env()
     token = os.getenv("PORYGON_INTERNAL_API_TOKEN", "")
     if len(token) < 32:
         raise SystemExit("Set PORYGON_INTERNAL_API_TOKEN to the same token used by the stack")
@@ -84,9 +98,10 @@ def main() -> int:
             }.items()
             if value is not None
         }
+        suffix = f"?{urllib.parse.urlencode(query)}" if query else ""
         result = _request(
             "GET",
-            f"{base_url}/api/v1/anomaly-scores?{urllib.parse.urlencode(query)}",
+            f"{base_url}/api/v1/anomaly-scores{suffix}",
         )
 
     print(json.dumps(result, indent=2, sort_keys=True))

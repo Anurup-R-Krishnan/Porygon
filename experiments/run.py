@@ -261,17 +261,17 @@ PILOT_SUMMARY_FIELDS = [
 
 
 def _pilot_rows(trials: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def boundary(boundaries: dict[str, Any], name: str, field: str) -> Any:
+        entry = boundaries.get(name) or {}
+        if entry.get("status") != "measured":
+            return "unmeasured"
+        return len(entry["missing_sequences"]) if field == "missing" else entry.get(field, "")
+
     rows = []
     for trial in sorted(trials, key=lambda item: item["trial_id"]):
         boundaries = (trial.get("reconciliation") or {}).get("boundaries", {})
         load = trial.get("load") or {}
         samples = load.get("latency_ms_samples") or []
-
-        def boundary(name: str, field: str) -> Any:
-            entry = boundaries.get(name) or {}
-            if entry.get("status") != "measured":
-                return "unmeasured"
-            return len(entry["missing_sequences"]) if field == "missing" else entry.get(field, "")
 
         rows.append(
             {
@@ -286,11 +286,11 @@ def _pilot_rows(trials: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "research_eligible": str(trial["research_eligible"]).lower(),
                 "runtime_context_hash": trial.get("runtime_context_hash", "unmeasured"),
                 "canaries_generated": (trial.get("reconciliation") or {}).get("generated", "unmeasured"),
-                "source_observed": boundary("source", "observed"),
-                "source_missing": boundary("source", "missing"),
-                "database_observed": boundary("database", "observed"),
-                "database_missing": boundary("database", "missing"),
-                "database_duplicates": boundary("database", "duplicates"),
+                "source_observed": boundary(boundaries, "source", "observed"),
+                "source_missing": boundary(boundaries, "source", "missing"),
+                "database_observed": boundary(boundaries, "database", "observed"),
+                "database_missing": boundary(boundaries, "database", "missing"),
+                "database_duplicates": boundary(boundaries, "database", "duplicates"),
                 "operations_planned": load.get("operations_planned", "unmeasured"),
                 "operations_succeeded": load.get("successes", "unmeasured"),
                 "operations_failed": load.get("failures", "unmeasured"),
@@ -523,7 +523,7 @@ def main(argv: list[str] | None = None) -> int:
     pilot.add_argument("--settle-seconds", type=float, default=12.0)
     pilot.add_argument("--seed", type=int, default=20260905)
     pilot.add_argument("--base-url", default="http://127.0.0.1:8000")
-    pilot.add_argument("--protocol", type=Path, default=ROOT / "docs/RESEARCH_PROTOCOL_V1.md")
+    pilot.add_argument("--protocol", type=Path, default=ROOT / "docs/research/research-protocol.md")
     study = subparsers.add_parser("study", help="run the full orchestrated pipeline")
     study.add_argument("--run-id", default=None)
     study.add_argument("--workloads", default="WL-NGX-V1,WL-RDS-V1,WL-PG-V1")
@@ -535,7 +535,7 @@ def main(argv: list[str] | None = None) -> int:
     study.add_argument("--window-seconds", type=int, default=10)
     study.add_argument("--base-url", default="http://127.0.0.1:8000")
     confirm = subparsers.add_parser("confirmatory")
-    confirm.add_argument("--protocol", type=Path, default=ROOT / "docs/RESEARCH_PROTOCOL_V1.md")
+    confirm.add_argument("--protocol", type=Path, default=ROOT / "docs/research/research-protocol.md")
     args = parser.parse_args(argv)
     try:
         if args.command == "smoke":

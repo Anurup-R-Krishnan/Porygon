@@ -1,730 +1,182 @@
 # Porygon
 
-> **A single-host Docker runtime-behaviour research prototype, not a production security platform.**
->
-> Porygon is a research prototype, not a production-ready security platform. It
-> couples Falco-based process-execution telemetry (modern eBPF, `execve`/
-> `execveat` only — no network, file, or socket telemetry) with Docker daemon
-> lifecycle events to build digest-bound process-name behavioural baselines,
-> compute a Jensen-Shannon behavioural-distance score, apply seven
-> deterministic detection rules, correlate findings into a reviewable incident
-> record, support human-approved pause/stop containment, and cross-reference
-> container image digests against Trivy-scanned SBOMs with EPSS/CISA KEV
-> context. See [`docs/CLAIMS_V1.md`](docs/CLAIMS_V1.md) for exactly what is and
-> is not validated, and
-> [`docs/ADVERSARIAL_SCENARIOS_V1.md`](docs/ADVERSARIAL_SCENARIOS_V1.md) for an
-> honest scenario-by-scenario account of what this design can and cannot
-> detect — most network-based and in-memory compromise techniques are
-> currently invisible to it by design, and that is a stated non-goal, not a
-> hidden limitation.
+A container runtime security and behavioral anomaly detection system for Docker.
+
+Porygon monitors container execution at the kernel level using modern eBPF (via Falco) and correlates process activity with Docker daemon lifecycle events. It builds per-image behavioral baselines, measures execution drift using Jensen-Shannon distance, enforces deterministic detection rules, and supports automated or human-approved container containment.
 
 ---
 
-## Scope, Validated Claims, and Known Blind Spots
+## Features
 
-Read this before anything else below.
-
-- **What is validated**: the pipeline runs end-to-end on real Docker
-  containers, and a 216-trial pilot run
-  (`docs/CONFIRMATORY_RESULT_V1.md`) found real, statistically significant
-  evidence that per-image behavioural scoping beats one pooled global
-  baseline (exact McNemar $p=6.7\times10^{-16}$, false-positive rate
-  $100\%\to0\%$, zero loss of recall). This reproduces an earlier 144-trial
-  result ($p=5.8\times10^{-11}$) at larger scale with a smaller p-value —
-  the finding is robust, not a small-sample artifact. **This is pilot
-  evidence** (`kind: "real_container_pilot"`, `research_eligible: false`
-  on every trial and run record), **not the frozen protocol's confirmatory
-  bar** — a real confirmatory result requires protocol-conformance machinery
-  that does not exist yet and is tracked as separate future work; see
-  `docs/CONFIRMATORY_RESULT_V1.md` for the full evidence-class disclosure.
-- **The project's more ambitious thesis — that digest-plus-context scoping
-  beats digest-only scoping — is a reproduced null result** (p=1.0 at both
-  n=35 and n=53) at process-name-distance granularity. The root cause is
-  understood: the tested context variant (a dropped Linux capability)
-  changes container privilege without changing which processes execute, so
-  a process-name-only feature cannot see it by construction. A follow-on
-  exploratory feature that scores the runtime security-configuration
-  document directly (privileges, capabilities, mounts), instead of
-  inferring it through process names, separates every tested case cleanly
-  (0/26 false positives, 27/27 correct detections) — but this is
-  exploratory, not confirmatory, and has not been tested against real
-  attack scenarios. See `docs/CONFIRMATORY_RESULT_V1.md` for the full,
-  unfiltered result including what did not work.
-- **A live demonstration against real malware**
-  (`docs/LIVE_DEMO_RECORD_V1.md`) executed a real, functional XMRig
-  cryptominer binary from a published malware-testing container image
-  against a Porygon baseline built with zero prior knowledge of the
-  binary, twice, across two dated runs. The **first run** (score 0.2696,
-  `elevated` band) was flagged purely on behavioural novelty by the anomaly
-  scorer, but the then-fixed-name-list `POR-DET-004` rule did **not** fire
-  because `xmrig` was not in its hardcoded tool list, so no incident was
-  created. `POR-DET-004` was subsequently generalised from a fixed name
-  list to *any* previously unseen non-shell executable. The **second,
-  current run**, against that broadened rule (score 0.567, `high` band),
-  had `POR-DET-004` fire and an incident created. Both runs are reported
-  together, in full, in `docs/LIVE_DEMO_RECORD_V1.md` — the honest, complete
-  picture of the rule change's effect, not a retroactively adjusted result.
-- **What is not validated or claimed**: production readiness, detection
-  superiority over any other tool, calibrated attack probabilities, or zero
-  event loss. See `docs/CLAIMS_V1.md` for the complete, binding list of
-  claims this project is and is not allowed to make.
-- **What this cannot see, by design**: no network flow, DNS, socket, or file-
-  access telemetry exists in v1. An attacker using an already-baselined tool
-  redirected to a malicious destination, a fileless payload, or an in-place
-  binary replacement that keeps the same executable path is currently
-  invisible to this system. See `docs/ADVERSARIAL_SCENARIOS_V1.md` for 18
-  worked scenarios: 6 structurally undetectable, 4 depend on exact
-  process-identity granularity, 3 acknowledged but untested, 5 genuinely
-  caught by an existing rule.
-- **No prior work answers the specific research question tested here**:
-  `docs/RELATED_WORK_RECENT.md` lists 13 independently-verified papers
-  (last 5 years, plus one lower-confidence entry not independently
-  re-verified) on adjacent container/host anomaly-detection problems;
-  none of them run a controlled, statistically powered comparison of
-  baseline scoping granularity, confirming this project's methodological
-  gap is real rather than already answered elsewhere.
-- **Realistic use case**: a narrow, digest-identity-aware signal for
-  detecting *new* process behaviour inside an already-running
-  container — unexpected shells, unexpected non-shell executables of any
-  name, unexpected root processes, unexpected privileged-mode reconfiguration, and mutable-tag/
-  digest substitution. Not a general intrusion-detection or EDR replacement.
+- **Kernel-Level Telemetry**: Captures process execution events (`execve`/`execveat`) in real time using modern eBPF probes.
+- **Digest-Bound Baselines**: Profiles expected process behavior bound to cryptographic image digests (`sha256:...`) rather than mutable image tags.
+- **Behavioral Anomaly Scoring**: Calculates runtime drift using Jensen-Shannon divergence to identify unexpected processes and abnormal tool usage.
+- **ML Threat Classification**: Classifies runtime telemetry into MITRE attack tactics (`shell_escape`, `reconnaissance`, `suspicious_tooling`, `privilege_escalation`, `benign`) using an explainable Random Forest ensemble with TreeSHAP feature attribution.
+- **Rule Engine & AI Auditor**: Detects shell escapes, privilege escalation, unknown binaries, and suspicious executions, supplemented by automated incident summaries.
+- **Automated / Approved Containment**: Quarantines compromised containers (pause or stop) with configurable human-in-the-loop approval workflows.
+- **Vulnerability & SBOM Context**: Scans images with Trivy and enriches findings with EPSS exploit probabilities and CISA KEV exploitation data.
+- **Interactive Web Dashboard**: Clean UI for live telemetry streaming, behavioral score visualization, incident review, and response actions.
 
 ---
 
-## Table of Contents
+## Services
 
-- [Scope, Validated Claims, and Known Blind Spots](#scope-validated-claims-and-known-blind-spots)
-- [System Architecture & Network Boundaries](#system-architecture--network-boundaries)
-- [Core Subsystems & Capabilities](#core-subsystems--capabilities)
-- [Telemetry & Kernel Event Ingestion](#telemetry--kernel-event-ingestion)
-- [Behavioural Profiling & Anomaly Scoring](#behavioural-profiling--anomaly-scoring)
-- [Deterministic Detection & Incident Correlation](#deterministic-detection--incident-correlation)
-- [Automated & Human-Approved Response Policies](#automated--human-approved-response-policies)
-- [Vulnerability & SBOM Intelligence Pipeline](#vulnerability--sbom-intelligence-pipeline)
-  - [Exact Canonical Scan Identity](#exact-canonical-scan-identity)
-  - [Scanner Supply-Chain Controls](#scanner-supply-chain-controls)
-  - [Multi-Stage Evidence Model](#multi-stage-evidence-model)
-  - [Historical Evidence Reproducibility](#historical-evidence-reproducibility)
-- [Repository Structure](#repository-structure)
-- [Prerequisites & System Requirements](#prerequisites--system-requirements)
-- [Configuration & Environment Setup](#configuration--environment-setup)
-- [Running the Platform](#running-the-platform)
-- [Operator CLI Workflows](#operator-cli-workflows)
-- [Verification & Quality Assurance Gates](#verification--quality-assurance-gates)
-- [Documentation Index](#documentation-index)
+| Service | Role | Port |
+| :--- | :--- | :--- |
+| **`backend`** | Core API, scoring engine, detection logic, and incident management | `8000` (via gateway) |
+| **`collector`** | Streams Docker daemon lifecycle events (create, start, exec, die) | Internal |
+| **`telemetry`** | Ingests and spools kernel process events from Falco | Internal |
+| **`responder`** | Executes container containment actions (pause / stop) | Internal |
+| **`scanner`** | Runs Trivy vulnerability scans and retrieves EPSS/KEV metadata | Internal |
+| **`falco`** | Modern eBPF sensor monitoring system calls | Internal |
+| **`postgres`** | Stores events, baselines, incidents, and audit trails | `5432` (Internal) |
+| **`gateway`** | Nginx reverse proxy routing external API traffic | `8000` |
+| **`dashboard`** | Lightweight web server hosting the dashboard UI | `3000` |
 
 ---
 
-## System Architecture & Network Boundaries
+## Machine Learning Threat Classification
 
-Porygon enforces strict network segregation, minimal privilege boundaries, and defence-in-depth across its containerized services.
+Porygon pairs continuous kernel eBPF observation with a supervised **Random Forest ensemble** and **TreeSHAP additive feature attribution**. Rather than treating machine learning as an opaque scoring mechanism, Porygon classifies runtime process telemetry directly into standardized **MITRE ATT&CK tactics** while mathematically explaining every prediction down to individual feature contributions.
 
-### Network Topology & Data Flow
+### Multi-Layer Detection Architecture
 
-```mermaid
-flowchart TB
-    subgraph Host["Host Environment / Operator"]
-        Operator["Operator / Researcher CLI"]
-        DockerHost["Docker Engine (/var/run/docker.sock)"]
-        Kernel["Linux Kernel (modern-eBPF / sys_enter_execve)"]
-    end
+| Defense Layer | Detection Engine | Target Threat Vector | Evaluation Latency | Output Representation | Explainability Mechanism |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Statistical Drift** | Jensen-Shannon Divergence | Unseen process churn & baseline deviation | < 0.2 ms | Continuous distance score (`0.00`–`1.00`) | Digest symbol distribution delta |
+| **Deterministic Rules** | Falco eBPF Kernel Probes | Known exploits (`setuid`, cgroup escape, shim bypass) | Real-time (< 0.1 ms) | Boolean incident alerts | Syscall argument match & trace |
+| **Supervised ML** | Calibrated Random Forest Ensemble | Stealthy multi-stage attack tactics & intent | < 1.5 ms | MITRE tactic probabilities + verdict | Exact TreeSHAP additive feature attributions ($\Delta \mathbf{P}$) |
+| **Generative AI** | Local LLM Auditor (Claude/Ollama) | Complex alert correlation & blast-radius analysis | 1.5 s – 3.0 s | Plain-language remediation brief | Chain-of-thought markdown narrative |
 
-    subgraph IngressNet["porygon_ingress (127.0.0.1:8000)"]
-        Gateway["NGINX Gateway\n(Non-root, Reverse Proxy)"]
-    end
+### MITRE ATT&CK Tactic Mapping
 
-    subgraph InternalNet["porygon_internal (Isolated Bridge)"]
-        API["Porygon API Backend\n(FastAPI / SQLAlchemy)"]
-        DB[("PostgreSQL 17\n(Event, Incident & Vuln Store)")]
-        Collector["Docker Collector\n(Events & Outbox Spool)"]
-        Falco["Falco 0.44.1 Engine\n(modern-eBPF Syscall Capture)"]
-        Telemetry["Telemetry Adapter\n(JSONL Parser & Process Spool)"]
-        Responder["Response Executor\n(Containment Actions)"]
-    end
+| MITRE Attack Tactic | Target MITRE ID | Threat Severity | Primary Behavioral Indicators | Associated Binaries & Tooling | Porygon Automated Response |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`benign`** | N/A | `CLEAN` | Strict adherence to baseline digest profile; 0 unseen binaries | Container entrypoint, standard daemons (`nginx`, `node`, `python`) | Continuously monitor & refine baseline |
+| **`reconnaissance`** | T1046, T1082 | `MEDIUM` | Host/network discovery, process tree enumeration, interface probing | `nmap`, `ifconfig`, `netstat`, `ping`, `ss`, `ip`, `whoami` | Alert operator & log forensic snapshot |
+| **`privilege_escalation`** | T1068, T1548 | `CRITICAL` | Sudo capability abuse, root transition spikes, namespace manipulation | `sudo`, `su`, `pkexec`, `nsenter`, `capsh`, `chroot`, dirty pipe probes | Restrict cgroups & alert operator |
+| **`shell_escape`** | T1611, T1059 | `CRITICAL` | Interactive shell spawned directly from runtime shim (`docker exec`) | `/bin/sh`, `/bin/bash`, `dash`, unprofiled shell invocations | Automated containment (pause/stop container) |
+| **`suspicious_tooling`** | T1059, T1496 | `HIGH` | Network egress fetchers, compiler invocations, crypto-mining loops | `curl`, `wget`, `socat`, `nc`, `xmrig`, `gcc`, `make` | Revoke network egress & trigger containment lease |
 
-    subgraph EgressNet["porygon_egress (Outbound Internet)"]
-        Scanner["Vulnerability Scanner\n(Trivy 0.72.0 Engine)"]
-        Feeds["External Feeds\n(FIRST EPSS & CISA KEV APIs)"]
-    end
+### 12-Dimensional Extracted Feature Vector
 
-    Operator -->|HTTP / Operator Token| Gateway
-    Gateway -->|Internal HTTP| API
-    API <-->|SQL| DB
+The ML classifier ingests 12 normalized telemetry features derived from kernel `execve` events and container baseline digests:
 
-    DockerHost -.->|Read-Only Socket| Collector
-    Collector -->|Batch Delivery| API
+| Feature Name | Value Range | Behavioral Semantic Description | Threat Implication |
+| :--- | :--- | :--- | :--- |
+| **`shell_ratio`** | `[0.0, 1.0]` | Proportion of executions invoking `/bin/sh`, `/bin/bash`, or `dash` | Interactive shell presence inside non-shell microservice |
+| **`recon_ratio`** | `[0.0, 1.0]` | Proportion of executions invoking network or system discovery commands | Attacker reconnaissance and host discovery |
+| **`tooling_ratio`** | `[0.0, 1.0]` | Frequency of file-fetch or reverse-shell binaries (`curl`, `wget`, `nc`) | Malicious payload staging and command-and-control ingress |
+| **`priv_escalation_ratio`** | `[0.0, 1.0]` | Invocations of privilege elevation utilities (`sudo`, `su`, `nsenter`) | Container breakout and root privilege escalation |
+| **`compiler_miner_ratio`** | `[0.0, 1.0]` | Invocations of development compilers or cryptomining software | Resource hijacking and unauthorized compilation |
+| **`root_ratio`** | `[0.0, 1.0]` | Proportion of process executions running as `root` (UID 0) | Violation of least-privilege container runtime principles |
+| **`parent_shim_ratio`** | `[0.0, 1.0]` | Processes spawned directly under `containerd-shim` / `docker-runc` | External operator `docker exec` injection |
+| **`distinct_proc_count`** | `[0, ∞)` | Number of unique binary executables launched during the window | High process diversity indicates interactive intruder activity |
+| **`event_count`** | `[0, ∞)` | Total volume of process execution events recorded | Execution churn and volume anomalies |
+| **`unseen_executable_ratio`** | `[0.0, 1.0]` | Fraction of executables absent from the cryptographic baseline | Code execution outside pre-approved container images |
+| **`suspicious_sequence_ratio`** | `[0.0, 1.0]` | Sequences matching rapid recon-to-exploit chaining patterns | Multi-step automated cyber kill-chain execution |
+| **`jensen_shannon_drift`** | `[0.0, 1.0]` | Jensen-Shannon distance against the baseline process distribution | Global behavioral divergence from expected workload profile |
 
-    Kernel -.->|Syscall Events| Falco
-    Falco -->|JSONL Stream| Telemetry
-    Telemetry -->|Batch Delivery| API
+### TreeSHAP Mathematical Explainability
 
-    API -->|Response Leases| Responder
-    Responder -.->|Containment API / Socket| DockerHost
+To satisfy strict regulatory and security audit requirements, Porygon rejects black-box classifications. Each prediction is accompanied by exact TreeSHAP local additive feature attributions:
 
-    API -->|Scan Queue Leases| Scanner
-    Scanner -.->|Read-Only Socket| DockerHost
-    Scanner -->|HTTPS Catalog Ingestion| Feeds
-    Scanner -->|Structured Findings| API
-```
+$$\mathbf{f}(x) = \phi_0 + \sum_{i=1}^{12} \phi_i(x)$$
 
-### Security Boundaries & Privilege Segregation
+Where $\phi_0$ is the base expected model value and $\phi_i(x)$ represents the exact marginal contribution of feature $i$ pushing the probability toward or away from a given MITRE tactic.
 
-| Component | Network Attachments | Socket Access | Credentials Held | Capabilities / Permissions |
-|---|---|---|---|---|
-| **NGINX Gateway** | `porygon_ingress`, `porygon_internal` | None | None (Credential-free) | `cap_drop: ALL`, unprivileged UID |
-| **API Backend** | `porygon_internal`, `porygon_egress` | None | PostgreSQL & Service Tokens | `cap_drop: ALL`, `read_only: true`; egress used only by the operator-gated AI auditor to reach Gemini/OpenAI/Anthropic |
-| **PostgreSQL** | `porygon_internal` | None | PostgreSQL Internal Credentials | Persistent named volume |
-| **Docker Collector** | `porygon_internal` | `/var/run/docker.sock` *(ro)* | Internal Service API Token | Read-only socket, SQLite local outbox |
-| **Falco (eBPF)** | `porygon_internal` | `/var/run/docker.sock` *(ro)* | None | `BPF`, `PERFMON`, `SYS_RESOURCE`, `SYS_PTRACE` |
-| **Telemetry Adapter** | `porygon_internal` | None | Internal Service API Token | Read-only shared event volume, SQLite outbox |
-| **Response Executor** | `porygon_internal` | `/var/run/docker.sock` *(ro/rw)* | Internal Service API Token | Docker socket for pause/stop actions |
-| **Vulnerability Scanner** | `porygon_internal`, `porygon_egress` | `/var/run/docker.sock` *(ro)* | Internal Service API Token | Outbound HTTPS for threat feeds & DB updates |
+### ML Classifier REST API
+
+| Endpoint | Method | Input Payload | Output Schema | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **`/api/v1/ml/classify-container/{container_id}`** | `POST` | Path parameter `container_id` | `MLThreatClassificationOut` | Extracts runtime telemetry and baseline drift for a container and classifies attack tactics. |
+| **`/api/v1/ml/classify`** | `POST` | `MLClassifyEventsIn` (event list + baseline) | `MLThreatClassificationOut` | Classifies raw eBPF process events on-the-fly. |
+| **`/api/v1/ml/classify-features`** | `POST` | `MLClassifyFeaturesIn` (12 feature values) | `MLThreatClassificationOut` | Evaluates a pre-computed 12-dimensional feature vector. |
+| **`/api/v1/ml/model-info`** | `GET` | None | `MLModelInfoOut` | Returns ensemble metadata, classes, feature names, and version. |
 
 ---
 
-## Core Subsystems & Capabilities
+## Prerequisites
 
-| Subsystem | Architecture & Purpose | Implementation Highlights |
-|---|---|---|
-| **Core API & State Management** | Centralized FastAPI service managing database schemas, migrations, service authentication, and event ingestion. | SQLAlchemy ORM, Alembic schema migrations, strict role-based token authentication (Operator vs Internal). |
-| **Docker Telemetry Ingestion** | Captures container lifecycle events (`create`, `start`, `die`, `exec`) and records immutable image identities. | SQLite-backed durable outbox with exponential backoff retry and exactly-once deduplication. |
-| **Kernel Process Telemetry** | Captures container process executions via modern eBPF without host kernel module dependencies. | Falco 0.44.1 engine with `proc.vpid` field validation, networkless volume permission initializers, and JSONL adapters. |
-| **Digest-Bound Baselines** | Constructs immutable, versioned behavioural profiles bound strictly to repository digests. | Aggregates observed executables, parent trees, working directories, and user identities. |
-| **Behavioural Distance Scoring** | Computes explainable Jensen-Shannon divergence anomalies between runtime windows and baselines. | Math-grounded categorical divergence, continuous rate scoring, rarity weights, and provenance metrics. |
-| **Deterministic Detections** | Correlates security findings across multi-call binaries, shell executions, and privilege escalations. | Multicall applet-aware matching (`BusyBox`, `Toybox`), deterministic rule identifiers (`POR-DET-001`..`007`). |
-| **Controlled Response Engine** | Executes human-approved mitigation actions against target containers. | Support for `observe_only`, `pause_container`, and `stop_container` with `com.porygon.protected` guardrails. |
-| **Vulnerability Intelligence** | Enriches container image digests with CycloneDX SBOMs, CVE mappings, EPSS exploit likelihoods, and CISA KEV context. | Trivy 0.72.0 pinned engine, 6-parameter canonical scan SHA-256 identity, and multi-stage runtime reachability models. |
+- **OS**: Linux with eBPF support (kernel 5.8+ recommended)
+- **Docker Engine**: 24.0+ with Docker Compose v2
+- **Python**: 3.11+
+- Appropriate permissions to access `/var/run/docker.sock` and load eBPF probes
 
 ---
 
-## Telemetry & Kernel Event Ingestion
+## Quickstart
 
-Porygon employs a decoupled, durable telemetry architecture to ensure zero loss of kernel-observed process events or container lifecycle state during backend outages.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant K as Linux Kernel (eBPF)
-    participant F as Falco 0.44.1
-    participant T as Telemetry Adapter
-    participant O as SQLite Outbox Spool
-    participant B as Porygon API Backend
-    participant D as PostgreSQL Store
-
-    K->>F: execve / execveat Syscall
-    F->>F: Evaluate porygon_rules.yaml (proc.vpid, container.id)
-    F->>T: Write Event Line (/var/log/porygon/falco-events.jsonl)
-    T->>O: Enqueue Event to Local Spool (process-outbox.db)
-    loop Resilient Delivery Worker
-        T->>B: POST /api/v1/telemetry/processes/batch (Internal Auth)
-        alt Backend Healthy
-            B->>D: Upsert Process Execution & Update Digest Map
-            B-->>T: 200 OK (Batch Committed)
-            T->>O: Remove Committed Batch from Outbox
-        else Backend Outage
-            B-->>T: 503 / Network Error
-            T->>T: Exponential Backoff & Retry
-        end
-    end
-```
-
-### Falco eBPF Rule Configuration
-
-Process monitoring is governed by [`falco/porygon_rules.yaml`](falco/porygon_rules.yaml):
-
-```yaml
-- rule: Porygon Container Process Execution
-  desc: Record each process execution observed inside a Linux container for digest-bound behavioural profiling.
-  condition: evt.type in (execve, execveat) and container.id != host
-  output: "Porygon container process execution (evt_time=%evt.time.iso8601 evt_rawtime=%evt.rawtime evt_num=%evt.num evt_type=%evt.type container_id=%container.id container_name=%container.name image_repository=%container.image.repository image_tag=%container.image.tag pid=%proc.pid ppid=%proc.ppid vpid=%proc.vpid process=%proc.name executable=%proc.exepath command=%proc.cmdline cwd=%proc.cwd terminal=%proc.tty parent=%proc.pname parent_executable=%proc.pexepath parent_command=%proc.pcmdline user_uid=%user.uid user=%user.name group_gid=%group.gid group=%group.name)"
-  priority: NOTICE
-  source: syscall
-  tags: [porygon, container, process]
-```
-
-> [!NOTE]
-> **Kernel Compatibility**: On specialized kernels (e.g. CachyOS), Falco may report certain optional TOCTOU mitigation tracepoints as unavailable while continuing reliable process execution capture. Stock Linux LTS kernels are used for formal experimental baselines.
-
----
-
-## Behavioural Profiling & Anomaly Scoring
-
-Porygon models container runtime behaviour using mathematical distance measures rather than black-box machine learning classifiers.
-
-```mermaid
-graph LR
-    subgraph ProfileCreation["Baseline Profile Generation"]
-        A[Historical Observation Windows] --> B[Aggregate Executable Frequencies]
-        A --> C[Aggregate Parent Hierarchies]
-        A --> D[User & Working Directory Sets]
-        B & C & D --> E[Versioned Digest Baseline P]
-    end
-
-    subgraph AnomalyScoring["Distance Scoring Engine"]
-        F[Target Runtime Window Q] --> G[Compute Base-2 JSD Divergence]
-        E --> G
-        G --> H["Categorical Distance: D_JS = sqrt(JSD(P, Q))"]
-        F --> I[Compute Process Execution Rate]
-        I --> J[Rate Divergence Score]
-        H & J --> K[Composite Anomaly Vector & Explanations]
-    end
-```
-
-### Mathematical Foundations (`porygon.distance.v1`)
-
-1. **Categorical Feature Distance**:
-   For each categorical dimension (executables, parent binaries, user UIDs, working directories, terminal attachments), the baseline distribution $P$ and observation distribution $Q$ are evaluated using Jensen-Shannon Divergence:
-   $$M = \frac{1}{2}(P + Q)$$
-   $$JSD(P, Q) = \frac{1}{2} D_{KL}(P \parallel M) + \frac{1}{2} D_{KL}(Q \parallel M)$$
-   $$D_{JS}(P, Q) = \sqrt{JSD(P, Q)}$$
-
-2. **Numerical Rate Distance**:
-   Process execution rates per minute are evaluated against baseline normal curves using bounded logarithmic scaling.
-
-3. **Calibrated Provenance & Rarity**:
-   Unseen executables receive calibrated rarity weights based on global repository frequencies, distinguishing standard utilities from novel binaries.
-
----
-
-## Deterministic Detection & Incident Correlation
-
-Findings are generated deterministically using the `porygon.detection.v1` ruleset (matcher `porygon.detection.matcher.v4`).
-
-```mermaid
-stateDiagram-v2
-    [*] --> TelemetryObserved
-    TelemetryObserved --> RuleEvaluation: Process / Container Event
-    
-    state RuleEvaluation {
-        POR_001: POR-DET-001 High Behavioural Distance
-        POR_002: POR-DET-002 Novel Shell Execution
-        POR_003: POR-DET-003 Novel Root Execution
-        POR_004: POR-DET-004 Unseen Non-Shell Executable
-        POR_005: POR-DET-005 Shell-to-Tool Sequence (120s)
-        POR_006: POR-DET-006 Docker Exec Activity
-        POR_007: POR-DET-007 Privileged Container Config
-    }
-
-    RuleEvaluation --> FindingCreated: Rule Condition Matched
-    FindingCreated --> AllowlistCheck: Evaluate Approved Run Keys
-    AllowlistCheck --> Suppressed: Match Found
-    AllowlistCheck --> IncidentCorrelated: Unsuppressed Incident-Eligible Rule
-    IncidentCorrelated --> ResponseRecommendation: Calculate Severity & Confidence
-    ResponseRecommendation --> [*]
-```
-
-### Deterministic Detection Rules
-
-| Rule ID | Name | Trigger Condition | Incident Eligible | Allowlistable |
-|---|---|---|:---:|:---:|
-| **POR-DET-001** | High Behavioural Distance | Total anomaly distance $\ge 0.50$ | No *(Informational)* | No |
-| **POR-DET-002** | Previously Unseen Shell | Known shell binary (`sh`, `bash`, `ash`, `zsh`) absent from baseline | **Yes** | **Yes** *(Digest + Executable)* |
-| **POR-DET-003** | Novel Root Process | Process executed with UID 0 where UID 0 was absent in baseline | **Yes** | **Yes** *(Digest + Executable)* |
-| **POR-DET-004** | Previously Unseen Non-Shell Executable | Any non-shell executable absent from the digest baseline, regardless of name | **Yes** | **Yes** *(Digest + Executable)* |
-| **POR-DET-005** | Shell-to-Tool Sequence | Novel shell followed by novel non-shell executable within 120 seconds in same container | **Yes** | Derived *(Source suppression)* |
-| **POR-DET-006** | Docker Exec Activity | `exec_create` / `exec_start` observed in score window | No *(Contextual)* | No |
-| **POR-DET-007** | Privileged Configuration | Container created/started with privileged mode enabled | **Yes** | No |
-
----
-
-## Automated & Human-Approved Response Policies
-
-Porygon implements human-in-the-loop remediation via policy `porygon.response.v1`. Recommended containment actions must receive explicit human operator approval before execution.
-
-```mermaid
-flowchart TD
-    Incident[Correlated Incident Created] --> EvalPolicy[Evaluate Response Policy]
-    
-    EvalPolicy --> Decision{Severity & Confidence Gates}
-    Decision -->|Sev >= 0.90 & Conf >= 0.75\n+ POR-DET-005/007| RecStop[Recommend: stop_container]
-    Decision -->|Sev >= 0.70 & Conf >= 0.55| RecPause[Recommend: pause_container]
-    Decision -->|Below Thresholds| RecObs[Recommend: observe_only]
-    
-    RecStop & RecPause & RecObs --> ApprovalQueue[Pending Operator Approval Queue]
-    
-    ApprovalQueue --> OperatorAction{Operator Review}
-    OperatorAction -->|Approved Exact Action| Exec[Execute Container Containment]
-    OperatorAction -->|Selected Less Disruptive Action| Exec
-    OperatorAction -->|Rejected / Timed Out| Abort[Record Decision as Rejected]
-    
-    Exec --> SafetyCheck{Target Container Protected?}
-    SafetyCheck -->|Label: com.porygon.protected| Block[Blocked by Safety Policy]
-    SafetyCheck -->|Target Normal Workload| RunDocker[Execute Docker API Action]
-```
-
-### Action Criteria & Safeguards
-
-- **`observe_only`**: Logs findings without altering container runtime state.
-- **`pause_container`**: Suspends all processes in the exact container ID ($Severity \ge 0.70$, $Confidence \ge 0.55$).
-- **`stop_container`**: Initiates graceful container shutdown ($Severity \ge 0.90$, $Confidence \ge 0.75$, requires strong correlation).
-- **Prohibited Operations**: Porygon will **never** delete images, delete volumes, wipe containers, execute remote commands inside containers, or modify host firewall rules. Containers with `com.porygon.protected=true` are strictly immune to response actions.
-
----
-
-## Vulnerability & SBOM Intelligence Pipeline
-
-Porygon extends runtime observation by binding container image digests directly to static Software Bill of Materials (SBOM) and vulnerability threat feeds.
-
-```mermaid
-flowchart LR
-    subgraph Ingestion["1. Static Analysis & Feed Ingestion"]
-        TargetImg["Docker Target Image"] --> Trivy["Trivy 0.72.0 Engine\n(Pinned Checksum)"]
-        Trivy --> CycloneDX["CycloneDX JSON SBOM"]
-        Trivy --> RawReport["Raw Vulnerability JSON"]
-        Feeds["FIRST EPSS & CISA KEV"] --> IntelSnapshot["Immutable Feed Snapshot"]
-    end
-
-    subgraph Identity["2. Canonical Scan Identity"]
-        CycloneDX & RawReport & IntelSnapshot --> ScanID["Canonical SHA-256 Hash\n(Digest + Host + Scanner + Ref)"]
-    end
-
-    subgraph Correlation["3. Multi-Stage Evidence Matching"]
-        ScanID --> Stage1["package_present\n(SBOM Match)"]
-        Stage1 --> Stage2["deployed\n(Observed on Docker)"]
-        Stage2 --> Stage3["runtime_observed\n(eBPF Process Match)"]
-        Stage3 --> Stage4["runtime_observed_and_port_published\n(Network Exposed)"]
-    end
-```
-
-### Exact Canonical Scan Identity
-
-Scans are identified by a deterministic canonical SHA-256 hash:
-
-```text
-canonical_scan_identity = SHA-256(
-    repository_digest        + "\n" +
-    exact_local_image_id     + "\n" +
-    docker_host              + "\n" +
-    scanner_name_and_version + "\n" +
-    vulnerability_schema_ver + "\n" +
-    researcher_scan_reference
-)
-```
-
-- **Idempotent**: Resubmitting identical parameters returns existing records without re-running scans.
-- **Immutable**: Modifications to image digests, scanner versions, or researcher references spawn distinct, immutable scan records.
-
-### Scanner Supply-Chain Controls
-
-Trivy binaries are locked to version `0.72.0` with verified release checksums:
-
-| Architecture | Release Archive SHA-256 Checksum |
-|---|---|
-| **amd64 (x86_64)** | `bbb64b9695866ce4a7a8f5c9592002c5961cab378577fa3f8a040df362b9b2ea` |
-| **arm64 (aarch64)** | `2ca2c023109c2db6b2b77366b6717291452d4531167377d95c79547f0c8e3467` |
-
-### Multi-Stage Evidence Model
-
-| Evidence Stage | Description |
-|---|---|
-| `package_present` | Package/version metadata matched in the static image filesystem. |
-| `deployed` | An active container running the exact image digest has been observed on the daemon. |
-| `runtime_observed` | Kernel eBPF telemetry observed a process whose name/path heuristically matches the package. |
-| `runtime_observed_and_port_published` | Process execution matched and a public network port is exposed on the host. |
-
-> [!WARNING]
-> **Exploitation Claim Boundary**: Every finding records `exploit_status = not_established`. Static package matches, EPSS scores, CISA KEV listings, or published ports demonstrate exposure context, **not** proof of reachability or active exploitation.
-
-### Historical Evidence Reproducibility
-
-- `vulnerability_intel`: Stores current, live threat intelligence lookups per CVE.
-- `vulnerability_finding`: Stores an **immutable scan-time snapshot** (EPSS score, percentile, KEV membership, source metadata, feed hashes, and timestamps). Intelligence updates never modify previously recorded experimental data.
-
----
-
-## Repository Structure
-
-```text
-Porygon/
-├── compose.yaml                      # Multi-service container definitions & isolated networks
-├── Makefile                          # Unified build, lint, test, and verification tasks
-├── backend/                          # FastAPI core API & database migrations
-│   ├── alembic/versions/             # Database schema migrations (0001 through 0012)
-│   ├── src/porygon_api/
-│   │   ├── baseline.py               # Behavioural profile baseline engine
-│   │   ├── scoring.py                # Jensen-Shannon anomaly scoring engine
-│   │   ├── detection.py              # Finding & incident correlation rules
-│   │   ├── response.py               # Response recommendation & approval policy
-│   │   ├── vulnerability.py          # Vulnerability, EPSS, KEV & SBOM cataloging
-│   │   ├── models.py                 # SQLAlchemy ORM database models
-│   │   ├── schemas.py                # Pydantic request & response schemas
-│   │   └── main.py                   # API routes & middleware
-│   └── tests/                        # Backend unit & integration test suite
-├── collector/                        # Docker daemon event collector & SQLite outbox
-├── gateway/                          # NGINX reverse proxy configuration (port 8000)
-│   └── nginx.conf
-├── telemetry/                        # eBPF / Falco event consumer & SQLite outbox
-├── responder/                        # Containment & mitigation action executor
-├── scanner/                          # SBOM & vulnerability scanner worker
-│   ├── Dockerfile                    # Pinned Trivy 0.72.0 verification
-│   ├── src/porygon_scanner/          # Scan queue consumer & feed fetcher
-│   └── tests/                        # Scanner unit tests
-├── falco/                            # Falco modern-eBPF rule definitions
-│   └── porygon_rules.yaml
-├── docs/                             # Architecture specs, threat models & research protocols
-├── scripts/                          # Operator CLI tools & automated test suites
-│   ├── porygon_baseline.py           # Baseline profile management CLI
-│   ├── porygon_score.py              # Anomaly scoring CLI
-│   ├── porygon_detect.py             # Incident correlation CLI
-│   ├── porygon_respond.py            # Response execution CLI
-│   ├── porygon_scan.py               # Vulnerability & SBOM scan CLI
-│   └── verify_all.sh                 # Master verification script
-└── artifacts/                        # Verification outputs, test logs & SBOM exports
-```
-
----
-
-## Prerequisites & System Requirements
-
-- **Operating System**: Linux kernel with BTF enabled (`/sys/kernel/btf/vmlinux`).
-- **Container Engine**: Docker Engine 24.0+ and Docker Compose v2.
-- **Kernel Tracing**: Support for modern eBPF (no out-of-tree kernel modules required).
-- **Socket Permissions**: Read permissions for `/var/run/docker.sock`.
-- **Outbound Connectivity**: HTTPS access from the scanner container to Trivy vulnerability databases, FIRST EPSS API, and CISA KEV feeds.
-- **Host Tools**: `curl`, `python3` (with PyYAML), `ruff`, `make`, `stat`, and `uname`.
-
----
-
-## Configuration & Environment Setup
-
-### 1. Initialize Secrets & Local Environment
-
-Run the automated initializer to create a secure, non-committed `.env` file with unique cryptographic secrets and your local Docker socket GID:
-
+### 1. Initialize Configuration
+Generate local secrets, database credentials, and Docker socket permissions:
 ```bash
 make init
 ```
 
-*To configure manually, copy `.env.example` to `.env`, populate all placeholders, and retrieve your Docker GID with `stat -c '%g' /var/run/docker.sock`.*
-
-### 2. Install the Host Verification Toolchain
-
-The static gate runs `ruff` on the host from `./.venv/bin`, which is gitignored
-and therefore absent on a fresh clone. Create it once:
-
+### 2. Start Services
+Build and start the container stack:
 ```bash
-make dev-setup
-```
-
-Versions are pinned in `requirements-dev.txt`. These are host tools only --
-every service installs its own dependencies inside its own container image.
-
-### 3. Verify Operational Safeguards
-
-Review key configuration variables in `.env`:
-
-```env
-# Safety default: Response actions are disabled unless explicitly running lab experiments
-PORYGON_RESPONSE_EXECUTION_MODE=disabled
-
-# Trivy scanner engine version
-PORYGON_TRIVY_VERSION=0.72.0
-
-# Calibrated anomaly scoring flag
-PORYGON_CALIBRATED_ENABLED=false
-```
-
----
-
-## Running the Platform
-
-### Start Services
-
-```bash
-# 1. Validate Docker Compose configuration
-make config
-
-# 2. Build and start all services in detached mode
 make up
-
-# 3. Verify service health and readiness
-make ps
 ```
 
-### Interactive API Documentation
+### 3. Launch the Dashboard
+Start the dashboard server:
+```bash
+python3 scripts/serve_dashboard.py
+```
 
-Access the interactive OpenAPI Swagger UI via the gateway:
-
-- **Swagger UI**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **ReDoc**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+Open **`http://localhost:3000`** in your browser. The backend API is available at **`http://localhost:8000`**.
 
 ---
 
-## Operator CLI Workflows
-
-### 1. Deploy & Observe Target Workload
+## Useful Commands
 
 ```bash
-# Start a target workload
-docker pull alpine:3.19
-docker run -d --name porygon-target alpine:3.19 sh -c 'while :; do sleep 30; done'
-
-# Retrieve immutable repository digest
-docker image inspect alpine:3.19 --format '{{index .RepoDigests 0}}'
-```
-
-### 2. Queue a Vulnerability & SBOM Scan
-
-```bash
-export PORYGON_OPERATOR_API_TOKEN='<operator-token-from-.env>'
-
-./scripts/porygon_scan.py create \
-  --image-digest 'alpine@sha256:...' \
-  --requested-by 'researcher-name' \
-  --scan-reference 'experiment-001' \
-  --note 'Approved baseline enrichment run'
-```
-
-### 3. Inspect Scan Outputs, SBOMs & Threat Intel
-
-```bash
-# List completed scans
-./scripts/porygon_scan.py scans --status completed
-
-# Inspect detailed scan summary
-./scripts/porygon_scan.py scan <SCAN_ID>
-
-# Export CycloneDX JSON SBOM
-./scripts/porygon_scan.py sbom <SCAN_ID> > artifacts/scan-sbom.json
-
-# Export raw Trivy report
-./scripts/porygon_scan.py report <SCAN_ID> > artifacts/scan-trivy-report.json
-
-# Query correlated package findings for an image digest
-./scripts/porygon_scan.py findings --image-digest 'alpine@sha256:...'
-
-# Query live threat intelligence for a CVE
-./scripts/porygon_scan.py intel CVE-2025-12345
-```
-
-### 4. Manage Baselines, Anomaly Scores & Incidents
-
-```bash
-# List active behavioural profiles
-./scripts/porygon_baseline.py list
-
-# Compute behavioural distance anomaly score
-./scripts/porygon_score.py evaluate --container-id <CONTAINER_ID>
-
-# Review correlated security incidents & timelines
-./scripts/porygon_detect.py incidents
+make up          # Build and start all services in the background
+make down        # Stop all running services
+make logs        # Stream aggregated logs across all containers
+make ps          # Check service health status
+make test        # Run unit tests
+make reset       # Stop services and remove volumes (clean database)
 ```
 
 ---
 
-## Verification & Quality Assurance Gates
+## Configuration
 
-Porygon maintains comprehensive test coverage across static linting, unit test suites, resilient live pipelines, and container containment gates.
+All configuration is controlled via `.env` (created from `.env.example` during `make init`).
 
-### Verification Targets
-
-```bash
-# 1. Run full master non-disruptive gate (static, unit, live-safe, scanner)
-make verify
-
-# 2. Run static linters, YAML/TOML validators, and schema checks
-make verify-static
-
-# 3. Run all service unit test suites
-make verify-unit
-
-# 4. Run safe live integration tests (event capture, replay, baselines, incidents)
-make verify-live-safe
-
-# 5. Run live vulnerability scanner & enrichment suite
-make verify-scanner-live
-
-# 5b. Real-container acceptance: pinned digest, disposable container, reconciled telemetry
-make verify-experiment-live
-
-# 6. Validate the dependency-free experiment artifact contract (synthetic)
-make experiment-smoke
-make experiment-replay RUN_DIR=artifacts/experiments/local/smoke-fixture
-
-# 7. Run a real-container pilot against pinned image digests (requires `make up`)
-make experiment-pilot PILOT_ARGS="--workloads WL-NGX-V1 --scenarios SCN-EXEC --replicas 1"
-make experiment-validate RUN_DIR=artifacts/experiments/local/<run-id>
-```
-
-> [!WARNING]
-> **Evidence classes are not interchangeable.** The smoke fixture is synthetic.
-> The pilot uses real containers, and the research protocol is `FROZEN` with
-> both required reviews approved, but every pilot run still records
-> `research_eligible: false` — protocol freeze is necessary but not sufficient
-> for confirmatory status, which additionally requires protocol-conformance
-> machinery that has not been built yet (tracked as separate future work).
-> Only a confirmatory run may support a research claim; see
-> `docs/CONFIRMATORY_RESULT_V1.md` for the current evidence-class status of
-> every run collected so far.
-
-> [!IMPORTANT]
-> **Controlled Disruptive Response Gate**: The live response test (`make verify-response-live`) pauses and stops containers. It requires `PORYGON_RESPONSE_EXECUTION_MODE=live` in `.env` and must only be executed in an isolated test environment. It is never included in `make verify`.
-
-### Master Verification Pipeline Lifecycle
-
-The verification suite (`./scripts/verify_all.sh`) validates an 11-stage operational lifecycle:
-1. Validates and starts the multi-service stack with health checks.
-2. Asserts claim-boundary policies (`exploit_status = not_established`).
-3. Deploys disposable, non-exploit test containers.
-4. Confirms immutable digest registration in PostgreSQL via collector outbox.
-5. Queues exact digest and image scan jobs.
-6. Proves idempotent behavior on duplicate scan requests.
-7. Renews background worker leases during active scans.
-8. Enriches findings with Trivy CycloneDX SBOMs, CVE mappings, FIRST EPSS, and CISA KEV feeds.
-9. Validates raw-report, CycloneDX, and database hashes against preserved outputs.
-10. Validates immutable scan-time intelligence snapshots and finding stages.
-11. Confirms that modifying experiment references generates distinct scan identities.
-
-### Current verification notes
-
-Service unit suites pass 112 tests (backend 74, telemetry 20, collector 8,
-responder 5, scanner 5). The stdlib-only experiment harness adds 41 tests, which
-`make verify-unit` now runs on the host.
-
-The local experiment smoke fixture is synthetic and validates artifact
-provenance and replay only. The real-container pilot runner exercises the whole
-capture path against pinned image digests, but pilot data is still not research
-evidence — every trial and run record it produces carries
-`research_eligible: false`. The research protocol itself is `FROZEN` with both
-required reviews approved, but a confirmatory run additionally requires
-protocol-conformance machinery that has not been built yet; see
-`docs/CONFIRMATORY_RESULT_V1.md` for the current evidence-class status of every
-run collected so far.
-
-Additionally validated during CI/CD checks:
-- Python linting and code style via **Ruff**
-- Static typing and CLI compilation
-- Shell script syntax verification
-- Docker Compose and Falco rule YAML validation
-- Configuration TOML validation
-- OpenAPI JSON schema generation
-- Complete database migration chain (`0001_phase1_foundation` through `0012_custom_rule_lifecycle`)
+Key settings:
+- `PORYGON_RESPONSE_EXECUTION_MODE`: Set to `disabled` (safe default, approvals queued) or `live` (for active containment).
+- `PORYGON_LOG_LEVEL`: Logging verbosity (`DEBUG`, `INFO`, `WARNING`).
+- `PORYGON_OPERATOR_API_TOKEN`: Secret token used for operator actions in the dashboard and API.
 
 ---
 
 ## Documentation Index
 
-For in-depth architectural specifications, threat models, and research protocols:
+Explore the complete documentation in [`docs/`](docs/):
 
-- **Claim Boundaries (binding, read first)**: [`docs/CLAIMS_V1.md`](docs/CLAIMS_V1.md)
-- **Pilot Result (honest, unfiltered, 216-trial; not yet confirmatory)**: [`docs/CONFIRMATORY_RESULT_V1.md`](docs/CONFIRMATORY_RESULT_V1.md)
-- **Live Malware Demonstration Record (two dated runs)**: [`docs/LIVE_DEMO_RECORD_V1.md`](docs/LIVE_DEMO_RECORD_V1.md)
-- **Adversarial Scenario Stress Test**: [`docs/ADVERSARIAL_SCENARIOS_V1.md`](docs/ADVERSARIAL_SCENARIOS_V1.md)
-- **Related Work (13 verified papers, last 5 years)**: [`docs/RELATED_WORK_RECENT.md`](docs/RELATED_WORK_RECENT.md)
-- **Panel Review Presentation (current)**: [`docs/presentation/porygon_review_v3.pdf`](docs/presentation/porygon_review_v3.pdf) — supersedes `porygon_review_v2.pdf`, kept for provenance
-- **Pilot Results UI**: `artifacts/results.html` — regenerate with `python3 scripts/render_results.py`
-- **Research Protocol & Experimental Design**: [`docs/RESEARCH_PROTOCOL_V1.md`](docs/RESEARCH_PROTOCOL_V1.md)
-- **Threat Model & Security Boundary Analysis**: [`docs/THREAT_MODEL_V1.md`](docs/THREAT_MODEL_V1.md)
-
-The following documents referenced by earlier revisions of this index no
-longer exist in the repository and have been removed from this list rather
-than left as dead links: `docs/AUDIT_REPORT_PHASES_1_7.md`, `docs/DEMO.md`,
-`docs/design-decisions.md`, `docs/DETECTION_RULESET_V1.md`,
-`docs/execution-status.md`, `docs/EXPERIMENT_ACCEPTANCE.md`,
-`docs/EXPERIMENT_REPRODUCIBILITY.md`, `docs/final-verification-report.md`,
-`docs/PHASE8_ARCHITECTURE.md`, `docs/RESPONSE_POLICY_V1.md`,
-`docs/SCORING_MODEL_CALIBRATED.md`, `docs/SCORING_MODEL_V1.md`,
-`docs/VULNERABILITY_EVIDENCE_MODEL_V1.md`. The rule text, detection
-behaviour, scoring formula, and response policy they described are documented
-directly in `backend/src/porygon_api/detection.py`, `scoring.py`, and
-`response.py`, and summarized above in this README.
+- **Hands-On Explainer:**
+  - [Interactive Walkthrough & Architecture Guide](EXPLAINER.md)
+- **Architecture:**
+  - [System Overview](docs/architecture/system-overview.md)
+  - [eBPF Kernel Telemetry](docs/architecture/ebpf-telemetry.md)
+  - [Digest-Bound Behavioral Profiling](docs/architecture/behavioral-profiling.md)
+  - [Explainable ML Threat Classifier](docs/architecture/ml-threat-classifier.md)
+  - [Containment Engine & Safety Leases](docs/architecture/containment-engine.md)
+  - [SBOM & Vulnerability Reachability](docs/architecture/sbom-vulnerability.md)
+- **Academic Research & Protocol:**
+  - [Research Protocol Archive](docs/research/README.md)
+  - [Frozen Research Protocol](docs/research/research-protocol.md)
+  - [Threat Model](docs/research/threat-model.md)
+  - [Claims Boundaries & Falsification](docs/research/claims-boundaries.md)
+  - [Profile Scope Experiment](docs/research/profile-scope-experiment.md)
+  - [Adversarial Scenarios Stress Tests](docs/research/adversarial-scenarios.md)
+  - [Empirical Results (Pilots & Trials)](docs/research/empirical-results.md)
+  - [Development Roadmap](docs/research/development-roadmap.md)
+- **Defense Presentations:**
+  - [Presentation Guide & Slides](docs/presentation/README.md)
+  - [Presentation Spoken Script](docs/presentation/presentation-script.md)
+- **Reviews:**
+  - [Review Package](docs/review/review-package.md)

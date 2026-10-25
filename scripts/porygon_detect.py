@@ -8,6 +8,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 
 def _request(method: str, url: str, token: str | None = None, payload: dict | None = None) -> object:
@@ -29,7 +30,20 @@ def _request(method: str, url: str, token: str | None = None, payload: dict | No
         raise SystemExit(f"Could not reach Porygon API: {exc.reason}") from exc
 
 
+def _load_env() -> None:
+    env_file = Path(__file__).resolve().parents[1] / ".env"
+    if env_file.is_file():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                k, v = k.strip(), v.strip().strip('"').strip("'")
+                if k not in os.environ:
+                    os.environ[k] = v
+
+
 def _token() -> str:
+    _load_env()
     token = os.getenv("PORYGON_INTERNAL_API_TOKEN", "")
     if len(token) < 32:
         raise SystemExit("Set PORYGON_INTERNAL_API_TOKEN to the same token used by the stack")
@@ -37,7 +51,7 @@ def _token() -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run Porygon Phase 6 detection and inspect incidents")
+    parser = argparse.ArgumentParser(description="Run Porygon detection engine and inspect incidents")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
     commands = parser.add_subparsers(dest="command", required=True)
 
@@ -87,7 +101,7 @@ def main() -> int:
     create_allowlist.add_argument(
         "--rule-id",
         required=True,
-        choices=["POR-DET-002", "POR-DET-003", "POR-DET-004"],
+        help="Rule ID to allowlist (e.g. POR-DET-002, POR-DET-003, POR-DET-004, or custom POR-CUS-...)",
     )
     create_allowlist.add_argument("--executable", required=True)
     create_allowlist.add_argument("--parent-executable")
@@ -125,7 +139,8 @@ def main() -> int:
             }.items()
             if value is not None
         }
-        result = _request("GET", f"{base_url}/api/v1/detection-runs?{urllib.parse.urlencode(query)}")
+        suffix = f"?{urllib.parse.urlencode(query)}" if query else ""
+        result = _request("GET", f"{base_url}/api/v1/detection-runs{suffix}")
     elif args.command == "get-run":
         result = _request("GET", f"{base_url}/api/v1/detection-runs/{args.run_id}")
     elif args.command == "incidents":
@@ -139,7 +154,8 @@ def main() -> int:
             }.items()
             if value is not None
         }
-        result = _request("GET", f"{base_url}/api/v1/incidents?{urllib.parse.urlencode(query)}")
+        suffix = f"?{urllib.parse.urlencode(query)}" if query else ""
+        result = _request("GET", f"{base_url}/api/v1/incidents{suffix}")
     elif args.command == "incident":
         result = _request("GET", f"{base_url}/api/v1/incidents/{args.incident_id}")
     elif args.command == "timeline":
@@ -160,9 +176,10 @@ def main() -> int:
             }.items()
             if value is not None
         }
+        suffix = f"?{urllib.parse.urlencode(query)}" if query else ""
         result = _request(
             "GET",
-            f"{base_url}/api/v1/detection-allowlists?{urllib.parse.urlencode(query)}",
+            f"{base_url}/api/v1/detection-allowlists{suffix}",
         )
     elif args.command == "allowlist-create":
         result = _request(

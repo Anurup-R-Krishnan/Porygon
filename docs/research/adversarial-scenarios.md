@@ -24,7 +24,7 @@ in real life."
   socket connections, DNS, syscall arguments beyond the Falco output line,
   in-process behaviour, memory-only execution, encrypted payloads, or
   privilege-transition events as a dedicated feature family. This is stated
-  in `THREAT_MODEL_V1.md` and confirmed here directly against the collector
+  in [`threat-model.md`](threat-model.md) and confirmed here directly against the collector
   and telemetry source (no network-facing telemetry code exists anywhere in
   `collector/` or `telemetry/`).
 
@@ -65,7 +65,7 @@ behaviour.
 4. **DNS tunnelling** from an already-baselined process. **Invisible.**
 5. **Fileless/in-memory execution** (reflective loading, no new binary on
    disk, no new process). **Invisible** — explicitly listed as a non-goal in
-   `THREAT_MODEL_V1.md`.
+   [`threat-model.md`](threat-model.md).
 6. **Payload smuggled inside a normal-looking already-baselined HTTPS
    request.** **Invisible.**
 
@@ -96,7 +96,7 @@ behaviour.
     tested. **Defended by design, not empirically validated.**
 12. **Low-and-slow attack** spread across windows longer than the 120s
     correlation window. Listed as a considered failure mode in
-    `THREAT_MODEL_V1.md`. **Acknowledged, never tested.**
+    [`threat-model.md`](threat-model.md). **Acknowledged, never tested.**
 13. **Mimicry attack** — an intruder matches the process-sequence bigram
     pattern of a legitimate deploy/backup job. The bigram feature weight
     (0.20, fixed in v1) has never been adversarially evaluated.

@@ -33,7 +33,7 @@ from experiments.artifacts import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-PROTOCOL_PATH = ROOT / "docs" / "RESEARCH_PROTOCOL_V1.md"
+PROTOCOL_PATH = ROOT / "docs" / "research" / "research-protocol.md"
 DEFAULT_TABLES_DIR = ROOT / "artifacts" / "experiments" / "protocol-v1" / "tables"
 MANIFEST_STEM = "results-manifest"
 

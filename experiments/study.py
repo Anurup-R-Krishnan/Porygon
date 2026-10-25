@@ -223,7 +223,7 @@ def stage_collect(ctx: dict) -> dict:
         operations=ctx["operations"],
         warmup_seconds=ctx["warmup_seconds"],
         settle_seconds=ctx["settle_seconds"],
-        protocol=ROOT / "docs/RESEARCH_PROTOCOL_V1.md",
+        protocol=ROOT / "docs/research/research-protocol.md",
     )
     validate(run_dir)
     trials = [json.loads(p.read_text(encoding="utf-8"))

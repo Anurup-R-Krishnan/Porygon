@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "porygon-collector"
 version = "0.3.0"
-description = "Porygon Docker event collector for the Phase 3 stack"
+description = "Porygon Docker daemon lifecycle event collector and normalizer"
 requires-python = ">=3.13"
 dependencies = [
   "docker==7.2.0",

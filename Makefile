@@ -1,44 +1,11 @@
 SHELL := /bin/bash
 
-.PHONY: init dev-setup console-assets console-css console-capture config build up down reset logs ps test verify verify-static verify-unit verify-live-safe verify-scanner-live verify-experiment-live verify-response-live experiment-smoke experiment-replay experiment-pilot experiment-validate experiment-confirmatory study review-package review-status review-apply
+.PHONY: init config build up down reset logs ps test verify verify-static verify-unit verify-live-safe verify-scanner-live verify-experiment-live verify-response-live experiment-smoke experiment-replay experiment-pilot experiment-validate experiment-confirmatory study review-package review-status review-apply
 
 init:
 	@test -f .env || (cp .env.example .env && \
 		python3 -c 'from functools import reduce; import os, secrets; from pathlib import Path; p=Path(".env"); replacements={"replace-with-a-long-local-development-password":secrets.token_urlsafe(32),"replace-with-at-least-32-random-characters":secrets.token_urlsafe(48),"replace-with-a-different-32-character-random-token":secrets.token_urlsafe(48),"replace-with-docker-socket-gid":str(os.stat("/var/run/docker.sock").st_gid)}; p.write_text(reduce(lambda value, item: value.replace(*item), replacements.items(), p.read_text(encoding="utf-8")), encoding="utf-8")' && \
 		chmod 0600 .env && echo "Created .env with separate local credentials and the Docker socket GID.")
-
-# Host-side toolchain for the static gate. `verify-static` prepends ./.venv/bin
-# to PATH, but .venv/ is gitignored and `init` does not create it, so a fresh
-# clone has no ruff and the static gate fails on its first check. Run this once
-# after cloning.
-dev-setup:
-	python3 -m venv .venv
-	./.venv/bin/python -m pip install --quiet --upgrade pip
-	./.venv/bin/python -m pip install --quiet --requirement requirements-dev.txt
-	@printf 'Host toolchain ready: %s\n' "$$(./.venv/bin/ruff --version)"
-
-# Re-fetch, re-pin, and re-hash every third-party asset the operator console
-# loads. Needs network access. The console previously pulled nine resources from
-# four origins with no integrity checking; see
-# plans/010-operator-console-hardening.md.
-console-assets:
-	python3 scripts/vendor_console_assets.py
-	./scripts/build_console_css.sh
-	python3 scripts/vendor_console_assets.py --record-generated
-	python3 scripts/check_console_supply_chain.py
-
-# Recompile only the console stylesheet, after changing markup that introduces
-# or drops Tailwind utilities. Needs npx.
-console-css:
-	./scripts/build_console_css.sh
-	python3 scripts/vendor_console_assets.py --record-generated
-	python3 scripts/check_console_supply_chain.py
-
-# Capture every console tab against a running stack, at each tab's own full
-# height, with a manifest recording the commit, stack state, and a sha256 of
-# every API payload the views were rendered from. Needs `make up` and Chrome.
-console-capture:
-	python3 scripts/capture_console.py $(CAPTURE_ARGS)
 
 config:
 	docker compose config --quiet
@@ -65,7 +32,7 @@ verify:
 	./scripts/verify_all.sh all
 
 verify-static:
-	PATH="$(CURDIR)/.venv/bin:$$PATH" ./scripts/verify_all.sh static
+	./scripts/verify_all.sh static
 
 verify-unit:
 	./scripts/verify_all.sh unit
@@ -84,7 +51,7 @@ verify-experiment-live:
 # DISRUPTIVE: requires PORYGON_RESPONSE_EXECUTION_MODE=live in .env and may
 # pause or stop the disposable containment target. It is never part of `make verify`.
 verify-response-live:
-	./scripts/verify_phase7.sh
+	./scripts/verify_containment_response.sh
 
 test: verify-unit
 
@@ -120,4 +87,4 @@ experiment-validate:
 	python3 experiments/validate_artifacts.py "$(RUN_DIR)"
 
 experiment-confirmatory:
-	python3 -m experiments.run confirmatory --protocol "$(or $(PROTOCOL),docs/RESEARCH_PROTOCOL_V1.md)"
+	python3 -m experiments.run confirmatory --protocol "$(or $(PROTOCOL),docs/research/research-protocol.md)"

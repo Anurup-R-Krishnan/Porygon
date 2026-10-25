@@ -14,7 +14,7 @@ from experiments.context import (
     runtime_context,
 )
 
-DOC = Path(__file__).resolve().parents[2] / "docs/PROFILE_SCOPE_EXPERIMENT_V1.md"
+DOC = Path(__file__).resolve().parents[2] / "docs/research/profile-scope-experiment.md"
 
 
 def _doc_example(name: str) -> dict:

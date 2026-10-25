@@ -9,9 +9,9 @@ new run; nothing is hand-edited.
 """
 from __future__ import annotations
 
+import argparse
 import html
 import json
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,7 +20,18 @@ RUNS = ROOT / "artifacts/experiments/local"
 
 
 def collect() -> dict:
-    runs = []
+    existing_runs_by_id: dict[str, dict] = {}
+    results_json = ROOT / "artifacts/results.json"
+    if results_json.is_file():
+        try:
+            prior_data = json.loads(results_json.read_text(encoding="utf-8"))
+            for r in prior_data.get("runs", []):
+                if isinstance(r, dict) and "run_id" in r:
+                    existing_runs_by_id[r["run_id"]] = r
+        except Exception:
+            pass
+
+    local_runs_by_id: dict[str, dict] = {}
     for run_json in sorted(RUNS.glob("*/run.json")):
         run = json.loads(run_json.read_text(encoding="utf-8"))
         if run.get("kind") == "smoke_fixture":
@@ -29,14 +40,14 @@ def collect() -> dict:
             json.loads(p.read_text(encoding="utf-8"))
             for p in sorted((run_json.parent / "trials").glob("*.json"))
         ]
+        def obs(name: str, boundaries: dict) -> str:
+            e = boundaries.get(name) or {}
+            return e.get("observed", "—") if e.get("status") == "measured" else "unmeasured"
+
         rows = []
         for t in trials:
             b = (t.get("reconciliation") or {}).get("boundaries", {})
             load = t.get("load") or {}
-
-            def obs(name):
-                e = b.get(name) or {}
-                return e.get("observed", "—") if e.get("status") == "measured" else "unmeasured"
 
             rows.append({
                 "trial_id": t["trial_id"],
@@ -46,14 +57,14 @@ def collect() -> dict:
                 "status": t.get("status", "—"),
                 "context_hash": (t.get("runtime_context_hash") or "—")[:16],
                 "generated": (t.get("reconciliation") or {}).get("generated", "—"),
-                "falco": obs("source"),
-                "database": obs("database"),
+                "falco": obs("source", b),
+                "database": obs("database", b),
                 "duplicates": (b.get("database") or {}).get("duplicates", "—"),
                 "ops": f'{load.get("successes", "—")}/{load.get("operations_planned", "—")}',
                 "unmeasured": sorted(n for n, e in b.items() if e.get("status") == "unmeasured"),
                 "failure_reason": t.get("failure_reason"),
             })
-        runs.append({
+        local_runs_by_id[run["run_id"]] = {
             "run_id": run["run_id"],
             "created_at_utc": run.get("created_at_utc", "—"),
             "git_sha": (run.get("git_sha") or "")[:12],
@@ -63,7 +74,11 @@ def collect() -> dict:
             "docker": run.get("docker_version", "—"),
             "platform": run.get("platform", "—"),
             "trials": rows,
-        })
+        }
+
+    merged = {**existing_runs_by_id, **local_runs_by_id}
+    runs = [merged[k] for k in sorted(merged.keys())]
+
     return {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "runs": runs,
@@ -248,13 +263,28 @@ Kernel-to-eBPF and Falco userspace drops remain unmeasured by design.</footer>
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Render pilot experiment results as a single self-contained HTML page and JSON summary."
+    )
+    parser.add_argument(
+        "output",
+        nargs="?",
+        default=str(ROOT / "artifacts/results.html"),
+        help="Target HTML output path (default: artifacts/results.html)",
+    )
+    args = parser.parse_args()
+
     data = collect()
     (ROOT / "artifacts/results.json").write_text(
-        json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    out = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "artifacts/results.html"
+        json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    out = Path(args.output)
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(render(data), encoding="utf-8")
-    print(f"wrote {out} and artifacts/results.json "
-          f"({data['totals']['trials']} trials across {data['totals']['runs']} runs)")
+    print(
+        f"wrote {out} and artifacts/results.json "
+        f"({data['totals']['trials']} trials across {data['totals']['runs']} runs)"
+    )
     return 0
 
 

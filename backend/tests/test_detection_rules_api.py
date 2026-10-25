@@ -5,7 +5,7 @@ from porygon_api.main import app, get_detection_rules_config
 from porygon_api.schemas import CustomDetectionRuleCreateIn, DetectionAllowlistCreateIn
 
 
-def test_phase6_routes_are_exposed_in_openapi() -> None:
+def test_detection_rules_routes_are_exposed_in_openapi() -> None:
     paths = app.openapi()["paths"]
     required = {
         "/api/v1/detection-rules/config",

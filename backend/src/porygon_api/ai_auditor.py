@@ -2,7 +2,7 @@
 
 Analyzes container process-execution timelines, parent-child lineages,
 vulnerability exposure, and Porygon's statistical drift score against
-an LLM (Google Gemini, OpenAI, or Anthropic) via the operator's private API key.
+an LLM (Google Gemini or OpenAI) via the operator's private API key.
 """
 from __future__ import annotations
 
@@ -30,7 +30,6 @@ fences or commentary outside the JSON object.
 DEFAULT_MODELS: dict[str, str] = {
     "gemini": "gemini-2.0-flash",
     "openai": "gpt-4o-mini",
-    "anthropic": "claude-3-5-haiku-20241022",
 }
 
 
@@ -117,22 +116,11 @@ def _extract_json_from_text(raw: str) -> dict[str, Any]:
     return json.loads(cleaned)
 
 
-def _gemini_headers(api_key: str) -> dict[str, str]:
-    """Carry the Gemini key in a header rather than the URL.
-
-    Google accepts the key as either a `key=` query parameter or the
-    `x-goog-api-key` header. A URL is the part of a request that lands in proxy
-    access logs, error messages that echo the target, and exception reprs; a
-    header generally is not. The other two providers already use headers.
-    """
-    return {"Content-Type": "application/json", "x-goog-api-key": api_key}
-
-
 def _list_gemini_models(api_key: str) -> list[str]:
     """Query Google API to discover available models that support generateContent."""
     try:
-        url = "https://generativelanguage.googleapis.com/v1beta/models"
-        req = urllib.request.Request(url, headers={"x-goog-api-key": api_key})
+        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+        req = urllib.request.Request(url)
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))
         available = []
@@ -165,11 +153,11 @@ def _call_gemini(api_key: str, model: str, prompt: str) -> dict[str, Any]:
 
     last_error: Exception | None = None
     for candidate in candidates:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{candidate}:generateContent"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{candidate}:generateContent?key={api_key}"
         req = urllib.request.Request(
             url,
             data=json.dumps(payload).encode("utf-8"),
-            headers=_gemini_headers(api_key),
+            headers={"Content-Type": "application/json"},
             method="POST",
         )
         try:
@@ -187,11 +175,11 @@ def _call_gemini(api_key: str, model: str, prompt: str) -> dict[str, Any]:
     available = _list_gemini_models(api_key)
     if available:
         preferred = next((m for m in available if "flash" in m), available[0])
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{preferred}:generateContent"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{preferred}:generateContent?key={api_key}"
         req = urllib.request.Request(
             url,
             data=json.dumps(payload).encode("utf-8"),
-            headers=_gemini_headers(api_key),
+            headers={"Content-Type": "application/json"},
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=30) as resp:
@@ -231,31 +219,6 @@ def _call_openai(api_key: str, model: str, prompt: str) -> dict[str, Any]:
     return _extract_json_from_text(content_text)
 
 
-def _call_anthropic(api_key: str, model: str, prompt: str) -> dict[str, Any]:
-    url = "https://api.anthropic.com/v1/messages"
-    payload = {
-        "model": model,
-        "max_tokens": 1500,
-        "system": SYSTEM_INSTRUCTION + "\nReturn strictly a valid JSON object matching the requested schema.",
-        "messages": [{"role": "user", "content": prompt}],
-    }
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        },
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-
-    content_text = data["content"][0]["text"]
-    return _extract_json_from_text(content_text)
-
-
 def perform_container_audit(
     container_info: dict[str, Any],
     events: list[dict[str, Any]],
@@ -268,7 +231,7 @@ def perform_container_audit(
 ) -> AiAuditOut:
     """Dispatches container telemetry to the selected AI provider and parses the result."""
     provider_clean = (provider or "gemini").lower().strip()
-    selected_model = model or DEFAULT_MODELS.get(provider_clean, "gemini-1.5-flash")
+    selected_model = model or DEFAULT_MODELS.get(provider_clean, "gemini-2.0-flash")
 
     prompt = build_audit_prompt(
         container_info=container_info,
@@ -283,10 +246,8 @@ def perform_container_audit(
             result = _call_gemini(api_key, selected_model, prompt)
         elif provider_clean == "openai":
             result = _call_openai(api_key, selected_model, prompt)
-        elif provider_clean == "anthropic":
-            result = _call_anthropic(api_key, selected_model, prompt)
         else:
-            raise ValueError(f"Unsupported AI provider: {provider_clean}. Choose 'gemini', 'openai', or 'anthropic'.")
+            raise ValueError(f"Unsupported AI provider: {provider_clean}. Choose 'gemini' or 'openai'.")
     except urllib.error.HTTPError as exc:
         err_body = exc.read().decode("utf-8", errors="replace")
         logger.error("AI API HTTP %s error (%s): %s", exc.code, provider_clean, err_body)

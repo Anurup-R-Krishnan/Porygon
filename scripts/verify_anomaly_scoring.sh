@@ -35,8 +35,8 @@ done
 mkdir -p artifacts
 mkdir -p artifacts/local
 
-./scripts/verify_phase4.sh
-pass "Phases 1-4 remain valid and an active immutable-digest profile exists"
+./scripts/verify_behavior_profiling.sh
+pass "Behavior profiling remains valid and an active immutable-digest profile exists"
 
 backend_port="$(grep -E '^BACKEND_PORT=' .env | tail -1 | cut -d= -f2 || true)"
 backend_port="${backend_port:-8000}"
@@ -45,7 +45,7 @@ token="$(grep -E '^PORYGON_INTERNAL_API_TOKEN=' .env | tail -1 | cut -d= -f2- ||
 [[ ${#token} -ge 32 ]] || fail "PORYGON_INTERNAL_API_TOKEN is missing or too short"
 
 digest="$(cat artifacts/phase4-selected-digest.txt)"
-[[ "$digest" == *@sha256:* ]] || fail "Phase 4 did not provide an immutable repository digest"
+[[ "$digest" == *@sha256:* ]] || fail "Behavior profiling did not provide an immutable repository digest"
 
 curl --fail --silent --show-error \
   "${base_url}/api/v1/anomaly-scores/config" > artifacts/phase5-scoring-config.json
@@ -79,7 +79,7 @@ training_start="${profile_values[2]}"
 cleanup_probe
 docker pull "$PROBE_IMAGE" >/dev/null
 expected_repo_digest="$(docker image inspect "$PROBE_IMAGE" --format '{{index .RepoDigests 0}}')"
-[[ "$expected_repo_digest" == "$digest" ]] || fail "Probe image digest changed between Phase 4 and Phase 5"
+[[ "$expected_repo_digest" == "$digest" ]] || fail "Probe image digest changed between profiling and scoring"
 docker run --detach \
   --name "$PROBE_NAME" \
   --label io.porygon.phase5.probe=true \
@@ -109,8 +109,8 @@ PY
   fi
   sleep 2
 done
-[[ "$container_ready" == true ]] || fail "Phase 5 probe was not correlated to the expected digest"
-pass "Phase 5 probe resolves to the same immutable digest as the active profile"
+[[ "$container_ready" == true ]] || fail "Scoring probe was not correlated to the expected digest"
+pass "Scoring probe resolves to the same immutable digest as the active profile"
 
 utc_now() {
   python3 - <<'PY'
@@ -283,4 +283,4 @@ PY
 pass "System API reports unique scored and insufficient observations"
 
 docker compose ps > artifacts/phase5-services.txt
-printf '\nPhase 5 verification complete. Scores are behavioural distances, not attack verdicts.\n'
+printf '\nAnomaly scoring verification complete. Scores are behavioural distances, not attack verdicts.\n'

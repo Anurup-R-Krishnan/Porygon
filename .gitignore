@@ -25,11 +25,6 @@ build/
 
 artifacts/local/
 artifacts/experiments/local/
-# Console screenshots are regenerable build output: scripts/capture_console.py
-# rebuilds them from a running stack and records provenance in
-# capture-manifest.json. A full desktop+narrow set is ~70 MB, so the images stay
-# out of the tree; run `make console-capture` to produce them.
-artifacts/console-captures/
 
 .DS_Store
 
@@ -37,7 +32,6 @@ artifacts/console-captures/
 # Agent tooling checked out locally, not part of the project source.
 .agents/
 .codex/
-.claude/
 
 # Code-navigation index cache
 .codegraph/
@@ -53,3 +47,6 @@ docs/presentation/*.docx
 docs/presentation/*.zip
 # NB: docs/presentation/screenshots/ is deliberately NOT ignored — the decks
 # \includegraphics those files, so they are build inputs, not build output.
+
+.claude/
+artifacts/console-captures/

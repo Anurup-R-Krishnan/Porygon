@@ -209,7 +209,7 @@ def test_confirmatory_reports_specific_blocking_reasons_from_the_live_review_gat
     must still refuse -- and its message must name the actual blocker (today: the two
     reviews are not independent) rather than a generic string."""
     with pytest.raises(ArtifactError) as excinfo:
-        run.confirmatory(run.ROOT / "docs/RESEARCH_PROTOCOL_V1.md")
+        run.confirmatory(run.ROOT / "docs/research/research-protocol.md")
     message = str(excinfo.value)
     assert message.startswith("confirmatory collection is refused:")
     assert "independence" in message.lower()
@@ -229,7 +229,7 @@ def test_confirmatory_always_refuses_even_when_the_review_gate_is_fully_satisfie
     )
     monkeypatch.setattr(sample_size, "_load_review_gate", lambda: fake_module)
     with pytest.raises(ArtifactError, match="no real confirmatory collection path exists"):
-        run.confirmatory(run.ROOT / "docs/RESEARCH_PROTOCOL_V1.md")
+        run.confirmatory(run.ROOT / "docs/research/research-protocol.md")
 
 
 def test_confirmatory_surfaces_every_specific_approval_problem(monkeypatch) -> None:
@@ -246,7 +246,7 @@ def test_confirmatory_surfaces_every_specific_approval_problem(monkeypatch) -> N
     )
     monkeypatch.setattr(sample_size, "_load_review_gate", lambda: fake_module)
     with pytest.raises(ArtifactError) as excinfo:
-        run.confirmatory(run.ROOT / "docs/RESEARCH_PROTOCOL_V1.md")
+        run.confirmatory(run.ROOT / "docs/research/research-protocol.md")
     message = str(excinfo.value)
     assert "security review: reviewer_name is empty or still the placeholder" in message
     assert "methodology review: date is not a real parseable YYYY-MM-DD date" in message
@@ -271,6 +271,6 @@ def test_confirmatory_surfaces_non_independence_as_the_blocker_when_reviews_are_
     )
     monkeypatch.setattr(sample_size, "_load_review_gate", lambda: fake_module)
     with pytest.raises(ArtifactError) as excinfo:
-        run.confirmatory(run.ROOT / "docs/RESEARCH_PROTOCOL_V1.md")
+        run.confirmatory(run.ROOT / "docs/research/research-protocol.md")
     message = str(excinfo.value)
     assert "reviewer independence: security and methodology reviews name the same reviewer ('Jane Doe')" in message

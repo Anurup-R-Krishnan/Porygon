@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     response_execution_mode: Literal["disabled", "live"] = "disabled"
     calibrated_enabled: bool = False
     ai_api_key: SecretStr | None = None
-    ai_provider: Literal["gemini", "openai", "anthropic"] = "gemini"
+    ai_provider: Literal["gemini", "openai"] = "gemini"
     ai_model: str | None = None
     response_approval_max_age_seconds: int = Field(default=3600, ge=60, le=86400)
     baseline_max_events: int = Field(default=250000, ge=100, le=2000000)

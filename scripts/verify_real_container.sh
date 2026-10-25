@@ -50,7 +50,8 @@ import json, re
 from pathlib import Path
 from experiments.context import context_hash
 
-text = Path("docs/PROFILE_SCOPE_EXPERIMENT_V1.md").read_text(encoding="utf-8")
+_scope_path = Path("docs/research/profile-scope-experiment.md")
+text = _scope_path.read_text(encoding="utf-8")
 def example(name):
     match = re.search(rf"```json {name}\n(.*?)```", text, re.DOTALL)
     assert match, f"missing canonical example {name}"
@@ -128,7 +129,7 @@ leftover_networks="$(docker network ls --filter "label=porygon.experiment.run=${
 [[ "$leftover_networks" -eq 0 ]] || fail "${leftover_networks} experiment networks were left behind"
 pass "Cleanup left no experiment container or network behind"
 
-if python3 -m experiments.run confirmatory --protocol docs/RESEARCH_PROTOCOL_V1.md >/dev/null 2>&1; then
+if python3 -m experiments.run confirmatory --protocol docs/research/research-protocol.md >/dev/null 2>&1; then
   fail "confirmatory collection was permitted while the protocol is review-pending"
 fi
 pass "Confirmatory collection remains refused while the protocol is review-pending"

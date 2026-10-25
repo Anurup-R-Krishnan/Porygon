@@ -49,7 +49,7 @@ The 216-trial run was sized to `n≈179`/arm based on `experiments/sample_size.p
 
 Result on the 216-trial dataset (`artifacts/experiments/protocol-v1/exploratory/context-delta-finding-216.json`): **0/26 false positives on baseline trials [95% CI 0–13.2%], 27/27 correct detections of the `dropped_capabilities` variant [95% CI 87.2–100%]** — reproducing the first round's finding (0/18, 17/17) at larger n, with a change the frozen protocol's process-name JS-distance feature could not see at all (p=1.0, reported above).
 
-This is explicitly **exploratory, not confirmatory**: the delta weights (`experiments/context_delta.py:DELTA_FIELDS`) are fixed by hand rather than fit or calibrated, and it has not been tested against any real attack scenario. It should not be cited as a confirmed result. Promoting it to confirmatory requires a new protocol version with a pre-registered sample size and its own frozen threshold, per the revision rule in `CLAIMS_V1.md`.
+This is explicitly **exploratory, not confirmatory**: the delta weights (`experiments/context_delta.py:DELTA_FIELDS`) are fixed by hand rather than fit or calibrated, and it has not been tested against any real attack scenario. It should not be cited as a confirmed result. Promoting it to confirmatory requires a new protocol version with a pre-registered sample size and its own frozen threshold, per the revision rule in [`claims-boundaries.md`](claims-boundaries.md).
 
 Real attack scenarios: `SCN-LOG4SHELL-SIM` (CVE-2021-44228-shaped, harmless), `SCN-RUNC-ESCAPE-SIM` (CVE-2019-5736-shaped, harmless).
 

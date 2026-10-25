@@ -8,6 +8,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 
 def request(method: str, url: str, *, token: str | None = None, payload: dict | None = None) -> object:
@@ -28,7 +29,20 @@ def request(method: str, url: str, *, token: str | None = None, payload: dict | 
         raise SystemExit(f"Could not reach Porygon API: {exc.reason}") from exc
 
 
+def _load_env() -> None:
+    env_file = Path(__file__).resolve().parents[1] / ".env"
+    if env_file.is_file():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                k, v = k.strip(), v.strip().strip('"').strip("'")
+                if k not in os.environ:
+                    os.environ[k] = v
+
+
 def operator_token() -> str:
+    _load_env()
     value = os.getenv("PORYGON_OPERATOR_API_TOKEN", "")
     if len(value) < 32:
         raise SystemExit("Set PORYGON_OPERATOR_API_TOKEN to the operator token used by the stack")
@@ -36,7 +50,7 @@ def operator_token() -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Manage Porygon Phase 7 response decisions")
+    parser = argparse.ArgumentParser(description="Manage Porygon containment response decisions")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
     commands = parser.add_subparsers(dest="command", required=True)
 
@@ -94,10 +108,9 @@ def main() -> int:
             token=operator_token(),
         )
     elif args.command == "recommendations":
-        query = urllib.parse.urlencode(
-            {k: v for k, v in {"incident_id": args.incident_id, "status": args.status}.items() if v}
-        )
-        result = request("GET", f"{base}/api/v1/response-recommendations?{query}")
+        params = {k: v for k, v in {"incident_id": args.incident_id, "status": args.status}.items() if v}
+        suffix = f"?{urllib.parse.urlencode(params)}" if params else ""
+        result = request("GET", f"{base}/api/v1/response-recommendations{suffix}")
     elif args.command == "approve":
         result = request(
             "POST",
@@ -118,10 +131,9 @@ def main() -> int:
             payload={"actor": args.actor, "note": args.note},
         )
     elif args.command == "executions":
-        query = urllib.parse.urlencode(
-            {k: v for k, v in {"incident_id": args.incident_id, "status": args.status}.items() if v}
-        )
-        result = request("GET", f"{base}/api/v1/response-executions?{query}")
+        params = {k: v for k, v in {"incident_id": args.incident_id, "status": args.status}.items() if v}
+        suffix = f"?{urllib.parse.urlencode(params)}" if params else ""
+        result = request("GET", f"{base}/api/v1/response-executions{suffix}")
     elif args.command == "execution":
         result = request("GET", f"{base}/api/v1/response-executions/{args.execution_id}")
     elif args.command == "rollback":

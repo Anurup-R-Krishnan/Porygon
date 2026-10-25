@@ -34,7 +34,7 @@ memory and have not been checked against the originals.
 
 ## Keeping the numbers honest
 
-Every figure in the deck comes from `docs/execution-status.md` and
-`docs/final-verification-report.md`, which are regenerated from the immutable
-run records. If you re-run the experiments, refresh those documents and update
-the deck to match rather than editing the numbers by hand.
+Every figure in the deck is backed by `artifacts/verification-manifest.json` and
+`artifacts/results.json`, which are generated from the immutable run records and
+verification gates (`make verify`). If you re-run the experiments, refresh those
+documents and update the deck to match rather than editing the numbers by hand.

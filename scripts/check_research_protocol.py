@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import copy
 import hashlib
 import json
@@ -13,12 +14,12 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-PROTOCOL_PATH = ROOT / "docs" / "RESEARCH_PROTOCOL_V1.md"
-THREAT_PATH = ROOT / "docs" / "THREAT_MODEL_V1.md"
-CLAIMS_PATH = ROOT / "docs" / "CLAIMS_V1.md"
-SCOPE_PATH = ROOT / "docs" / "PROFILE_SCOPE_EXPERIMENT_V1.md"
-FINAL_PHASES_PATH = ROOT / "docs" / "FINAL_PHASES.md"
-FEATURE_SCHEMA_PATH = ROOT / "docs" / "FEATURE_SCHEMA_V1.md"
+PROTOCOL_PATH = ROOT / "docs" / "research" / "research-protocol.md"
+THREAT_PATH = ROOT / "docs" / "research" / "threat-model.md"
+CLAIMS_PATH = ROOT / "docs" / "research" / "claims-boundaries.md"
+SCOPE_PATH = ROOT / "docs" / "research" / "profile-scope-experiment.md"
+FINAL_PHASES_PATH = ROOT / "docs" / "research" / "development-roadmap.md"
+FEATURE_SCHEMA_PATH = ROOT / "docs" / "research" / "schemas" / "behavior-schema.md"
 
 REQUIRED_ARMS = {"ARM-GLOBAL", "ARM-TAG", "ARM-DIGEST", "ARM-CONTEXT"}
 REQUIRED_DETECTORS = {
@@ -387,11 +388,11 @@ def validate_documents(manifest: dict[str, Any]) -> list[str]:
     if documented_claim_ids != manifest_claim_ids:
         errors.append("conditional claim IDs differ between claims document and protocol manifest")
 
-    for name in ("RESEARCH_PROTOCOL_V1.md", "THREAT_MODEL_V1.md", "CLAIMS_V1.md", "PROFILE_SCOPE_EXPERIMENT_V1.md"):
+    for name in ("research-protocol.md", "threat-model.md", "claims-boundaries.md", "profile-scope-experiment.md"):
         if name not in final_phases:
-            errors.append(f"FINAL_PHASES.md does not link {name}")
+            errors.append(f"development-roadmap.md does not link {name}")
     if "current v1 implementation" not in feature_schema.lower() or "profile-scope experiment" not in feature_schema.lower():
-        errors.append("FEATURE_SCHEMA_V1.md does not distinguish current implementation from experiment arms")
+        errors.append("behavior-schema.md does not distinguish current implementation from experiment arms")
 
     try:
         equivalent_a = _extract_json_fence(scope, "context-example-equivalent-a")
@@ -457,6 +458,11 @@ def run_negative_self_tests(manifest: dict[str, Any]) -> list[str]:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Validate the frozen Porygon research protocol and traceability graph."
+    )
+    parser.parse_args()
+
     protocol_text = _read(PROTOCOL_PATH)
     try:
         manifest = _extract_json_fence(protocol_text, "protocol-manifest")

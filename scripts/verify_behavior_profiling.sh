@@ -23,8 +23,8 @@ done
 
 mkdir -p artifacts
 
-./scripts/verify_phase3.sh
-pass "Phase 3 telemetry and correlation remain valid"
+./scripts/verify_ebpf_telemetry.sh
+pass "eBPF telemetry and correlation remain valid"
 
 backend_port="$(grep -E '^BACKEND_PORT=' .env | tail -1 | cut -d= -f2 || true)"
 backend_port="${backend_port:-8000}"
@@ -41,7 +41,7 @@ integrity=json.loads(Path('artifacts/phase3-capture-integrity.json').read_text()
 events_path=Path('artifacts/local') / f"phase3-{integrity['run_id']}" / 'process-events.json'
 events=json.loads(events_path.read_text())
 if not events:
-    raise SystemExit('Phase 3 produced no process events')
+    raise SystemExit('eBPF telemetry produced no process events')
 digests={event.get('image_digest') for event in events if event.get('image_digest')}
 if len(digests) != 1:
     raise SystemExit(f'Expected one immutable digest, found {sorted(digests)}')
@@ -55,14 +55,14 @@ base={
     'training_end': end.isoformat(),
     'minimum_process_events': 1,
     'minimum_nonempty_windows': 1,
-    'approved_by': 'phase4-verifier',
-    'approval_reference': 'scripts/verify_phase4.sh',
+    'approved_by': 'behavior-profile-verifier',
+    'approval_reference': 'scripts/verify_behavior_profiling.sh',
 }
 for name, window, minimum in [('v1',60,1), ('bad',45,999999), ('v2',30,1)]:
     payload=dict(base)
     payload['window_seconds']=window
     payload['minimum_process_events']=minimum
-    payload['notes']=f'Controlled Phase 4 acceptance profile {name}'
+    payload['notes']=f'Controlled behavior profiling acceptance {name}'
     Path(f'artifacts/phase4-{name}-payload.json').write_text(json.dumps(payload, indent=2, sort_keys=True))
 Path('artifacts/phase4-selected-digest.txt').write_text(digest+'\n')
 PY
@@ -171,7 +171,7 @@ pass "Retired profiles cannot be reactivated"
 
 curl --fail --silent --show-error "${base_url}/api/v1/system/info" \
   > artifacts/phase4-system-info.json
-python3 - <<'PY' || fail "System information did not report Phase 4 profile state"
+python3 - <<'PY' || fail "System information did not report behavior profile state"
 import json
 info=json.load(open('artifacts/phase4-system-info.json'))
 assert info['behavior_profiles'] >= 3
@@ -180,4 +180,4 @@ assert int(info['phase'].split()[1].rstrip(':')) >= 4
 PY
 pass "System API reports stored and active behaviour profiles"
 
-printf '\nPhase 4 verification complete. No anomaly verdicts were generated.\n'
+printf '\nBehavior profiling verification complete. No anomaly verdicts were generated.\n'

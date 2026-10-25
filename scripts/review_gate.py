@@ -31,7 +31,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PROTOCOL = ROOT / "docs/RESEARCH_PROTOCOL_V1.md"
+PROTOCOL = ROOT / "docs/research/research-protocol.md"
 REVIEW_DIR = ROOT / "docs/review"
 ROLES = ("security", "methodology")
 
@@ -319,12 +319,13 @@ def cmd_prepare() -> int:
         "",
         "Supporting documents:",
         "",
-        "- `docs/THREAT_MODEL_V1.md` — assets, trust boundaries, attacker capabilities",
-        "- `docs/CLAIMS_V1.md` — what may and may not be claimed",
-        "- `docs/PROFILE_SCOPE_EXPERIMENT_V1.md` — profile arms and the context identity",
-        "- `docs/design-decisions.md` — why each decision was taken and what it costs",
-        "- `docs/execution-status.md` — measured state of every module",
-        "- `docs/final-verification-report.md` — gate results and measured findings",
+        "- `docs/research/threat-model.md` — assets, trust boundaries, attacker capabilities",
+        "- `docs/research/claims-boundaries.md` — what may and may not be claimed",
+        "- `docs/research/profile-scope-experiment.md` — profile arms and the context identity",
+        "- `docs/research/adversarial-scenarios.md` — attacker evasion stress tests",
+        "- `docs/research/empirical-results.md` — measured trial findings and pilot data",
+        "- `artifacts/verification-manifest.json` — automated verification gate manifest",
+        "- `artifacts/results.json` — measured run findings and statistics",
         "",
     ]
     for role in ROLES:
@@ -353,7 +354,7 @@ def cmd_prepare() -> int:
         "unchanged, and so does a pair of reviews that are not independent.",
         "",
     ]
-    package = REVIEW_DIR / "REVIEW_PACKAGE.md"
+    package = REVIEW_DIR / "review-package.md"
     package.write_text("\n".join(lines), encoding="utf-8")
     print(f"wrote {package.relative_to(ROOT)}")
     return 0
@@ -384,7 +385,7 @@ def gate_state() -> dict:
     return {
         "protocol_status": manifest.get("protocol_status"),
         "protocol_sha256": protocol_digest(text),
-        "package_prepared": (REVIEW_DIR / "REVIEW_PACKAGE.md").is_file(),
+        "package_prepared": (REVIEW_DIR / "review-package.md").is_file(),
         "decisions": {
             role: (decisions[role] or {}).get("decision", "absent") for role in ROLES
         },

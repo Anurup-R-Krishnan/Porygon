@@ -16,12 +16,12 @@ below, recorded `evidence_class: pilot`, `research_eligible: false` after a
 mislabeling bug in the study-summary step (now fixed) was found and
 corrected. Confirmatory-grade collection additionally requires
 protocol-conformance machinery that has not been built yet; see
-`docs/CONFIRMATORY_RESULT_V1.md` for the current evidence-class status.
+[`empirical-results.md`](empirical-results.md) for the current evidence-class status.
 
-- [`RESEARCH_PROTOCOL_V1.md`](RESEARCH_PROTOCOL_V1.md)
-- [`THREAT_MODEL_V1.md`](THREAT_MODEL_V1.md)
-- [`CLAIMS_V1.md`](CLAIMS_V1.md)
-- [`PROFILE_SCOPE_EXPERIMENT_V1.md`](PROFILE_SCOPE_EXPERIMENT_V1.md)
+- [`research-protocol.md`](research-protocol.md) (protocol: `RESEARCH_PROTOCOL_V1.md`)
+- [`threat-model.md`](threat-model.md) (protocol: `THREAT_MODEL_V1.md`)
+- [`claims-boundaries.md`](claims-boundaries.md) (protocol: `CLAIMS_V1.md`)
+- [`profile-scope-experiment.md`](profile-scope-experiment.md) (protocol: `PROFILE_SCOPE_EXPERIMENT_V1.md`)
 
 Deliverables:
 
@@ -50,7 +50,7 @@ Components:
 - Alembic migrations
 - Health checks, persistent volume, service authentication, and verification script
 
-Exit condition: `./scripts/verify_phase1.sh` passes.
+Exit condition: `./scripts/verify_infrastructure.sh` passes.
 
 ## Docker Identity and Runtime Event Ingestion — Implemented
 
@@ -65,7 +65,7 @@ Work:
 - Add bounded retries and a local spool for backend outages
 - Treat Docker socket access as privileged and isolate it to the collector
 
-Exit condition: `./scripts/verify_phase2.sh` — controlled create/start/exec/stop/network actions produce exactly-once stored normalized events with the correct image digest.
+Exit condition: `./scripts/verify_event_ingestion.sh` — controlled create/start/exec/stop/network actions produce exactly-once stored normalized events with the correct image digest.
 
 ## eBPF Process-Execution Telemetry — Implemented
 
@@ -82,7 +82,7 @@ Implemented:
 
 Not included here: file-access telemetry, network-connection telemetry, anomaly scoring, or attack classification.
 
-Exit condition: `./scripts/verify_phase3.sh` captures a controlled process tree with correct PID/PPID linkage, full container identity, immutable digest, outage replay, and no duplicates.
+Exit condition: `./scripts/verify_ebpf_telemetry.sh` captures a controlled process tree with correct PID/PPID linkage, full container identity, immutable digest, outage replay, and no duplicates.
 
 ## Digest-Bound Behavioural Profiles — Implemented
 
@@ -102,7 +102,7 @@ Implemented:
 
 File, DNS, socket, and privilege-transition features are not claimed because the current sensor path only ingests process execution. The feature schema can be versioned when those evidence sources are implemented.
 
-Exit condition: `./scripts/verify_phase4.sh` proves deterministic profile generation, quality gating, duplicate rejection, version activation, retirement, and one-active-profile enforcement.
+Exit condition: `./scripts/verify_behavior_profiling.sh` proves deterministic profile generation, quality gating, duplicate rejection, version activation, retirement, and one-active-profile enforcement.
 
 ## Behavioural Distance and Anomaly Scoring — Implemented
 
@@ -124,7 +124,7 @@ Implemented:
 
 Optional algorithms such as Isolation Forest, One-Class SVM, and Local Outlier Factor are reserved for detector-comparison evaluation. They are not part of the primary v1 scoring path.
 
-Exit condition: `./scripts/verify_phase5.sh` proves insufficient-data handling, bounded explainable scoring, stronger deviation for a controlled novel workload, exact-retry idempotency, and training/evaluation separation.
+Exit condition: `./scripts/verify_anomaly_scoring.sh` proves insufficient-data handling, bounded explainable scoring, stronger deviation for a controlled novel workload, exact-retry idempotency, and training/evaluation separation.
 
 ## Detection, Correlation, and Explainable Incidents — Implemented
 
@@ -147,7 +147,7 @@ Implemented:
 
 Current sensor evidence is process execution plus Docker lifecycle events. File, DNS, and outbound socket correlation are not claimed — this is the concrete blind spot behind, e.g., an attacker using an already-known tool (`curl`) against a new destination.
 
-Exit condition: `./scripts/verify_phase6.sh` proves insufficient-data handling, baseline-like non-incidents, controlled process-based incident creation, exact digest-scoped suppression, idempotency, evidence ordering, and incident lifecycle enforcement.
+Exit condition: `./scripts/verify_detection_engine.sh` proves insufficient-data handling, baseline-like non-incidents, controlled process-based incident creation, exact digest-scoped suppression, idempotency, evidence ordering, and incident lifecycle enforcement.
 
 ## Human-Approved Response Recommendations — Implemented
 
@@ -172,9 +172,9 @@ Implemented:
 - Chronological response audit events
 - No automatic deletion, command execution, or arbitrary Docker operation
 
-Network disconnection is not implemented because the current evidence pipeline does not yet collect enough network telemetry to recommend it defensibly. Auto-execution without human approval remains deliberately out of scope; see [`CLAIMS_V1.md`](CLAIMS_V1.md) for the reasoning.
+Network disconnection is not implemented because the current evidence pipeline does not yet collect enough network telemetry to recommend it defensibly. Auto-execution without human approval remains deliberately out of scope; see [`claims-boundaries.md`](claims-boundaries.md) for the reasoning.
 
-Exit condition: `./scripts/verify_phase7.sh` proves credential separation, no action before approval, exact-target pause, idempotent approval, verified rollback, and complete audit evidence.
+Exit condition: `./scripts/verify_containment_response.sh` proves credential separation, no action before approval, exact-target pause, idempotent approval, verified rollback, and complete audit evidence.
 
 ## Digest-Bound SBOM and Vulnerability Enrichment — Implemented
 
@@ -206,13 +206,13 @@ Not implemented or claimed:
 - static findings automatically creating incidents or response actions
 - VEX generation
 
-Exit condition: `./scripts/verify_phase8.sh` proves exact digest/image binding, scan idempotency, CycloneDX persistence, immutable enrichment snapshots, and the exploitation claim boundary on a real Docker host.
+Exit condition: `./scripts/verify_vulnerability_scanner.sh` proves exact digest/image binding, scan idempotency, CycloneDX persistence, immutable enrichment snapshots, and the exploitation claim boundary on a real Docker host.
 
 ## Experimental Evaluation and Paper — In progress
 
 **Goal:** produce defensible results.
 
-Real progress: `docs/CONFIRMATORY_RESULT_V1.md` records the first real pilot
+Real progress: [`empirical-results.md`](empirical-results.md) records the first real pilot
 result (`study-20260905t181654Z`, 144 real trials,
 `evidence_class: pilot`, `research_eligible: false`): `ARM-CONTEXT` vs `ARM-GLOBAL` shows a 100%
 relative FPR reduction (35/35 → 0/35 false positives), exact McNemar
@@ -243,7 +243,7 @@ Still open:
 - Two files this section previously linked
   (`EXPERIMENT_ACCEPTANCE.md`, `EXPERIMENT_REPRODUCIBILITY.md`) do not exist
   in this repository; the links have been removed rather than left broken.
-  Reproduction steps live in `docs/CONFIRMATORY_RESULT_V1.md` and
+  Reproduction steps live in [`empirical-results.md`](empirical-results.md) and
   `experiments/study.py`'s own docstrings until a dedicated document is
   written.
 
@@ -259,23 +259,18 @@ Evaluation:
 
 Exit condition: all paper tables and graphs are generated from versioned experiment artifacts; no fabricated results or claims.
 
-## Dashboard, Packaging, and Optional Extensions
+## Dashboard, Packaging, and Explainable ML Classification — Implemented
 
-**Goal:** make the system demonstrable and reproducible.
+**Goal:** make the system demonstrable, explainable, and reproducible.
 
-Mandatory:
+Implemented Components:
+- **Interactive Newsprint Dashboard:** Live incident queue, anomaly monitoring, and attack simulation trigger interface.
+- **Explainable ML Threat Classifier:** Tree Ensemble (Random Forest) engine evaluating 60s runtime observation windows with TreeSHAP local feature attributions across MITRE attack tactics.
+- **Operator Containment Actions:** Cryptographically gated human-in-the-loop authorization interface.
+- **Image-Digest Profile & SBOM Inspector:** Visual correlation between digest-bound behavioral baselines and runtime drifts.
+- **Reproducible Compose Deployment:** One-command stack orchestration with pinned container SHAs.
 
-- Incident list and evidence details
-- Image-digest profile view
-- Response approval queue
-- Experiment metrics view
-- Reproducible Compose deployment and documentation
-
-Optional only after the core research works:
-
-- Kubernetes deployment with Tetragon and Cilium
-- NetworkPolicy quarantine
-- LLM-generated incident summaries
-- CVE-to-runtime evidence graph
-- VEX output
-- Multi-host collection
+Optional / Future Extensions:
+- Kubernetes Tetragon / Cilium eBPF integration
+- Automated VEX (Vulnerability Exploitability eXchange) document output
+- Distributed multi-host telemetry aggregation

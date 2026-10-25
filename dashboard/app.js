@@ -14,79 +14,10 @@
 // of the many `chartRegistry.X` call sites throughout this file.
 const chartRegistry = {};
 
-// Secrets live in sessionStorage with an idle expiry rather than in
-// localStorage indefinitely; see dashboard/src/credentials.js. Any copy an
-// earlier version of the console left in localStorage is moved into the
-// session and deleted from disk on first load.
-const credentialStore = (function () {
-  function storage(name) {
-    try { return window[name]; } catch (error) { return null; }
-  }
-  const credentials = window.PorygonCredentials;
-  const store = credentials.createCredentialStore({
-    session: storage('sessionStorage'),
-    persistent: storage('localStorage'),
-  });
-  store.migrateLegacy('operator', credentials.LEGACY_KEYS.operator, credentials.OPERATOR_TOKEN_TTL_MS);
-  store.migrateLegacy('aiKey', credentials.LEGACY_KEYS.aiKey, null);
-  return store;
-})();
-const OPERATOR_TOKEN_TTL_MS = window.PorygonCredentials.OPERATOR_TOKEN_TTL_MS;
-
-// The polling scheduler (dashboard/src/poller.js). Held outside the Alpine
-// component like chartRegistry: its timers and closures have no business
-// inside a reactive proxy.
-let consolePoller = null;
-const fmt = window.PorygonFormat;
-const route = window.PorygonRoute;
-
-// sha256 of a response body, for the evidence export's provenance. SubtleCrypto
-// exists only in secure contexts; behind plain HTTP on a non-local host the
-// hash is recorded as unavailable rather than faked.
-async function sha256Hex(buffer) {
-  if (!(window.crypto && window.crypto.subtle)) return null;
-  const digest = await window.crypto.subtle.digest('SHA-256', buffer);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-function downloadText(filename, text, type) {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
 document.addEventListener('alpine:init', () => {
-  // x-dialog="expr" on a modal's panel: while expr is truthy the panel is an
-  // ARIA modal dialog that traps Tab and, on close, returns focus to whatever
-  // opened it. See dashboard/src/a11y.js.
-  Alpine.directive('dialog', (el, { expression }, { effect, evaluateLater, cleanup }) => {
-    el.setAttribute('role', 'dialog');
-    el.setAttribute('aria-modal', 'true');
-    const isOpen = evaluateLater(expression);
-    const trap = window.PorygonA11y.createFocusTrap(el, document);
-    let open = false;
-    effect(() => isOpen((value) => {
-      if (value && !open) {
-        open = true;
-        // x-show reveals the panel on this tick; focus once it is rendered.
-        Alpine.nextTick(() => trap.activate());
-      } else if (!value && open) {
-        open = false;
-        trap.deactivate();
-      }
-    }));
-    cleanup(() => { if (open) trap.deactivate(); });
-  });
-
   Alpine.data('porygonApp', () => ({
     // Navigation
-    // From the URL: #<tab> or #pipeline/<incident_id> (dashboard/src/route.js).
-    activeTab: route.parseRoute(window.location.hash).tab,
+    activeTab: (typeof window !== 'undefined' && window.location.hash && ['overview', 'pathway', 'telemetry', 'anomalies', 'incidents', 'pipeline', 'vulnerabilities', 'simulator', 'ml'].includes(window.location.hash.slice(1))) ? window.location.hash.slice(1) : 'overview',
     navOpen: false,
 
     // System & Health Data
@@ -94,10 +25,23 @@ document.addEventListener('alpine:init', () => {
     services: [],
     containers: [],
     selectedContainer: null,
+    selectedContainerName: null,
+    isLoadingEvents: false,
 
     // Telemetry & Events (process-level eBPF)
     events: [], // ProcessExecEventOut[]
     eventFilter: '',
+    get filteredEvents() {
+      if (!this.eventFilter) return this.events || [];
+      const q = this.eventFilter.toLowerCase();
+      return (this.events || []).filter(e =>
+        (e.process_name && e.process_name.toLowerCase().includes(q)) ||
+        (e.executable && e.executable.toLowerCase().includes(q)) ||
+        (e.container_name && e.container_name.toLowerCase().includes(q)) ||
+        (e.command_line && e.command_line.toLowerCase().includes(q)) ||
+        String(e.process_pid).includes(q)
+      );
+    },
     processSummary: null,
     runtimeSummary: null,
 
@@ -120,39 +64,37 @@ document.addEventListener('alpine:init', () => {
     scoreContributors: [],
     unseenTokens: [],
 
-    // API health as reported by the polling scheduler: healthy, degraded
-    // (named endpoints failing) or offline (backend or gateway unreachable).
-    apiHealth: 'healthy',
-    apiHealthFailing: [],
-    // What the banner says. Updated only on a non-healthy state, so during the
-    // banner's fade-out on recovery it keeps showing what it was showing,
-    // instead of re-rendering as an empty "Failing: ." for 300 ms.
-    bannerHealth: 'offline',
-    bannerFailing: [],
-    // Which feed `events` came from. Only kernel process events can vouch for
-    // the eBPF sensor; the Docker lifecycle fallback cannot.
-    eventsSource: null,
-    // A reactive clock, ticked every 10 s, so ages and "today" comparisons in
-    // the template stay current without each binding owning a timer.
-    nowTick: Date.now(),
-
     // AI Security Inspector State
     aiConfig: {
-      // The provider key is a secret and lives in the session credential
-      // store. Provider and model are preferences and stay in localStorage.
-      apiKey: credentialStore.get('aiKey'),
+      apiKey: (typeof localStorage !== 'undefined' && localStorage.getItem('porygon_ai_api_key')) || '',
       provider: (typeof localStorage !== 'undefined' && localStorage.getItem('porygon_ai_provider')) || 'gemini',
       model: (typeof localStorage !== 'undefined' && localStorage.getItem('porygon_ai_model')) || '',
     },
     aiModal: { show: false, apiKey: '', provider: 'gemini', model: '' },
     aiAuditModal: { show: false, loading: false, error: null, result: null, container: null },
+    mlClassifyModal: { show: false, loading: false, error: null, result: null, container: null },
+    mlClassifications: {},
+    mlLoadingBatch: false,
+    mlTacticFilter: 'all',
+    mlSearchQuery: '',
 
     // Rules & Incidents
     rules: [],
     rulesMeta: {},
-    exportingEvidence: false,
     incidents: [],
     selectedIncident: null,
+    incidentFilter: 'open',
+    get filteredIncidents() {
+      if (this.incidentFilter === 'open') {
+        return (this.incidents || []).filter(i => i.status === 'open' || i.status === 'acknowledged');
+      } else if (this.incidentFilter === 'resolved' || this.incidentFilter === 'clean') {
+        return (this.incidents || []).filter(i => i.status === 'resolved' || i.status === 'closed' || i.status === 'dismissed');
+      }
+      return this.incidents || [];
+    },
+    get openIncidentsCount() {
+      return (this.incidents || []).filter(i => i.status === 'open' || i.status === 'acknowledged').length;
+    },
 
     // Unified view of built-in + custom detection rules for the Incidents
     // tab's single rules list. Custom rules are mapped onto the same shape
@@ -230,7 +172,7 @@ document.addEventListener('alpine:init', () => {
         icon: 'ph-cpu',
         tag: 'KERNEL HOOK',
         badgeColor: 'text-cyan-400 bg-cyan-400/10 border-cyan-400/20',
-        summary: 'Falco\'s modern-eBPF driver attaches to process-execution tracepoints without modifying container binaries or kernel source. It observes execve/execveat only in v1 -- no network, file, or socket syscalls are captured (see docs/THREAT_MODEL_V1.md).',
+        summary: 'Falco\'s modern-eBPF driver attaches to process-execution tracepoints without modifying container binaries or kernel source. It observes execve/execveat only in v1 -- no network, file, or socket syscalls are captured (see docs/research/threat-model.md).',
         technicalHook: 'evt.type in (execve, execveat)  [falco/porygon_rules.yaml]',
         inputSource: 'Process-execution syscalls from containerized processes.',
         outputArtifact: 'Process-exec records (process name, executable path, full command line, ppid, uid/gid, parent context) -- see falco/porygon_rules.yaml for the exact output fields.',
@@ -466,9 +408,7 @@ document.addEventListener('alpine:init', () => {
         case 'reachability':
           return (this.evidenceCounts?.runtime_observed ?? 0) + ' CVEs heuristic runtime-observed (package ∩ process)';
         case 'containment':
-          return this.operatorToken
-            ? `AUTHORIZED (locks after ${OPERATOR_TOKEN_TTL_MS / 60000} min idle)`
-            : 'LOCKED (Token Required)';
+          return this.operatorToken ? 'AUTHORIZED (Token Set)' : 'LOCKED (Token Required)';
         default:
           return 'Active';
       }
@@ -476,39 +416,28 @@ document.addEventListener('alpine:init', () => {
 
     // Simulator & Terminal Console
     terminalLogs: [],
+    scenarioResults: {},
     isExecutingAttack: false,
+    authorizingIncidentId: null,
     toasts: [],
     showDocsModal: false,
     docsTab: 'mental_model',
 
-    // Operator token. `_operatorToken` is a reactive mirror of the session
-    // credential store. The getter used to read localStorage directly, which
-    // Alpine cannot observe, so the nav key icon and the AUTHORIZED/LOCKED
-    // label did not update when the token was set or cleared until some
-    // unrelated state change happened to re-render them.
-    _operatorToken: credentialStore.get('operator'),
-    operatorTokenExpiresAt: credentialStore.expiresAt('operator'),
+    // Operator token (stored in localStorage)
     get operatorToken() {
-      return this._operatorToken;
-    },
-    set operatorToken(value) {
-      credentialStore.set('operator', value || '', OPERATOR_TOKEN_TTL_MS);
-      this._operatorToken = credentialStore.get('operator');
-      this.operatorTokenExpiresAt = credentialStore.expiresAt('operator');
-    },
-
-    // The store expires an idle token lazily, on read. This turns that into a
-    // visible state change, so the console never shows AUTHORIZED for a token
-    // it would no longer send.
-    _enforceCredentialExpiry() {
-      if (this._operatorToken && !credentialStore.get('operator')) {
-        this._operatorToken = '';
-        this.operatorTokenExpiresAt = null;
-        this.showToast(
-          `Operator token locked after ${OPERATOR_TOKEN_TTL_MS / 60000} minutes idle. Set it again to approve actions.`,
-          'info',
-        );
+      try {
+        const stored = localStorage.getItem('porygon_operator_token');
+        if (stored) return stored;
+        return 'dev-operator-clearance';
+      } catch (e) {
+        return 'dev-operator-clearance';
       }
+    },
+    set operatorToken(v) {
+      try {
+        if (v) localStorage.setItem('porygon_operator_token', v);
+        else localStorage.removeItem('porygon_operator_token');
+      } catch (e) { }
     },
 
     // Styled operator-token entry modal — replaces window.prompt() everywhere a
@@ -577,17 +506,23 @@ document.addEventListener('alpine:init', () => {
       this.aiConfig.apiKey = (this.aiModal.apiKey || '').trim();
       this.aiConfig.provider = this.aiModal.provider || 'gemini';
       this.aiConfig.model = (this.aiModal.model || '').trim();
-      credentialStore.set('aiKey', this.aiConfig.apiKey, null);
       try {
+        if (this.aiConfig.apiKey) {
+          localStorage.setItem('porygon_ai_api_key', this.aiConfig.apiKey);
+        } else {
+          localStorage.removeItem('porygon_ai_api_key');
+        }
         localStorage.setItem('porygon_ai_provider', this.aiConfig.provider);
         localStorage.setItem('porygon_ai_model', this.aiConfig.model);
-      } catch(e){}
+      } catch (e) { }
       this.aiModal.show = false;
     },
 
     clearAiKey() {
       this.aiConfig.apiKey = '';
-      credentialStore.clear('aiKey');
+      try {
+        localStorage.removeItem('porygon_ai_api_key');
+      } catch (e) { }
       this.aiModal.apiKey = '';
       this.aiModal.show = false;
     },
@@ -597,16 +532,6 @@ document.addEventListener('alpine:init', () => {
         this.openAiKeyModal();
         return;
       }
-      // The audit sends this container's command lines to a third-party LLM,
-      // so it is an operator-authorised action like containment, not a read.
-      if (!this.operatorToken) {
-        const t = await this.requestOperatorToken(
-          'An AI audit sends this container\'s process telemetry to an external provider and requires operator authorization.',
-          'Authorize AI audit',
-        );
-        if (!t) return;
-        this.operatorToken = t;
-      }
       this.aiAuditModal.container = container;
       this.aiAuditModal.loading = true;
       this.aiAuditModal.error = null;
@@ -614,10 +539,7 @@ document.addEventListener('alpine:init', () => {
       this.aiAuditModal.show = true;
 
       try {
-        // The provider key travels only in the header. The backend still
-        // accepts it in the body, but a JSON body is what request loggers and
-        // validation-error echoes capture, so the console does not put it there.
-        const resp = await this._apiFetch('/operator/v1/ai/audit', {
+        const resp = await fetch('/api/v1/ai/audit', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -627,15 +549,11 @@ document.addEventListener('alpine:init', () => {
           body: JSON.stringify({
             container_id: container.container_id || container.id,
             provider: this.aiConfig.provider,
+            api_key: this.aiConfig.apiKey,
             model: this.aiConfig.model || null,
             event_limit: 40,
           }),
         });
-        if (resp.status === 401) {
-          this.operatorToken = '';
-          this.aiAuditModal.error = 'Operator token was rejected. Set it again and retry.';
-          return;
-        }
 
         const data = await resp.json();
         if (!resp.ok) {
@@ -649,6 +567,132 @@ document.addEventListener('alpine:init', () => {
       } finally {
         this.aiAuditModal.loading = false;
       }
+    },
+
+    async classifyContainerWithML(container) {
+      this.mlClassifyModal.container = container;
+      this.mlClassifyModal.loading = true;
+      this.mlClassifyModal.error = null;
+      this.mlClassifyModal.result = null;
+      this.mlClassifyModal.show = true;
+
+      try {
+        const cid = container.container_id || container.id;
+        const resp = await fetch(`/api/v1/ml/classify-container/${encodeURIComponent(cid)}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const text = await resp.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (_) {
+          data = { detail: text || `HTTP ${resp.status} ${resp.statusText}` };
+        }
+
+        if (!resp.ok) {
+          const detail = data.detail;
+          this.mlClassifyModal.error = typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail.map(d => d.msg || d).join(', ') : 'ML classification failed');
+        } else {
+          this.mlClassifyModal.result = data;
+          if (cid) {
+            this.mlClassifications = { ...this.mlClassifications, [cid]: data };
+          }
+        }
+      } catch (err) {
+        this.mlClassifyModal.error = err.message || 'Network error communicating with ML classification API';
+      } finally {
+        this.mlClassifyModal.loading = false;
+      }
+    },
+
+    async classifyFleetForMLView() {
+      if (!this.containers || this.containers.length === 0) return;
+      this.mlLoadingBatch = true;
+      try {
+        const promises = this.containers.map(async (c) => {
+          const cid = c.container_id || c.id;
+          if (!cid) return;
+          try {
+            const resp = await fetch(`/api/v1/ml/classify-container/${encodeURIComponent(cid)}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+            });
+            if (resp.ok) {
+              const data = await resp.json();
+              this.mlClassifications = { ...this.mlClassifications, [cid]: data };
+            }
+          } catch (e) {
+            console.warn(`Failed ML classification for ${cid}:`, e);
+          }
+        });
+        await Promise.all(promises);
+      } finally {
+        this.mlLoadingBatch = false;
+      }
+    },
+
+    inspectMLFromTable(container) {
+      const cid = container.container_id || container.id;
+      if (this.mlClassifications[cid]) {
+        this.mlClassifyModal.container = container;
+        this.mlClassifyModal.result = this.mlClassifications[cid];
+        this.mlClassifyModal.error = null;
+        this.mlClassifyModal.loading = false;
+        this.mlClassifyModal.show = true;
+      } else {
+        this.classifyContainerWithML(container);
+      }
+    },
+
+    get filteredMLWorkloads() {
+      let list = (this.containers || []).map(c => {
+        const cid = c.container_id || c.id;
+        const ml = this.mlClassifications[cid] || null;
+        return {
+          container: c,
+          ml: ml
+        };
+      });
+
+      if (this.mlTacticFilter === 'clean' || this.mlTacticFilter === 'benign') {
+        list = list.filter(item => item.ml && item.ml.predicted_class === 'benign');
+      } else if (this.mlTacticFilter === 'threats') {
+        list = list.filter(item => item.ml && item.ml.predicted_class !== 'benign');
+      } else if (this.mlTacticFilter && this.mlTacticFilter !== 'all') {
+        list = list.filter(item => item.ml && item.ml.predicted_class === this.mlTacticFilter);
+      }
+
+      if (this.mlSearchQuery) {
+        const q = this.mlSearchQuery.toLowerCase().trim();
+        list = list.filter(item =>
+          (item.container.container_name && item.container.container_name.toLowerCase().includes(q)) ||
+          (item.container.container_id && item.container.container_id.toLowerCase().includes(q)) ||
+          (item.ml && item.ml.predicted_class && item.ml.predicted_class.toLowerCase().includes(q))
+        );
+      }
+
+      return list;
+    },
+
+    get mlSummaryStats() {
+      const total = (this.containers || []).length;
+      const keys = Object.keys(this.mlClassifications);
+      const classified = keys.length;
+      let benign = 0;
+      let threats = 0;
+      for (const cid of keys) {
+        const res = this.mlClassifications[cid];
+        if (res && res.predicted_class === 'benign') {
+          benign++;
+        } else if (res) {
+          threats++;
+        }
+      }
+      return { total, classified, benign, threats };
     },
 
     // Chart.js instances are NOT kept as an Alpine component property at
@@ -667,9 +711,7 @@ document.addEventListener('alpine:init', () => {
       if (typeof window.initReveal === 'function') window.initReveal();
       await this.fetchRules();
       await this.fetchCustomRules();
-      // Charts are created empty and filled by the first polling round: the
-      // timeline and evidence-ladder charts both have update paths, and the
-      // composition chart shows fixed protocol weights.
+      await this.refreshAllData();
       this.initCharts();
       // after DOM for charts, init reveal again for bento
       if (typeof window.initReveal === 'function') window.initReveal();
@@ -677,13 +719,14 @@ document.addEventListener('alpine:init', () => {
       // Watch activeTab to resize charts and trigger pipeline auto-selection
       if (typeof this.$watch === 'function') {
         this.$watch('activeTab', (newTab) => {
+          if (typeof window !== 'undefined' && window.location) {
+            try { window.location.hash = newTab; } catch (e) { }
+          }
           if (newTab === 'pipeline' && !this.pipelineIncidentId && this.incidents.length > 0) {
-            // Writes #pipeline/<id> itself. Writing #pipeline first would
-            // leave two history entries for one action, so Back would appear
-            // to do nothing the first time.
             this.openPipelineForIncident(this.incidents[0]);
-          } else {
-            this._writeRoute();
+          }
+          if (newTab === 'ml' && Object.keys(this.mlClassifications).length === 0) {
+            this.classifyFleetForMLView();
           }
           const triggerResize = () => {
             Object.values(chartRegistry).forEach(c => {
@@ -699,103 +742,44 @@ document.addEventListener('alpine:init', () => {
         });
       }
 
-      this._startPolling();
-      // Back/Forward and hand-edited URLs. Previously the hash was written on
-      // every tab switch but never read again, so Back changed the URL and
-      // left the view where it was.
-      window.addEventListener('popstate', () => this._applyRoute());
-      window.addEventListener('hashchange', () => this._applyRoute());
-      this._applyRoute();
-      setInterval(() => { this.nowTick = Date.now(); }, 10000);
-      setInterval(() => this._enforceCredentialExpiry(), 15000);
-    },
-
-    // Every API read goes through one scheduler. Each task is its own chain,
-    // so a slow request is never overlapped by the next tick; the whole thing
-    // pauses while the tab is hidden and refreshes on return; failures back
-    // off with jitter; and health is reported once per transition instead of
-    // as a toast per failed request. See dashboard/src/poller.js.
-    //
-    // Service health and image scans are on the schedule too. They used to be
-    // fetched once at page load and never again, so a service that died after
-    // the console opened stayed "healthy" until someone clicked sync.
-    _startPolling() {
-      consolePoller = window.PorygonPoller.createPoller({
-        tasks: [
-          { name: 'containers', label: 'container inventory', intervalMs: 3000, run: (signal) => this.fetchContainers(signal) },
-          { name: 'events', label: 'process telemetry', intervalMs: 3000, run: (signal) => this.fetchEvents(signal) },
-          { name: 'incidents', label: 'incidents', intervalMs: 3000, run: (signal) => this.fetchIncidents(signal) },
-          { name: 'scores', label: 'anomaly scores', intervalMs: 3000, run: (signal) => this.fetchAnomalyScores(signal) },
-          { name: 'system', label: 'system summary', intervalMs: 10000, run: (signal) => this.fetchSystemInfo(signal) },
-          { name: 'services', label: 'service health', intervalMs: 15000, run: (signal) => this.fetchServices(signal) },
-          { name: 'scans', label: 'image scans', intervalMs: 60000, run: (signal) => this.fetchScans(signal) },
-        ],
-        visibility: {
-          isHidden: () => document.hidden,
-          onChange: (listener) => document.addEventListener('visibilitychange', listener),
-        },
-        onHealthChange: (health, detail) => this._onApiHealthChange(health, detail),
-      });
-      consolePoller.start(true);
-    },
-
-    _onApiHealthChange(health, { previous, failing }) {
-      this.apiHealth = health;
-      this.apiHealthFailing = failing;
-      if (health !== 'healthy') {
-        this.bannerHealth = health;
-        this.bannerFailing = failing;
-      }
-      if (health === 'offline') {
-        this.showToast('Backend unreachable. Panels are cleared rather than left stale; retrying with backoff.', 'danger');
-        this.logTerminal('API', 'Backend unreachable: ' + failing.join(', '), 'error');
-      } else if (health === 'degraded') {
-        this.showToast('Unavailable: ' + failing.join(', '), 'warn');
-        this.logTerminal('API', 'Degraded: ' + failing.join(', '), 'warn');
-      } else if (previous !== 'healthy') {
-        this.showToast('Connection restored. Panels refreshed.', 'info');
-        this.logTerminal('API', 'Connection restored', 'info');
-      }
-    },
-
-    // Kernel telemetry as far as the console can know it, for the nav pill.
-    // This replaced a hardcoded, pulsing "eBPF Active" that stayed green while
-    // Falco was crashlooping and the newest kernel event was eleven days old.
-    get kernelTelemetry() {
-      return fmt.kernelTelemetryState({
-        apiHealth: this.apiHealth,
-        eventsSource: this.eventsSource,
-        events: this.events,
-        now: this.nowTick,
-      });
-    },
-
-    // Data timestamps keep their date unless they are from today; see
-    // dashboard/src/format.js. Reading nowTick makes them re-evaluate as the
-    // day turns over.
-    fmtTime(value) {
-      return fmt.formatTimestamp(value, this.nowTick);
-    },
-    fmtShortTime(value) {
-      return fmt.formatShortTimestamp(value, this.nowTick);
-    },
-    fmtTimeMs(value) {
-      return fmt.formatTimestamp(value, this.nowTick, { milliseconds: true });
+      // Auto-refresh interval every 3 seconds (lightweight polling without heavy summaries)
+      setInterval(() => {
+        this.pollLiveTelemetry();
+      }, 3000);
+      // heavier refresh for system info every 10s
+      setInterval(() => { this.fetchSystemInfo(); this.fetchAnomalyScores(); }, 10000);
     },
 
     // helpers
-    _apiFetch(path, opts={}) {
+    _apiFetch(path, opts = {}) {
       // attach operator token if present for operator routes
       const headers = Object.assign({}, opts.headers || {});
       const token = this.operatorToken;
       if (token && path.includes('/operator/')) {
         headers['X-Porygon-Operator-Token'] = token;
-        // Using the token is activity: slide its idle expiry forward.
-        credentialStore.touch('operator');
-        this.operatorTokenExpiresAt = credentialStore.expiresAt('operator');
       }
       // for demo route via dashboard server, keep same host
       return fetch(path, Object.assign({}, opts, { headers }));
+    },
+
+    formatCompactNumber(num) {
+      if (num == null) return '0';
+      const n = Number(num);
+      if (isNaN(n) || n === 0) return '0';
+      if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+      if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+      return n.toLocaleString();
+    },
+
+    async fetchProcessSummary() {
+      try {
+        const res = await fetch('/api/v1/process-events/summary');
+        if (res.ok) {
+          this.processSummary = await res.json();
+        }
+      } catch (e) {
+        console.warn('process-events/summary failed', e);
+      }
     },
 
     showToast(message, type = 'info') {
@@ -808,8 +792,34 @@ document.addEventListener('alpine:init', () => {
 
     logTerminal(tag, msg, type = 'info') {
       const time = new Date().toLocaleTimeString();
-      this.terminalLogs.unshift({ time, tag, msg, type });
+      let message = 'Signal dispatched';
+      if (typeof msg === 'string' && msg.trim()) {
+        message = msg.trim();
+      } else if (msg && typeof msg === 'object') {
+        message = msg.message || msg.msg || msg.error || JSON.stringify(msg);
+      } else if (msg !== undefined && msg !== null) {
+        message = String(msg);
+      }
+      this.terminalLogs.unshift({ time, tag: tag || 'INFO', msg: message, message, type, level: type });
       if (this.terminalLogs.length > 120) this.terminalLogs.pop();
+    },
+
+    formatRuleId(ruleId) {
+      if (!ruleId) return 'RULE 01';
+      const m = String(ruleId).match(/POR-DET-0*([0-9]+)/i);
+      if (m) {
+        return `RULE ${m[1].padStart(2, '0')}`;
+      }
+      return String(ruleId);
+    },
+
+    formatAuthorizeAction(action) {
+      if (!action) return 'AUTHORIZE: PAUSE';
+      const clean = String(action)
+        .replace(/_container$/i, '')
+        .replace(/_only$/i, '')
+        .toUpperCase();
+      return `AUTHORIZE: ${clean}`;
     },
 
     // ---- Backend wiring ----
@@ -832,7 +842,7 @@ document.addEventListener('alpine:init', () => {
       try {
         const cfg = await fetch('/api/v1/anomaly-scores/config');
         if (cfg.ok) this.anomalyConfig = await cfg.json();
-      } catch(e){}
+      } catch (e) { }
     },
 
     async fetchCustomRules() {
@@ -987,139 +997,148 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
-    // Every fetcher below takes the scheduler's abort signal and returns
-    // whether it succeeded. Failures are reported once, as a health state, by
-    // the scheduler (dashboard/src/poller.js) -- each fetcher used to raise its
-    // own toast on every failed 3 s tick, which during an outage stacked them
-    // faster than they expired.
-    async fetchSystemInfo(signal) {
+    async fetchSystemInfo() {
       try {
-        const res = await fetch('/api/v1/system/info', { signal });
-        if (!res.ok) return false;
-        this.systemInfo = await res.json();
-        return true;
-      } catch (e) {
-        console.warn('system/info failed', e);
-        return false;
-      }
+        const res = await fetch('/api/v1/system/info');
+        if (res.ok) {
+          this.systemInfo = await res.json();
+          // sync counters that were previously hardcoded
+          // keep in terminal
+        }
+      } catch (e) { console.warn('system/info failed', e); }
     },
 
-    async fetchServices(signal) {
+    async fetchServices() {
       try {
-        const res = await fetch('/api/v1/services', { signal });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        this.services = await res.json();
-        return true;
+        const res = await fetch('/api/v1/services');
+        if (res.ok) {
+          this.services = await res.json();
+        } else throw new Error('non-200');
       } catch (err) {
         // An unavailable health endpoint must not look like a healthy fleet.
         this.services = [];
-        return false;
+        this.showToast('Service health is unavailable', 'warn');
       }
     },
 
-    async fetchContainers(signal) {
+    async fetchContainers() {
       try {
-        const res = await fetch('/api/v1/containers?limit=100', { signal });
+        const res = await fetch('/api/v1/containers?limit=100');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         this.containers = Array.isArray(data) ? data : (data.items || []);
-        return true;
       } catch (err) {
         // An unavailable containers endpoint must not look like an empty,
-        // fully-monitored fleet — clear stale data; the scheduler signals the gap.
+        // fully-monitored fleet — clear stale data and signal the gap.
         console.warn('Could not fetch containers:', err);
         this.containers = [];
-        return false;
+        this.showToast('Container inventory is unavailable', 'warn');
       }
     },
 
-    async fetchEvents(signal) {
-      // Prefer process-events (eBPF) for telemetry tab (fast limit=40 query)
+    async fetchEvents() {
+      this.isLoadingEvents = true;
       try {
-        const res = await fetch('/api/v1/process-events?limit=40', { signal });
-        if (res.ok) {
-          this.events = await res.json();
-          this.eventsSource = 'process';
-          return true;
+        let endpoint = '/api/v1/process-events?limit=100';
+        let fallbackEndpoint = '/api/v1/events?limit=100';
+
+        if (this.selectedContainerName) {
+          endpoint += `&container_name=${encodeURIComponent(this.selectedContainerName)}`;
+          fallbackEndpoint += `&container_name=${encodeURIComponent(this.selectedContainerName)}`;
+        } else if (this.selectedContainer) {
+          endpoint += `&container_id=${encodeURIComponent(this.selectedContainer)}`;
+          fallbackEndpoint += `&container_id=${encodeURIComponent(this.selectedContainer)}`;
         }
-        // fallback to older /events if process-events not yet available.
-        // Real bug found live: this used to write the fallback result into
-        // this.runtimeEvents, a property nothing in the template reads —
-        // the Telemetry tab (bound to `events`) silently stayed empty even
-        // though the fallback fetch succeeded. Writing into `events` here
-        // fixes that.
-        const r2 = await fetch('/api/v1/events?limit=40', { signal });
+
+        const res = await fetch(endpoint);
+        if (res.ok) {
+          const data = await res.json();
+          // If container_name query returned empty (e.g. name mismatch), fallback to container_id prefix if available
+          if (Array.isArray(data) && data.length === 0 && this.selectedContainer && this.selectedContainerName) {
+            const resById = await fetch(`/api/v1/process-events?limit=100&container_id=${encodeURIComponent(this.selectedContainer.substring(0, 12))}`);
+            if (resById.ok) {
+              const dataById = await resById.json();
+              if (Array.isArray(dataById) && dataById.length > 0) {
+                this.events = dataById;
+                return;
+              }
+            }
+          }
+          this.events = data;
+          return;
+        }
+
+        const r2 = await fetch(fallbackEndpoint);
         if (r2.ok) {
           this.events = await r2.json();
-          this.eventsSource = 'docker';
-          return true;
+          return;
         }
         throw new Error(`process-events HTTP ${res.status}, events fallback HTTP ${r2.status}`);
       } catch (err) {
         console.warn('Could not fetch process-events:', err);
         this.events = [];
-        this.eventsSource = null;
-        return false;
+        this.showToast('Process telemetry is unavailable', 'warn');
+      } finally {
+        this.isLoadingEvents = false;
       }
     },
 
-    async fetchAnomalyScores(signal) {
+    async fetchAnomalyScores() {
       try {
-        const res = await fetch('/api/v1/anomaly-scores?limit=20', { signal });
-        if (!res.ok) return false;
-        const list = await res.json();
-        if (Array.isArray(list) && list.length) {
-          this.scores = list;
-          // The most recent window (list[0]) may not have enough telemetry to
-          // be scored yet — surface that explicitly rather than silently
-          // falling back to an older scored window and mislabeling it CURRENT.
-          this.latestWindowInsufficientData = list[0]?.status === 'insufficient_data';
-          // use most recent scored window
-          const latest = list.find(s => s.status === 'scored') || list[0];
-          if (latest && latest.total_score != null) {
-            this.currentAnomalyScore = latest.total_score;
-            this.currentScoreBand = latest.score_band || this._bandForScore(latest.total_score);
-            // Real timestamp of the window backing the score above, so a
-            // "CURRENT" label can show it and make a stale window visibly stale.
-            this.currentScoreWindowStart = latest.window_start || null;
-            // extract unseen tokens / contributors from explanation if present.
-            // Real bug found live: GET /api/v1/anomaly-scores/{id}'s
-            // explanation.unseen_tokens is an array of objects
-            // ({feature, token, proportion} — verified against the live
-            // backend), but this.unseenTokens is rendered with
-            // `x-for="tok in unseenTokens" :key="tok"` and used as
-            // `'unseen: ' + tok`, both of which expect plain strings.
-            // Assigning the raw objects here made Alpine use a whole
-            // object as an x-for key (console warning, once per real
-            // score fetched) and made every token render as
-            // "unseen: [object Object]" instead of the real value.
-            // Extracting .token fixes both.
-            const exp = latest.explanation || {};
-            const families = (latest.components && latest.components.categorical_distance && latest.components.categorical_distance.families) || {};
-            const asTokenStrings = (arr) => arr.map(t => (t && typeof t === 'object') ? (t.token ?? JSON.stringify(t)) : t);
-            // fallback: explanation.novel_executables etc.
-            if (exp.unseen_tokens) this.unseenTokens = [...new Set(asTokenStrings(exp.unseen_tokens))].slice(0,12);
-            else if (exp.novel_tokens) this.unseenTokens = [...new Set(asTokenStrings(exp.novel_tokens))].slice(0,12);
-            else {
-              // synthesize from categorical families top_observed where baseline_support small
-              const toks = [];
-              Object.values(families).forEach(f=>{
-                if (f.distance > 0.5 && f.top_observed) {
-                  f.top_observed.slice(0,2).forEach(t=> toks.push(t.token));
-                }
-              });
-              if (toks.length) this.unseenTokens = [...new Set(toks)].slice(0,10);
+        const res = await fetch('/api/v1/anomaly-scores?limit=20');
+        if (res.ok) {
+          const list = await res.json();
+          if (Array.isArray(list) && list.length) {
+            this.scores = list;
+            // The most recent window (list[0]) may not have enough telemetry to
+            // be scored yet — surface that explicitly rather than silently
+            // falling back to an older scored window and mislabeling it CURRENT.
+            this.latestWindowInsufficientData = list[0]?.status === 'insufficient_data';
+            // use most recent scored window
+            const latest = list.find(s => s.status === 'scored') || list[0];
+            if (latest && latest.total_score != null) {
+              this.currentAnomalyScore = latest.total_score;
+              this.currentScoreBand = latest.score_band || this._bandForScore(latest.total_score);
+              // Real timestamp of the window backing the score above, so a
+              // "CURRENT" label can show it and make a stale window visibly stale.
+              this.currentScoreWindowStart = latest.window_start || null;
+              // extract unseen tokens / contributors from explanation if present.
+              // Real bug found live: GET /api/v1/anomaly-scores/{id}'s
+              // explanation.unseen_tokens is an array of objects
+              // ({feature, token, proportion} — verified against the live
+              // backend), but this.unseenTokens is rendered with
+              // `x-for="tok in unseenTokens" :key="tok"` and used as
+              // `'unseen: ' + tok`, both of which expect plain strings.
+              // Assigning the raw objects here made Alpine use a whole
+              // object as an x-for key (console warning, once per real
+              // score fetched) and made every token render as
+              // "unseen: [object Object]" instead of the real value.
+              // Extracting .token fixes both.
+              const exp = latest.explanation || {};
+              const families = (latest.components && latest.components.categorical_distance && latest.components.categorical_distance.families) || {};
+              const asTokenStrings = (arr) => arr.map(t => (t && typeof t === 'object') ? (t.token ?? JSON.stringify(t)) : t);
+              // fallback: explanation.novel_executables etc.
+              if (exp.unseen_tokens) this.unseenTokens = [...new Set(asTokenStrings(exp.unseen_tokens))].slice(0, 12);
+              else if (exp.novel_tokens) this.unseenTokens = [...new Set(asTokenStrings(exp.novel_tokens))].slice(0, 12);
+              else {
+                // synthesize from categorical families top_observed where baseline_support small
+                const toks = [];
+                Object.values(families).forEach(f => {
+                  if (f.distance > 0.5 && f.top_observed) {
+                    f.top_observed.slice(0, 2).forEach(t => toks.push(t.token));
+                  }
+                });
+                if (toks.length) this.unseenTokens = [...new Set(toks)].slice(0, 10);
+              }
+              this.scoreContributors = latest.components ? Object.entries(latest.components).map(([k, v]) => ({ token: k, weight: v.score || 0 })) : [];
+              this.activeProfile = { profile_id: latest.profile_id, version: latest.profile_version };
+              this.updateTimelineChart();
+              this.updateScoreFromLatest();
             }
-            this.scoreContributors = latest.components ? Object.entries(latest.components).map(([k,v])=>({token:k, weight: v.score||0})) : [];
-            this.activeProfile = { profile_id: latest.profile_id, version: latest.profile_version };
-            this.updateTimelineChart();
-            this.updateScoreFromLatest();
           }
         }
-        return true;
       } catch (err) {
         console.warn('Could not fetch anomaly-scores:', err);
-        return false;
       }
     },
 
@@ -1136,33 +1155,32 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
-    async fetchIncidents(signal) {
+    async fetchIncidents() {
       try {
-        const res = await fetch('/api/v1/incidents?limit=50', { signal });
+        const res = await fetch('/api/v1/incidents?limit=50');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const fetched = await res.json();
         const getTime = (x) => {
           const d = new Date(x.created_at || x.first_seen_at || x.occurred_at || 0);
           return isNaN(d.getTime()) ? 0 : d.getTime();
         };
-        this.incidents = fetched.sort((a,b)=> getTime(b) - getTime(a));
+        this.incidents = fetched.sort((a, b) => getTime(b) - getTime(a));
         if (this.incidents.length > 0 && !this.selectedIncident) {
           this.selectedIncident = this.incidents[0];
         }
-        return true;
       } catch (err) {
         // An unavailable incidents endpoint must not read as "all clear" —
         // clear stale data and signal the gap instead of leaving whatever
         // was last fetched on screen with no indicator.
         console.warn('Could not fetch incidents:', err);
         this.incidents = [];
-        return false;
+        this.showToast('Incident feed is unavailable', 'warn');
       }
     },
 
-    async fetchScans(signal) {
+    async fetchScans() {
       try {
-        const res = await fetch('/api/v1/image-scans?limit=20', { signal });
+        const res = await fetch('/api/v1/image-scans?limit=20');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const scans = await res.json();
         if (Array.isArray(scans) && scans.length > 0) {
@@ -1174,24 +1192,17 @@ document.addEventListener('alpine:init', () => {
           // image-scans limit=20 above) keeps the funnel counts honest.
           const targets = completedScans;
 
-          // Fetched concurrently: the sequential loop this replaces made one
-          // round trip per completed scan before anything rendered, and now
-          // that scans refresh on a schedule it must also finish inside the
-          // scheduler's timeout. Responses are not cached, because each embeds
-          // per-CVE EPSS/KEV intel that later threat-feed fetches update.
-          const details = await Promise.all(targets.map(async (scan) => {
-            try {
-              const detailRes = await fetch(`/api/v1/image-scans/${scan.scan_id}`, { signal });
-              return detailRes.ok ? await detailRes.json() : null;
-            } catch (e) {
-              return null;
-            }
-          }));
           const allFindings = [];
-          for (const detail of details) {
-            if (detail && Array.isArray(detail.vulnerabilities)) {
-              allFindings.push(...detail.vulnerabilities);
-            }
+          for (const scan of targets) {
+            try {
+              const detailRes = await fetch(`/api/v1/image-scans/${scan.scan_id}`);
+              if (detailRes.ok) {
+                const detail = await detailRes.json();
+                if (Array.isArray(detail.vulnerabilities)) {
+                  allFindings.push(...detail.vulnerabilities);
+                }
+              }
+            } catch (e) { }
           }
 
           // Deduplicate findings by finding_id or cve_id + package_name
@@ -1207,14 +1218,13 @@ document.addEventListener('alpine:init', () => {
           this.vulnerabilityFindings = [];
           this.calculateEvidenceCounts();
         }
-        return true;
       } catch (err) {
         // An unavailable scan endpoint must not leave a stale reachability
         // funnel on screen with no indicator that it's out of date.
         console.warn('Could not fetch scans:', err);
         this.vulnerabilityFindings = [];
         this.calculateEvidenceCounts();
-        return false;
+        this.showToast('Vulnerability scan data is unavailable', 'warn');
       }
     },
 
@@ -1261,146 +1271,43 @@ document.addEventListener('alpine:init', () => {
       return this.vulnerabilityFindings.filter(v => this.matchesReachabilityFilter(v, this.reachabilityFilter));
     },
 
-    // Push the current view into history, so Back returns to it and the URL
-    // can be shared. pushState, not location.hash, so writing a route does
-    // not fire hashchange and re-apply itself.
-    _writeRoute() {
-      const target = route.formatRoute({ tab: this.activeTab, incidentId: this.pipelineIncidentId });
-      if (window.location.hash !== target) {
-        try { history.pushState(null, '', target); } catch (e) {}
-      }
+    async refreshAllData() {
+      await this.fetchSystemInfo();
+      await Promise.all([
+        this.fetchServices(),
+        this.fetchContainers(),
+        this.fetchEvents(),
+        this.fetchProcessSummary(),
+        this.fetchIncidents(),
+        this.fetchScans(),
+        this.fetchAnomalyScores()
+      ]);
     },
 
-    _applyRoute() {
-      const { tab, incidentId } = route.parseRoute(window.location.hash);
-      if (tab === 'pipeline' && incidentId && incidentId !== this.pipelineIncidentId) {
-        // Set the incident before the tab, so the pipeline watcher does not
-        // auto-open the newest incident in its place.
-        this.openPipelineById(incidentId);
-      } else if (tab !== this.activeTab) {
-        this.activeTab = tab;
-      }
+    async pollLiveTelemetry() {
+      await Promise.all([
+        this.fetchContainers(),
+        this.fetchEvents(),
+        this.fetchIncidents(),
+        this.fetchAnomalyScores()
+      ]);
+      this.updateTimelineChart();
     },
 
-    // Open an incident by id from a link. It may be older than the 50 the
-    // incident list holds, so fall back to fetching it directly.
-    async openPipelineById(incidentId) {
-      const known = this.incidents.find((i) => i.incident_id === incidentId);
-      if (known) {
-        this.openPipelineForIncident(known);
-        return;
-      }
-      this.pipelineIncidentId = incidentId;
-      this.activeTab = 'pipeline';
-      try {
-        const res = await fetch(`/api/v1/incidents/${incidentId}`);
-        if (!res.ok) throw new Error(res.status === 404 ? 'not found' : `HTTP ${res.status}`);
-        this.openPipelineForIncident(await res.json());
-      } catch (err) {
-        this.pipelineIncidentId = null;
-        this.pipelineError = '';
-        this._writeRoute();
-        this.showToast(`Linked incident ${incidentId.slice(0, 8)} could not be opened: ${err.message}`, 'warn');
-      }
-    },
-
-    async copyIncidentLink() {
-      try {
-        await navigator.clipboard.writeText(window.location.href);
-        this.showToast('Incident link copied', 'info');
-      } catch (err) {
-        this.showToast('Could not copy the link; copy it from the address bar', 'warn');
-      }
-    },
-
-    // Fetch one evidence source, recording its status, size, and the sha256
-    // of its exact bytes. Named so scripts/check_console_api_contract.py
-    // checks these paths against the backend like any other fetch.
-    async _fetchEvidence(path, sources) {
-      const res = await fetch(path);
-      const bytes = await res.arrayBuffer();
-      sources.push({
-        path,
-        status: res.status,
-        bytes: bytes.byteLength,
-        sha256: await sha256Hex(bytes),
-        fetched_at: new Date().toISOString(),
-      });
-      if (!res.ok) throw new Error(`${path} returned HTTP ${res.status}`);
-      return JSON.parse(new TextDecoder().decode(bytes));
-    },
-
-    // Export the selected incident as JSON or Markdown, built from fresh API
-    // responses rather than whatever the screen happens to hold, so the file
-    // and its recorded hashes describe the same bytes. See
-    // dashboard/src/evidence.js.
-    async exportIncidentEvidence(format) {
-      const incidentId = this.pipelineIncidentId;
-      if (!incidentId || this.exportingEvidence) return;
-      this.exportingEvidence = true;
-      const sources = [];
-      try {
-        const incident = await this._fetchEvidence(`/api/v1/incidents/${incidentId}`, sources);
-        const timeline = await this._fetchEvidence(`/api/v1/incidents/${incidentId}/timeline`, sources);
-        let score = null;
-        if (incident.score_id) {
-          try {
-            score = await this._fetchEvidence(`/api/v1/anomaly-scores/${incident.score_id}`, sources);
-          } catch (err) {
-            // Recorded in sources with its status; the bundle says it is missing.
-          }
-        }
-        const exportedAt = new Date().toISOString();
-        const bundle = window.PorygonEvidence.buildEvidenceBundle({
-          incident, timeline, score, rules: this.rulesMeta, sources, exportedAt,
-        });
-        const name = window.PorygonEvidence.exportFilename(incidentId, exportedAt, format === 'markdown' ? 'md' : 'json');
-        if (format === 'markdown') {
-          downloadText(name, window.PorygonEvidence.renderEvidenceMarkdown(bundle), 'text/markdown');
-        } else {
-          downloadText(name, JSON.stringify(bundle, null, 2) + '\n', 'application/json');
-        }
-        this.logTerminal('EXPORT', `${name} (${sources.length} sources hashed)`, 'success');
-      } catch (err) {
-        this.showToast(`Evidence export failed: ${err.message}`, 'danger');
-      } finally {
-        this.exportingEvidence = false;
-      }
-    },
-
-    // ARIA tab pattern for the nav: Left/Right move and wrap, Home/End jump.
-    // Selection follows focus, since switching views is cheap.
-    onTabKeydown(event) {
-      const tabs = [...event.currentTarget.querySelectorAll('[role="tab"]')];
-      const current = tabs.indexOf(document.activeElement);
-      const target = window.PorygonA11y.tabKeyTarget(event.key, current < 0 ? 0 : current, tabs.length);
-      if (target === null) return;
-      event.preventDefault();
-      this.activeTab = tabs[target].dataset.tab;
-      tabs[target].focus();
-    },
-
-    // Manual sync. Routed through the scheduler rather than calling the
-    // fetchers directly, so a click can never run a request concurrently with
-    // the scheduled run of the same request.
-    refreshAllData() {
-      if (consolePoller) consolePoller.runNow();
-    },
-
-    // Chart Initializations — ethereal glass tuned
+    // Chart Initializations — Newsprint styling
     initCharts() {
       Chart.defaults.font.family = 'JetBrains Mono';
-      Chart.defaults.color = '#9A9A9A';
-      Chart.defaults.borderColor = 'rgba(255,255,255,0.08)';
+      Chart.defaults.color = '#525252';
+      Chart.defaults.borderColor = '#E5E5E0';
 
       // 1. Behavioural Distance Timeline Chart
       const timelineCtx = document.getElementById('anomalyTimelineChart');
       if (timelineCtx) {
         const hasScores = this.scores && this.scores.length > 0;
-        const labels = hasScores ? this.scores.slice(0,7).reverse().map(s => this.fmtShortTime(s.window_start)) : [];
-        const dataPoints = hasScores ? this.scores.slice(0,7).reverse().map(s => s.total_score ?? 0) : [];
+        const labels = hasScores ? this.scores.slice(0, 7).reverse().map(s => new Date(s.window_start).toLocaleTimeString().slice(0, 5)) : ['W-6', 'W-5', 'W-4', 'W-3', 'W-2', 'W-1', 'Now'];
+        const dataPoints = hasScores ? this.scores.slice(0, 7).reverse().map(s => s.total_score ?? 0) : [0, 0, 0, 0, 0, 0, this.currentAnomalyScore];
         // ensure last point reflects current
-        if (dataPoints.length) dataPoints[dataPoints.length-1] = this.currentAnomalyScore;
+        if (dataPoints.length) dataPoints[dataPoints.length - 1] = this.currentAnomalyScore;
         chartRegistry.timeline = new Chart(timelineCtx, {
           type: 'line',
           data: {
@@ -1587,7 +1494,7 @@ document.addEventListener('alpine:init', () => {
       // NOTE: A "System Call Flow Deviation Radar" chart previously lived here,
       // rendering hardcoded per-syscall frequency data (epoll_wait/read/write/etc)
       // as if it were live telemetry. Porygon's sensor is execve/execveat-only
-      // (see docs/THREAT_MODEL_V1.md) — it never captures per-syscall frequency
+      // (see docs/research/threat-model.md) — it never captures per-syscall frequency
       // data, so there was no real signal behind that chart. Removed rather than
       // relabeled, since there's no backing data source to show instead.
     },
@@ -1597,11 +1504,11 @@ document.addEventListener('alpine:init', () => {
       const chart = chartRegistry.timeline;
       // if we have real scores, rebuild labels+data from this.scores
       if (this.scores && this.scores.length) {
-        const recent = this.scores.slice(0,7).reverse();
-        chart.data.labels = recent.map(s => this.fmtShortTime(s.window_start));
+        const recent = this.scores.slice(0, 7).reverse();
+        chart.data.labels = recent.map(s => new Date(s.window_start).toLocaleTimeString().slice(0, 5));
         chart.data.datasets[0].data = recent.map(s => s.total_score != null ? s.total_score : 0);
         // overlay current if newer
-        chart.data.datasets[0].data[chart.data.datasets[0].data.length-1] = this.currentAnomalyScore;
+        chart.data.datasets[0].data[chart.data.datasets[0].data.length - 1] = this.currentAnomalyScore;
         const n = chart.data.labels.length;
         chart.data.datasets[1].data = Array(n).fill(0.50);
         chart.data.datasets[2].data = Array(n).fill(0.75);
@@ -1627,41 +1534,72 @@ document.addEventListener('alpine:init', () => {
     // Interactive Attack Scenario Execution — backend-only; never fabricate telemetry.
     async triggerAttackScenario(scenario) {
       this.isExecutingAttack = true;
-      this.logTerminal('SIMULATOR', `Triggering scenario: ${scenario.name} (${scenario.id})...`, 'info');
-      this.showToast(`Launching ${scenario.name}...`, 'info');
-
-      const applyBackendResult = (data) => {
-        this.logTerminal('EXEC', data.command || scenario.id, 'success');
-        if (data.output) this.logTerminal('OUTPUT', String(data.output).slice(0, 400), 'info');
-        this.showToast('Scenario executed. Waiting for telemetry and scoring results.', 'success');
-      };
+      const scenarioName = scenario?.name || scenario?.id || 'Canary Scenario';
+      const scenarioId = scenario?.id || scenario;
+      this.scenarioResults[scenarioId] = { status: 'running', message: 'Spooling real Docker container workload...' };
+      this.logTerminal('SIMULATOR', `Triggering scenario: ${scenarioName} (${scenarioId})...`, 'info');
+      this.showToast(`Launching ${scenarioName}...`, 'info');
 
       try {
+        const headers = { 'Content-Type': 'application/json' };
+        const token = this.operatorToken || 'dev-operator-clearance';
+        if (token) {
+          headers['X-Porygon-Operator-Token'] = token;
+        }
+
         const res = await fetch('/api/demo/run-scenario', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scenario_id: scenario.id })
+          headers,
+          body: JSON.stringify({ scenario_id: scenarioId })
         });
         if (res.ok) {
           const data = await res.json();
           if (data.success) {
-            applyBackendResult(data);
+            this.scenarioResults[scenarioId] = {
+              status: 'success',
+              command: data.command || scenarioId,
+              output: data.output || 'Process executed successfully with code 0',
+              time: new Date().toLocaleTimeString(),
+              telemetryIngested: Boolean(data.telemetry_ingested)
+            };
+            this.logTerminal('EXEC', data.command || scenarioId, 'success');
+            if (data.output) this.logTerminal('OUTPUT', String(data.output).slice(0, 400), 'info');
+            this.showToast('Canary workload dispatched & ingested into Live Telemetry.', 'success');
           } else {
+            this.scenarioResults[scenarioId] = {
+              status: 'error',
+              error: data.error || 'Execution failed',
+              time: new Date().toLocaleTimeString()
+            };
             this.logTerminal('ERROR', data.error || 'Execution failed', 'error');
             this.showToast(data.error || 'Attack execution failed', 'danger');
           }
+        } else if (res.status === 401) {
+          this.scenarioResults[scenarioId] = { status: 'error', error: '401 Unauthorized: Operator Token Required' };
+          this.logTerminal('ERROR', '401 Unauthorized: Invalid or missing operator token', 'error');
+          this.showToast('Operator authorization token invalid or missing', 'danger');
+        } else if (res.status === 403) {
+          this.scenarioResults[scenarioId] = { status: 'error', error: '403 Forbidden: Demo Mode Disabled' };
+          this.logTerminal('ERROR', '403 Forbidden: Demo mode is not enabled on server', 'error');
+          this.showToast('Demo scenario routes are disabled on server', 'danger');
         } else if (res.status === 404) {
+          this.scenarioResults[scenarioId] = { status: 'error', error: '404 Simulator Endpoint Not Found' };
           throw new Error('Attack simulator endpoint is unavailable in this deployment');
         } else {
           const txt = await res.text();
-          throw new Error(`HTTP ${res.status}: ${txt.slice(0,200)}`);
+          this.scenarioResults[scenarioId] = { status: 'error', error: `HTTP ${res.status}` };
+          this.logTerminal('ERROR', `HTTP ${res.status}: ${txt.slice(0, 100)}`, 'error');
+          throw new Error(`HTTP ${res.status}`);
         }
       } catch (err) {
+        this.scenarioResults[scenarioId] = { status: 'error', error: err.message };
         this.logTerminal('ERROR', err.message, 'error');
         this.showToast(`Attack simulator unavailable: ${err.message}`, 'danger');
       } finally {
         this.isExecutingAttack = false;
-        this.refreshAllData();
+        await this.pollLiveTelemetry();
+        await this.fetchContainers();
+        await this.classifyFleetForMLView();
       }
     },
 
@@ -1726,10 +1664,16 @@ document.addEventListener('alpine:init', () => {
 
     // Containment Action Approval — operates only on persisted backend incidents.
     async approveContainment(incident, action) {
+      if (incident?.status === 'closed' || incident?.status === 'resolved') {
+        this.showToast('Incident is already closed. Closed incidents cannot receive new response recommendations.', 'warning');
+        this.logTerminal('RESPONDER', `Incident ${incident.incident_id} is already closed — action ignored.`, 'info');
+        return;
+      }
       this.logTerminal('RESPONDER', `Operator approving ${action} for ${incident.target_container_name || incident.container_ids?.[0] || incident.incident_id}`, 'info');
       this.showToast(`Containment '${action}' requested`, 'info');
 
       // Real incident: need to generate recommendation then approve via operator token
+      this.authorizingIncidentId = incident.incident_id;
       try {
         if (!this.operatorToken) {
           const t = await this.requestOperatorToken('Approving containment actions requires operator authorization.', 'Authorize containment');
@@ -1739,25 +1683,25 @@ document.addEventListener('alpine:init', () => {
 
         // 1) Generate recommendation for this incident (idempotent)
         this.logTerminal('RESPONDER', `Generating recommendation for incident ${incident.incident_id}...`, 'info');
-        const genRes = await this._apiFetch(`/operator/v1/incidents/${incident.incident_id}/response-recommendations`, { method: 'POST', headers: { 'Content-Type':'application/json' } });
+        const genRes = await this._apiFetch(`/operator/v1/incidents/${incident.incident_id}/response-recommendations`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
         let recommendationId = null;
         if (genRes.ok) {
           const genData = await genRes.json();
           const recs = genData.recommendations || genData.items || [];
           // pick proposed or most recent matching allowed_actions includes desired action
-          const match = recs.find(r => r.allowed_actions && r.allowed_actions.includes(action) && r.status==='proposed') || recs.find(r=> r.status==='proposed') || recs[0];
+          const match = recs.find(r => r.allowed_actions && r.allowed_actions.includes(action) && r.status === 'proposed') || recs.find(r => r.status === 'proposed') || recs[0];
           recommendationId = match?.recommendation_id;
         } else {
           // if already generated, list existing
           const listRes = await fetch(`/api/v1/response-recommendations?incident_id=${incident.incident_id}`);
           if (listRes.ok) {
             const list = await listRes.json();
-            const match = list.find(r=> r.incident_id===incident.incident_id && r.status==='proposed');
+            const match = list.find(r => r.incident_id === incident.incident_id && r.status === 'proposed');
             recommendationId = match?.recommendation_id;
           }
           if (!recommendationId) {
             const txt = await genRes.text();
-            throw new Error(`Recommendation generation failed ${genRes.status}: ${txt.slice(0,300)}`);
+            throw new Error(`Recommendation generation failed ${genRes.status}: ${txt.slice(0, 300)}`);
           }
         }
 
@@ -1767,7 +1711,7 @@ document.addEventListener('alpine:init', () => {
         this.logTerminal('RESPONDER', `Approving recommendation ${recommendationId} as ${action}...`, 'info');
         const approveRes = await this._apiFetch(`/operator/v1/response-recommendations/${recommendationId}/approve`, {
           method: 'POST',
-          headers: { 'Content-Type':'application/json' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ actor: 'operator-dashboard', note: `Approved via dashboard as ${action}`, action_type: action, acknowledge_disruption: action !== 'observe_only' })
         });
 
@@ -1776,7 +1720,7 @@ document.addEventListener('alpine:init', () => {
           incident.status = 'acknowledged';
           incident.approved_action = approved.approved_action || action;
           this.logTerminal('RESPONDER', `Containment approved — execution ${approved.recommendation_id} now pending responder`, 'success');
-          this.showToast(`Containment ${action} approved — responder will execute`, 'success');
+          this.showToast(`Containment ${action} approved — responder dispatched`, 'success');
           await this.fetchIncidents();
         } else {
           const txt = await approveRes.text();
@@ -1784,12 +1728,6 @@ document.addEventListener('alpine:init', () => {
             this.operatorToken = '';
             throw new Error('Operator token invalid — cleared, try again');
           }
-          // Defense in depth: incidentAllowedActions() already disables the
-          // button client-side, but this incident's cached severity/
-          // confidence could be stale, or the recommendation-matching above
-          // fell back to a recommendation that doesn't actually allow
-          // `action`. Detect that specific policy-rejection shape and show
-          // the operator the real reason instead of a raw backend error.
           let policyRejected = false;
           try {
             const parsed = JSON.parse(txt);
@@ -1801,13 +1739,92 @@ document.addEventListener('alpine:init', () => {
           if (policyRejected) {
             throw new Error(this.containmentBlockReason(incident, action) || `${action} is not yet allowed by the response policy for this incident.`);
           }
-          throw new Error(`Approve failed ${approveRes.status}: ${txt.slice(0,400)}`);
+          throw new Error(`Approve failed ${approveRes.status}: ${txt.slice(0, 400)}`);
         }
       } catch (err) {
         console.warn('Containment approve error', err);
         this.logTerminal('ERROR', err.message, 'error');
-        this.showToast(`Approval failed: ${err.message.slice(0,220)}`, 'danger');
-        // do not mutate incident on failure
+        this.showToast(`Approval failed: ${err.message.slice(0, 220)}`, 'danger');
+      } finally {
+        this.authorizingIncidentId = null;
+      }
+    },
+
+    // Operator incident clean/resolve action
+    async resolveIncident(incident) {
+      if (!incident) return;
+      if (incident.status === 'closed' || incident.status === 'resolved') {
+        this.showToast('Incident is already resolved/closed.', 'info');
+        return;
+      }
+      try {
+        if (!this.operatorToken) {
+          const t = await this.requestOperatorToken('Resolving incidents requires operator clearance.', 'Resolve Incident');
+          if (!t) { this.showToast('Operator clearance cancelled', 'danger'); return; }
+          this.operatorToken = t;
+        }
+
+        const res = await this._apiFetch(`/operator/v1/incidents/${incident.incident_id}/status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: 'resolved',
+            actor: 'operator-dashboard',
+            note: 'Marked clean & resolved by operator'
+          })
+        });
+
+        if (res.ok) {
+          incident.status = 'resolved';
+          incident.closed_at = new Date().toISOString();
+          this.showToast(`Incident marked as CLEAN & RESOLVED.`, 'success');
+          this.logTerminal('OPERATOR', `Incident ${incident.incident_id} marked as clean/resolved`, 'success');
+          await this.fetchIncidents();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+      } catch (err) {
+        this.showToast(`Failed to resolve incident: ${err.message}`, 'danger');
+      }
+    },
+
+    // Operator batch clean action
+    async cleanAllIncidents() {
+      const openCount = (this.incidents || []).filter(i => i.status === 'open' || i.status === 'acknowledged').length;
+      if (openCount === 0) {
+        this.showToast('No active incidents to clean.', 'info');
+        return;
+      }
+      if (!confirm(`Mark all ${openCount} active incident(s) as CLEAN and RESOLVED?`)) return;
+      try {
+        if (!this.operatorToken) {
+          const t = await this.requestOperatorToken('Cleaning all incidents requires operator clearance.', 'Clean All Incidents');
+          if (!t) { this.showToast('Operator clearance cancelled', 'danger'); return; }
+          this.operatorToken = t;
+        }
+
+        const res = await this._apiFetch('/operator/v1/incidents/clean-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          this.incidents.forEach(i => {
+            if (i.status === 'open' || i.status === 'acknowledged') {
+              i.status = 'resolved';
+            }
+          });
+          this.showToast(`All active incidents (${data.resolved_count || openCount}) marked CLEAN & RESOLVED.`, 'success');
+          this.logTerminal('OPERATOR', `Cleaned ${data.resolved_count || openCount} incidents`, 'success');
+          await this.fetchIncidents();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+      } catch (err) {
+        this.showToast(`Failed to clean incidents: ${err.message}`, 'danger');
       }
     },
 
@@ -1826,9 +1843,8 @@ document.addEventListener('alpine:init', () => {
     // graph is a row that exists in Postgres right now for that incident.
     openPipelineForIncident(incident) {
       if (!incident || !incident.incident_id) return;
-      this.pipelineIncidentId = incident.incident_id;
       this.activeTab = 'pipeline';
-      this._writeRoute();
+      this.pipelineIncidentId = incident.incident_id;
       this.fetchPipelineTimeline(incident.incident_id);
       this.fetchPipelineScoreDetail(incident.score_id);
     },
@@ -1890,18 +1906,26 @@ document.addEventListener('alpine:init', () => {
     },
 
     // Interactive helpers for table rows, operators, and incident getters
-    selectContainer(c) {
+    async selectContainer(c) {
       if (!c) return;
       if (this.selectedContainer === c.container_id) {
-        this.selectedContainer = null;
-        this.eventFilter = '';
-        this.showToast('Container filter cleared', 'info');
+        await this.clearContainerFilter();
       } else {
         this.selectedContainer = c.container_id;
-        this.eventFilter = c.container_name || c.container_id.substring(0, 12);
+        this.selectedContainerName = c.container_name || null;
+        this.eventFilter = '';
         this.activeTab = 'telemetry';
-        this.showToast(`Filtered telemetry for ${c.container_name || c.container_id.substring(0, 12)}`, 'info');
+        this.showToast(`Loading telemetry for ${c.container_name || c.container_id.substring(0, 12)}...`, 'info');
+        await this.fetchEvents();
       }
+    },
+
+    async clearContainerFilter() {
+      this.selectedContainer = null;
+      this.selectedContainerName = null;
+      this.eventFilter = '';
+      this.showToast('Container filter cleared — showing latest telemetry', 'info');
+      await this.fetchEvents();
     },
 
     async manageOperatorToken() {

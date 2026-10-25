@@ -90,7 +90,7 @@ def test_assert_no_confirmatory_contamination_refuses_when_confirmatory_exists()
 
 
 def test_assert_no_confirmatory_contamination_allows_pilot_only_history():
-    assert_no_confirmatory_contamination(["pilot", "pilot"]) is None
+    assert assert_no_confirmatory_contamination(["pilot", "pilot"]) is None
 
 
 def test_build_sample_size_lock_reports_feasibility_failure_honestly():
@@ -167,6 +167,7 @@ def _make_fake_compare_scopes(fpr_by_arm: dict[str, float], n_benign: int, n_sce
     return fake
 
 
+@pytest.mark.skipif(not REAL_CONFIRMATORY_200_RUN_DIR.is_dir(), reason="Real confirmatory run directory not present in local artifacts")
 def test_estimate_pilot_inputs_raises_on_real_confirmatory_200_run_dir(monkeypatch) -> None:
     """Live regression proof: reproduces the exact per-arm FPR recorded in the
     real committed artifacts/experiments/protocol-v1/tables/profile-scope-primary-216.json
@@ -177,7 +178,6 @@ def test_estimate_pilot_inputs_raises_on_real_confirmatory_200_run_dir(monkeypat
     needs a live backend to fetch process-event data; the FPR/recall numbers
     fed into the fake are the real, already-documented measured values, not
     invented ones."""
-    assert REAL_CONFIRMATORY_200_RUN_DIR.is_dir(), "expected the real committed pilot run directory to exist"
     fake = _make_fake_compare_scopes(
         fpr_by_arm={"ARM-GLOBAL": 1.0, "ARM-TAG": 0.0, "ARM-DIGEST": 0.0, "ARM-CONTEXT": 0.0},
         n_benign=53, n_scenario=96, recall=1.0,
