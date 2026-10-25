@@ -339,7 +339,7 @@ curl --fail --silent --show-error "${base_url}/api/v1/system/info" \
 python3 - <<'PY' || fail "Containment response system counters are inconsistent"
 import json
 info=json.load(open('artifacts/containment-system-info.json'))
-assert info['phase']
+assert info['capability']
 assert info['response_recommendations'] >= 1
 assert info['approved_response_recommendations'] >= 1
 assert info['response_executions'] >= 1

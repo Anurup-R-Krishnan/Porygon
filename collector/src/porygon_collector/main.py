@@ -47,7 +47,7 @@ async def heartbeat_loop(state: CollectorState, store: OutboxStore) -> None:
                 "metadata": {
                     "version": settings.version,
                     "environment": settings.environment,
-                    "phase": "event-ingestion",
+                    "capability": "event-ingestion",
                     "runtime_event_source": "docker-engine-events",
                     "docker_host_id": snapshot["effective_docker_host_id"],
                     "docker_connected": snapshot["docker_connected"],
@@ -210,7 +210,7 @@ def collector_status(request: Request) -> dict[str, object]:
     return {
         "service": settings.service_name,
         "instance_id": settings.collector_instance_id,
-        "phase": "event-ingestion",
+        "capability": "event-ingestion",
         "event_source": "docker-engine-events",
         "docker_host_id": snapshot["effective_docker_host_id"],
         "docker_connected": snapshot["docker_connected"],

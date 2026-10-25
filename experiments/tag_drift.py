@@ -81,7 +81,7 @@ def run_tag_drift_experiment(
     seed: int = 20260905,
 ) -> Path:
     """Collects real trials against a controlled local mutable tag: V1
-    coordinate for the fit-phase runs, V2 for drift-phase runs, both recorded
+    coordinate for the fit-stage runs, V2 for drift-stage runs, both recorded
     under the identical human_tag so ARM-TAG's pooled reference genuinely
     spans two different real digests, exactly as the protocol specifies.
     """
@@ -103,7 +103,7 @@ def run_tag_drift_experiment(
 
     manifest_entries: list[dict[str, Any]] = []
     try:
-        # Fit-phase runs: alias points at V1, matching the frozen protocol's
+        # Fit-stage runs: alias points at V1, matching the frozen protocol's
         # "Fit runs resolve the alias to each family's V1 coordinate."
         point_alias_at(alias, v1["reference"])
         for replica in range(1, fit_replicas + 1):
@@ -119,14 +119,14 @@ def run_tag_drift_experiment(
                     seed=seed + replica, warmup_seconds=warmup_seconds, operations=operations,
                     settle_seconds=settle_seconds,
                 )
-                record["tag_drift_phase"] = "fit_v1"
+                record["tag_drift_stage"] = "fit_v1"
                 record["alias"] = alias
                 record["resolved_digest"] = v1["reference"]
                 atomic_write_json(trial_path, record)
-            manifest_entries.append({"trial_id": trial_id, "phase": "fit_v1"})
+            manifest_entries.append({"trial_id": trial_id, "stage": "fit_v1"})
             print(f"[tag-drift] {trial_id}: completed (alias -> V1)")
 
-        # Drift-phase runs: repoint the same alias at V2, matching
+        # Drift-stage runs: repoint the same alias at V2, matching
         # "predeclared drift runs move the same alias to V2." The literal
         # human_tag string never changes; only what it resolves to does.
         point_alias_at(alias, v2["reference"])
@@ -143,11 +143,11 @@ def run_tag_drift_experiment(
                     seed=seed + fit_replicas + replica, warmup_seconds=warmup_seconds,
                     operations=operations, settle_seconds=settle_seconds,
                 )
-                record["tag_drift_phase"] = "drift_v2"
+                record["tag_drift_stage"] = "drift_v2"
                 record["alias"] = alias
                 record["resolved_digest"] = v2["reference"]
                 atomic_write_json(trial_path, record)
-            manifest_entries.append({"trial_id": trial_id, "phase": "drift_v2"})
+            manifest_entries.append({"trial_id": trial_id, "stage": "drift_v2"})
             print(f"[tag-drift] {trial_id}: completed (alias -> V2)")
     finally:
         real.remove_network(network, run_id)

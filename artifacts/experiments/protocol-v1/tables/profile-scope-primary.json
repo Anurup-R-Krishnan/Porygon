@@ -193,7 +193,7 @@
   ],
   "tag_drift_experiment": {
     "schema_version": "porygon.tag-drift-finding.v1",
-    "mechanism": "porygon-study/nginx:mutable local alias, repointed from WL-NGX-V1 (nginx:1.26.3-alpine) to WL-NGX-V2 (nginx:1.28.0-alpine) between fit and drift phases, per PROFILE_SCOPE_EXPERIMENT_V1.md Immutable workload coordinates section",
+    "mechanism": "porygon-study/nginx:mutable local alias, repointed from WL-NGX-V1 (nginx:1.26.3-alpine) to WL-NGX-V2 (nginx:1.28.0-alpine) between fit and drift stages, per PROFILE_SCOPE_EXPERIMENT_V1.md Immutable workload coordinates section",
     "source_runs": [
       "tagdrift-20260905t192840Z",
       "tagdrift-20260905t193051Z"

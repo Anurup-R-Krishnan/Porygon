@@ -253,7 +253,7 @@ timeline=json.load(open('artifacts/detection-final-timeline.json'))
 info=json.load(open('artifacts/detection-system-info.json'))
 assert timeline[-2]['details']['status']=='acknowledged'
 assert timeline[-1]['details']['status']=='resolved'
-assert info['phase']
+assert info['capability']
 assert info['detection_allowlists'] >= 1
 assert info['active_detection_allowlists'] == 0
 assert info['detection_runs'] >= 4

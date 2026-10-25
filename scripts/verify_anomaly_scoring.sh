@@ -276,7 +276,7 @@ assert len(scores) >= 3
 assert sum(item['status']=='insufficient_data' for item in scores) >= 1
 assert sum(item['status']=='scored' for item in scores) >= 2
 assert len({item['observation_key'] for item in scores}) == len(scores)
-assert info['phase']
+assert info['capability']
 assert info['anomaly_scores'] >= 3
 assert info['scored_observations'] >= 2
 assert info['insufficient_observations'] >= 1
