@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Porygon — Runtime Security &amp; Anomaly Intelligence</title>
+  <title>Porygon: eBPF Anomaly Detection Dashboard</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23111111'/%3E%3Cpath d='M8 6h16v20H8z' fill='%23F9F9F7'/%3E%3Cpath d='M11 10h10M11 14h10M11 18h6' stroke='%23111111' stroke-width='2'/%3E%3C/svg%3E">
   
   <!-- Tailwind CSS CDN -->
@@ -73,7 +73,7 @@
           <div class="bg-[#111111] text-[#F9F9F7] w-8 h-8 flex items-center justify-center font-serif font-black text-lg">P</div>
           <div>
             <div class="font-serif font-black text-2xl tracking-tight text-[#111111] leading-none">PORYGON</div>
-            <div class="font-mono text-[10px] uppercase tracking-widest text-neutral-500 mt-0.5">&larr; Home &bull; eBPF Runtime Security</div>
+            <div class="font-mono text-[10px] uppercase tracking-widest text-neutral-500 mt-0.5">&larr; Home &bull; eBPF Anomaly Detection</div>
           </div>
         </a>
 
@@ -208,7 +208,7 @@
           </div>
 
           <div x-show="latestWindowInsufficientData" class="mb-3 border border-[#CC0000] bg-red-50 text-[#CC0000] p-2 text-xs font-mono">
-            Notice: Telemetry insufficient to score current window — showing last verified window.
+            Notice: Telemetry insufficient to score current window. Showing last verified window.
           </div>
 
           <div class="h-60 sm:h-64 w-full relative">
@@ -530,7 +530,7 @@
           </template>
 
           <div x-show="filteredIncidents.length === 0" class="border border-[#111111] bg-[#F9F9F7] p-8 text-center">
-            <h4 class="font-serif font-bold text-lg text-[#111111] m-0" x-text="incidentFilter === 'open' ? 'ALL SYSTEMS NOMINAL — ZERO ACTIVE INCIDENTS' : 'NO INCIDENTS MATCHING FILTER'"></h4>
+            <h4 class="font-serif font-bold text-lg text-[#111111] m-0" x-text="incidentFilter === 'open' ? 'ALL SYSTEMS NOMINAL : ZERO ACTIVE INCIDENTS' : 'NO INCIDENTS MATCHING FILTER'"></h4>
             <p class="font-body text-xs text-neutral-500 mt-1" x-text="incidentFilter === 'open' ? 'All security alerts have been reviewed and marked clean.' : 'No incidents cataloged.'"></p>
           </div>
         </div>
