@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
+export PATH="$ROOT_DIR/.venv/bin:$HOME/.local/bin:$PATH"
 
 MODE="${1:-all}"
 case "$MODE" in
