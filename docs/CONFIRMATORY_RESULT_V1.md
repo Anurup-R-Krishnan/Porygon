@@ -1,1 +1,0 @@
-research/CONFIRMATORY_RESULT_V1.md

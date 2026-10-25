@@ -1,1 +1,0 @@
-schemas/calibrated-rarity-schema.md

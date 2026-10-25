@@ -31,7 +31,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PROTOCOL = ROOT / "docs/research/research-protocol.md" if (ROOT / "docs/research/research-protocol.md").exists() else ROOT / "docs/RESEARCH_PROTOCOL_V1.md"
+PROTOCOL = ROOT / "docs/research/research-protocol.md"
 REVIEW_DIR = ROOT / "docs/review"
 ROLES = ("security", "methodology")
 
@@ -385,7 +385,7 @@ def gate_state() -> dict:
     return {
         "protocol_status": manifest.get("protocol_status"),
         "protocol_sha256": protocol_digest(text),
-        "package_prepared": (REVIEW_DIR / "review-package.md").is_file() or (REVIEW_DIR / "REVIEW_PACKAGE.md").is_file(),
+        "package_prepared": (REVIEW_DIR / "review-package.md").is_file(),
         "decisions": {
             role: (decisions[role] or {}).get("decision", "absent") for role in ROLES
         },

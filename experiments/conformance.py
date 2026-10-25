@@ -53,7 +53,7 @@ from experiments.real import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-PROTOCOL_PATH = ROOT / "docs" / "RESEARCH_PROTOCOL_V1.md"
+PROTOCOL_PATH = ROOT / "docs" / "research" / "research-protocol.md"
 
 # Frozen protocol constants (RESEARCH_PROTOCOL_V1.md, "Workloads and run counts" /
 # "Deterministic assignment and seeds"). Hardcoded here exactly like every other

@@ -1,1 +1,0 @@
-research/RESEARCH_PROTOCOL_V1.md

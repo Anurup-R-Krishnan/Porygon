@@ -1,1 +1,0 @@
-research/THREAT_MODEL_V1.md

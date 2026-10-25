@@ -1,1 +1,0 @@
-schemas/behavior-schema.md

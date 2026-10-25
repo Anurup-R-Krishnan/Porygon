@@ -523,7 +523,7 @@ def main(argv: list[str] | None = None) -> int:
     pilot.add_argument("--settle-seconds", type=float, default=12.0)
     pilot.add_argument("--seed", type=int, default=20260905)
     pilot.add_argument("--base-url", default="http://127.0.0.1:8000")
-    pilot.add_argument("--protocol", type=Path, default=ROOT / "docs/RESEARCH_PROTOCOL_V1.md")
+    pilot.add_argument("--protocol", type=Path, default=ROOT / "docs/research/research-protocol.md")
     study = subparsers.add_parser("study", help="run the full orchestrated pipeline")
     study.add_argument("--run-id", default=None)
     study.add_argument("--workloads", default="WL-NGX-V1,WL-RDS-V1,WL-PG-V1")
@@ -535,7 +535,7 @@ def main(argv: list[str] | None = None) -> int:
     study.add_argument("--window-seconds", type=int, default=10)
     study.add_argument("--base-url", default="http://127.0.0.1:8000")
     confirm = subparsers.add_parser("confirmatory")
-    confirm.add_argument("--protocol", type=Path, default=ROOT / "docs/RESEARCH_PROTOCOL_V1.md")
+    confirm.add_argument("--protocol", type=Path, default=ROOT / "docs/research/research-protocol.md")
     args = parser.parse_args(argv)
     try:
         if args.command == "smoke":

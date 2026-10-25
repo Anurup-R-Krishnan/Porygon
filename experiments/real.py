@@ -26,7 +26,7 @@ from experiments.artifacts import sha256_bytes
 from experiments.context import context_hash, runtime_context
 
 ROOT = Path(__file__).resolve().parents[1]
-PROFILE_SCOPE_DOC = ROOT / "docs/PROFILE_SCOPE_EXPERIMENT_V1.md"
+PROFILE_SCOPE_DOC = ROOT / "docs/research/profile-scope-experiment.md"
 LABEL_RUN = "porygon.experiment.run"
 LABEL_TRIAL = "porygon.experiment.trial"
 CANARY = "porygon-canary"

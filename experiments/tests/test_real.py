@@ -133,7 +133,7 @@ def test_protocol_status_is_read_from_the_document(tmp_path):
     # fixture value: this only checks the function returns one of the two
     # values the parser recognizes, not which one, so a legitimate freeze
     # (scripts/review_gate.py apply) never breaks this test.
-    assert real.protocol_status(ROOT / "docs/RESEARCH_PROTOCOL_V1.md") in {"review_pending", "frozen"}
+    assert real.protocol_status(ROOT / "docs/research/research-protocol.md") in {"review_pending", "frozen"}
 
 
 # --------------------------------------------------------------------------
@@ -397,7 +397,7 @@ def test_hard_negatives_match_the_frozen_protocol_table_exactly():
     # exact regex CONF-HN-001 uses to decide what is required; HARD_NEGATIVES'
     # keys must be drawn from that same text, verbatim (including backticks
     # and slashes), or a real hard-negative trial could never satisfy the gate.
-    text = (ROOT / "docs/RESEARCH_PROTOCOL_V1.md").read_text(encoding="utf-8")
+    text = (ROOT / "docs/research/research-protocol.md").read_text(encoding="utf-8")
     required = conformance._parse_hard_negatives(text)
     assert set(required) == set(real.HARD_NEGATIVES)
     for family, names in required.items():
