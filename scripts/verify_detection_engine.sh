@@ -70,7 +70,7 @@ assert r['run']['incident_created'] is False
 assert r['incident'] is None
 assert r['timeline']==[]
 PY
-pass "Insufficient telemetry cannot produce a Phase 6 incident"
+pass "Insufficient telemetry cannot produce an incident"
 
 run_detection "$normal_score_id" artifacts/phase6-normal-detection.json
 python3 - <<'PY' || fail "Baseline-like window produced an incident"
@@ -146,9 +146,9 @@ for finding in incident['findings']:
         'rule_id': finding['rule_id'],
         'executable': executable,
         'parent_executable': None,
-        'reason': 'Controlled Phase 6 maintenance-window verification',
-        'approved_by': 'phase6-verifier',
-        'approval_reference': 'phase6-acceptance',
+        'reason': 'Controlled detection engine verification',
+        'approved_by': 'detection-engine-verifier',
+        'approval_reference': 'detection-engine-acceptance',
         'expires_at': None,
     })
 assert items, 'novel workload did not produce an allowlistable exact process finding'
@@ -246,7 +246,7 @@ curl --fail --silent --show-error "${base_url}/api/v1/incidents/${incident_id}/t
   > artifacts/phase6-final-timeline.json
 curl --fail --silent --show-error "${base_url}/api/v1/system/info" \
   > artifacts/phase6-system-info.json
-python3 - <<'PY' || fail "Phase 6 system counters or status evidence are inconsistent"
+python3 - <<'PY' || fail "Detection engine system counters or status evidence are inconsistent"
 import json
 timeline=json.load(open('artifacts/phase6-final-timeline.json'))
 info=json.load(open('artifacts/phase6-system-info.json'))
@@ -262,4 +262,4 @@ PY
 pass "System counters and complete evidence timeline remain consistent"
 
 docker compose ps > artifacts/phase6-services.txt
-printf '\nPhase 6 verification complete. Incident severity and confidence are evidence-oriented research signals, not compromise probabilities.\n'
+printf '\nDetection engine verification complete. Incident severity and confidence are evidence-oriented research signals, not compromise probabilities.\n'

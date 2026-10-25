@@ -361,7 +361,7 @@ document={
     'unmeasured_boundaries': [
         'Docker daemon loss before publication on the events API',
         'Host failure and Docker history rollover outside this bounded run',
-        'Kernel and Falco drops; those belong to the Phase 3/5 measurement path',
+        'Kernel and Falco drops; those belong to the eBPF telemetry measurement path',
     ],
 }
 print(json.dumps(document, indent=2, sort_keys=True))
@@ -375,4 +375,4 @@ curl --fail --silent --show-error "${base_url}/api/v1/containers" > "${EVIDENCE_
 docker compose ps > "${EVIDENCE_DIR}/services.txt"
 docker compose images > "${EVIDENCE_DIR}/images.txt"
 
-printf '\nPhase 2 verification complete.\n'
+printf '\nEvent ingestion verification complete.\n'

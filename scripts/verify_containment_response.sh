@@ -37,7 +37,7 @@ execution_mode="$(grep -E '^PORYGON_RESPONSE_EXECUTION_MODE=' .env | tail -1 | c
 [[ ${#internal_token} -ge 32 ]] || fail "PORYGON_INTERNAL_API_TOKEN is missing or too short"
 [[ ${#operator_token} -ge 32 ]] || fail "PORYGON_OPERATOR_API_TOKEN is missing or too short"
 [[ "$internal_token" != "$operator_token" ]] || fail "Internal and operator tokens must be different"
-[[ "$execution_mode" == "live" ]] || fail "Set PORYGON_RESPONSE_EXECUTION_MODE=live only for this controlled Phase 7 acceptance test"
+[[ "$execution_mode" == "live" ]] || fail "Set PORYGON_RESPONSE_EXECUTION_MODE=live only for this controlled containment response acceptance test"
 
 ./scripts/verify_detection_engine.sh
 pass "Detection engine verification completed"
@@ -69,7 +69,7 @@ http_code="$(curl --silent --output artifacts/phase7-token-separation.json --wri
 pass "Automated-service and human/operator credentials are separated"
 
 digest="$(cat artifacts/phase4-selected-digest.txt)"
-[[ "$digest" == *@sha256:* ]] || fail "Phase 4 did not provide an immutable repository digest"
+[[ "$digest" == *@sha256:* ]] || fail "Behavior profiling did not provide an immutable repository digest"
 
 curl --fail --silent --show-error --get \
   --data-urlencode "image_digest=${digest}" \
@@ -119,7 +119,7 @@ PY
   fi
   sleep 2
 done
-[[ "$container_ready" == true ]] || fail "Phase 7 target was not correlated to the immutable image digest"
+[[ "$container_ready" == true ]] || fail "Containment target was not correlated to the immutable image digest"
 pass "Disposable response target is bound to the active immutable-digest profile"
 
 window_start="$(python3 - <<'PY'
@@ -335,7 +335,7 @@ pass "Recommendation, approval, execution, verification, and rollback are chrono
 
 curl --fail --silent --show-error "${base_url}/api/v1/system/info" \
   > artifacts/phase7-system-info.json
-python3 - <<'PY' || fail "Phase 7 system counters are inconsistent"
+python3 - <<'PY' || fail "Containment response system counters are inconsistent"
 import json
 info=json.load(open('artifacts/phase7-system-info.json'))
 assert int(info['phase'].split()[1].rstrip(':')) >= 7
@@ -344,7 +344,7 @@ assert info['approved_response_recommendations'] >= 1
 assert info['response_executions'] >= 1
 assert info['successful_response_executions'] >= 1
 PY
-pass "System API reports cumulative Phase 7 response state"
+pass "System API reports cumulative containment response state"
 
 docker compose ps > artifacts/phase7-services.txt
-printf '\nPhase 7 verification complete. Reset PORYGON_RESPONSE_EXECUTION_MODE=disabled after this controlled test.\n'
+printf '\nContainment response verification complete. Reset PORYGON_RESPONSE_EXECUTION_MODE=disabled after this controlled test.\n'

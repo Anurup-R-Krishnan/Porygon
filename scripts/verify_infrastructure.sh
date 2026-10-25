@@ -27,7 +27,7 @@ docker compose config --quiet
 pass "Compose configuration is valid"
 
 docker compose up --detach --build --wait
-pass "All Phase 1 services reached healthy state"
+pass "All infrastructure services reached healthy state"
 
 backend_port="$(grep -E '^BACKEND_PORT=' .env | tail -1 | cut -d= -f2 || true)"
 backend_port="${backend_port:-8000}"
@@ -100,4 +100,4 @@ PY
 pass "PostgreSQL data persisted across Compose restart"
 
 docker compose ps
-printf '\nPhase 1 verification complete.\n'
+printf '\nInfrastructure verification complete.\n'
