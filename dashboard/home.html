@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Porygon — eBPF Runtime Security Intelligence</title>
+  <meta name="description" content="Porygon is a research-grade container security platform combining eBPF telemetry, ML anomaly detection, vulnerability enrichment, and autonomous containment response.">
+
+  <!-- Favicon — matching the dashboard -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23111111'/%3E%3Cpath d='M8 6h16v20H8z' fill='%23F9F9F7'/%3E%3Cpath d='M11 10h10M11 14h10M11 18h6' stroke='%23111111' stroke-width='2'/%3E%3C/svg%3E">
+
+  <!-- Shared design-system fonts & stylesheet -->
+  <link rel="stylesheet" href="style.css?v=2.5">
+
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+
+  <style>
+    /* ======================================================
+       HOME PAGE — ADDITIONAL STYLES
+       (All tokens inherited from style.css)
+       ====================================================== */
+
+    /* Page skeleton */
+    .home-root {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+
+    /* Masthead */
+    .masthead {
+      border-bottom: 5px double var(--color-ink);
+      padding: 1.25rem 0 1rem;
+    }
+
+    .masthead-pub-line {
+      font-family: var(--font-ui);
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: #737373;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.6rem;
+    }
+
+    .masthead-title {
+      font-family: var(--font-display);
+      font-size: clamp(3.5rem, 9vw, 7.5rem);
+      font-weight: 900;
+      line-height: 0.9;
+      letter-spacing: -0.02em;
+      text-align: center;
+      margin: 0.25rem 0;
+      position: relative;
+    }
+
+    .masthead-title .masthead-rule-left,
+    .masthead-title .masthead-rule-right {
+      position: absolute;
+      top: 50%;
+      width: 14%;
+      height: 2px;
+      background: var(--color-ink);
+    }
+    .masthead-title .masthead-rule-left  { left: 0; }
+    .masthead-title .masthead-rule-right { right: 0; }
+
+    .masthead-subtitle {
+      font-family: var(--font-ui);
+      font-size: 0.8125rem;
+      text-transform: uppercase;
+      letter-spacing: 0.22em;
+      text-align: center;
+      color: #525252;
+      margin-top: 0.5rem;
+    }
+
+    .masthead-edition-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 2px solid var(--color-ink);
+      border-bottom: 1px solid var(--color-ink);
+      padding: 0.35rem 0;
+      margin-top: 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      color: #525252;
+    }
+
+    /* Ticker */
+    .ticker-banner {
+      background: var(--color-ink);
+      color: var(--color-paper);
+      padding: 0.4rem 0;
+      overflow: hidden;
+      position: relative;
+      border-bottom: 1px solid var(--color-ink);
+    }
+    .ticker-label {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      background: var(--color-accent-red);
+      color: #fff;
+      font-family: var(--font-ui);
+      font-size: 0.6875rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      padding: 0 0.75rem;
+      display: flex;
+      align-items: center;
+      z-index: 2;
+      border-right: 2px solid var(--color-paper);
+    }
+    .ticker-inner {
+      padding-left: 7rem;
+      white-space: nowrap;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+    }
+    .ticker-inner .ticker-track {
+      animation: tickerSlide 45s linear infinite;
+      padding-left: 0;
+    }
+    .ticker-sep {
+      display: inline-block;
+      margin: 0 1.5rem;
+      opacity: 0.45;
+    }
+
+    /* Section labels */
+    .section-label {
+      font-family: var(--font-ui);
+      font-size: 0.6875rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--color-accent-red);
+      margin-bottom: 0.5rem;
+    }
+
+    /* Hero grid */
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 0;
+      border-bottom: 2px solid var(--color-ink);
+      border-top: 2px solid var(--color-ink);
+    }
+    @media (max-width: 900px) {
+      .hero-grid { grid-template-columns: 1fr; }
+    }
+
+    .hero-main {
+      padding: 2.5rem 2.5rem 2rem 0;
+      border-right: 2px solid var(--color-ink);
+    }
+    @media (max-width: 900px) {
+      .hero-main { border-right: none; border-bottom: 2px solid var(--color-ink); padding: 2rem 0; }
+    }
+
+    .hero-headline {
+      font-family: var(--font-display);
+      font-size: clamp(1.8rem, 3.6vw, 3rem);
+      font-weight: 900;
+      line-height: 1.08;
+      margin: 0 0 1.25rem;
+    }
+    .hero-headline em {
+      font-style: italic;
+      color: var(--color-accent-red);
+    }
+
+    .hero-body {
+      font-family: var(--font-body);
+      font-size: 1.0625rem;
+      line-height: 1.72;
+      color: #333;
+      max-width: 58ch;
+      margin-bottom: 1.75rem;
+    }
+    .hero-body strong { color: var(--color-ink); font-weight: 700; }
+
+    .hero-cta-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-cta-primary {
+      background-color: var(--color-ink);
+      color: var(--color-paper);
+      font-family: var(--font-ui);
+      font-size: 0.875rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      padding: 0.75rem 2rem;
+      border: 2px solid var(--color-ink);
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      transition: all 140ms cubic-bezier(0,0,0.2,1);
+      box-shadow: 4px 4px 0 var(--color-ink);
+    }
+    .btn-cta-primary:hover {
+      background-color: var(--color-accent-red);
+      border-color: var(--color-ink);
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0 var(--color-ink);
+    }
+    .btn-cta-primary:active {
+      transform: translate(1px, 1px);
+      box-shadow: 2px 2px 0 var(--color-ink);
+    }
+
+    .btn-cta-secondary {
+      background-color: transparent;
+      color: var(--color-ink);
+      font-family: var(--font-ui);
+      font-size: 0.875rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      padding: 0.75rem 1.5rem;
+      border: 2px solid var(--color-ink);
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 140ms cubic-bezier(0,0,0.2,1);
+    }
+    .btn-cta-secondary:hover {
+      background-color: var(--color-ink);
+      color: var(--color-paper);
+      transform: translate(-1px, -1px);
+      box-shadow: 3px 3px 0 var(--color-ink);
+    }
+
+    /* Hero side panel */
+    .hero-side { padding: 2rem 0 2rem 2rem; }
+    @media (max-width: 900px) { .hero-side { padding: 2rem 0 0; } }
+
+    .stat-block {
+      padding: 1.1rem 1.25rem;
+      border: 1px solid var(--color-ink);
+      margin-bottom: 0.75rem;
+      background: white;
+      position: relative;
+      transition: transform 140ms cubic-bezier(0,0,0.2,1), box-shadow 140ms cubic-bezier(0,0,0.2,1);
+    }
+    .stat-block:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 4px 4px 0 var(--color-ink);
+    }
+    .stat-block-value {
+      font-family: var(--font-display);
+      font-size: 2.25rem;
+      font-weight: 900;
+      line-height: 1;
+      margin-bottom: 0.2rem;
+    }
+    .stat-block-label {
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #737373;
+    }
+    .stat-block-accent {
+      position: absolute;
+      top: 0; left: 0;
+      width: 4px; height: 100%;
+      background: var(--color-ink);
+    }
+    .stat-block-accent.red { background: var(--color-accent-red); }
+
+    /* Architecture pipeline */
+    .arch-section {
+      padding: 2.5rem 0;
+      border-bottom: 2px solid var(--color-ink);
+    }
+
+    .arch-pipeline {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      margin-top: 1.5rem;
+      overflow-x: auto;
+    }
+
+    .pipe-node {
+      flex: 1;
+      min-width: 140px;
+      border: 2px solid var(--color-ink);
+      padding: 1.25rem 1rem;
+      background: white;
+      position: relative;
+      transition: transform 140ms cubic-bezier(0,0,0.2,1), box-shadow 140ms cubic-bezier(0,0,0.2,1), background 140ms, color 140ms;
+      cursor: default;
+    }
+    .pipe-node:not(:first-child) { border-left: none; }
+    .pipe-node:hover {
+      background: var(--color-ink);
+      color: var(--color-paper);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 0 var(--color-ink);
+      z-index: 2;
+    }
+    .pipe-node:hover .pipe-node-num { color: #888; }
+    .pipe-node:hover .pipe-node-icon { color: var(--color-paper); }
+    .pipe-node:hover .pipe-node-desc { color: #ccc; }
+    .pipe-node:hover .pipe-node-tech { color: #aaa; }
+
+    .pipe-node-num {
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: #aaa;
+      margin-bottom: 0.4rem;
+    }
+    .pipe-node-icon {
+      font-size: 1.4rem;
+      color: var(--color-ink);
+      display: block;
+      margin-bottom: 0.5rem;
+      transition: color 140ms;
+    }
+    .pipe-node-name {
+      font-family: var(--font-ui);
+      font-size: 0.8125rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.3rem;
+    }
+    .pipe-node-desc {
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      line-height: 1.4;
+      color: #555;
+      transition: color 140ms;
+    }
+    .pipe-node-tech {
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      color: var(--color-accent-red);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 0.6rem;
+      transition: color 140ms;
+    }
+
+    /* Capability cards */
+    .cap-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      border-top: 2px solid var(--color-ink);
+      margin-top: 1.5rem;
+    }
+    @media (max-width: 1024px) { .cap-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px)  { .cap-grid { grid-template-columns: 1fr; } }
+
+    .cap-card {
+      padding: 1.75rem 1.5rem;
+      border-right: 2px solid var(--color-ink);
+      border-bottom: 2px solid var(--color-ink);
+      position: relative;
+      overflow: hidden;
+      transition: background 160ms, color 160ms;
+      cursor: default;
+    }
+    .cap-card:last-child { border-right: none; }
+    @media (max-width: 1024px) {
+      .cap-card:nth-child(2) { border-right: none; }
+      .cap-card:nth-child(3) { border-right: 2px solid var(--color-ink); }
+    }
+    @media (max-width: 600px) { .cap-card { border-right: none; } }
+
+    .cap-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--color-ink);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 200ms cubic-bezier(0,0,0.2,1);
+    }
+    .cap-card:hover::before { transform: scaleX(1); }
+    .cap-card:hover {
+      background: var(--color-ink);
+      color: var(--color-paper);
+    }
+    .cap-card:hover .cap-card-tag { color: #aaa; }
+    .cap-card:hover .cap-card-body { color: #ccc; }
+    .cap-card:hover .cap-card-icon { opacity: 1; color: var(--color-paper); }
+
+    .cap-card-icon {
+      font-size: 1.75rem;
+      color: var(--color-ink);
+      opacity: 0.8;
+      display: block;
+      margin-bottom: 0.75rem;
+      transition: color 160ms, opacity 160ms;
+    }
+    .cap-card-title {
+      font-family: var(--font-display);
+      font-size: 1.125rem;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 0.5rem;
+    }
+    .cap-card-tag {
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--color-accent-red);
+      margin-bottom: 0.75rem;
+      display: block;
+      transition: color 160ms;
+    }
+    .cap-card-body {
+      font-family: var(--font-body);
+      font-size: 0.875rem;
+      line-height: 1.65;
+      color: #444;
+      transition: color 160ms;
+    }
+
+    /* Inverted CTA band */
+    .cta-band {
+      background: var(--color-ink);
+      color: var(--color-paper);
+      padding: 3rem 0;
+      border-top: 2px solid var(--color-ink);
+    }
+    .cta-band-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    .cta-band-headline {
+      font-family: var(--font-display);
+      font-size: clamp(1.5rem, 3vw, 2.5rem);
+      font-weight: 900;
+      line-height: 1.1;
+    }
+    .cta-band-headline em { font-style: italic; color: #ccc; }
+    .cta-band-sub {
+      font-family: var(--font-body);
+      font-size: 0.9375rem;
+      color: #aaa;
+      margin-top: 0.4rem;
+      max-width: 50ch;
+    }
+
+    .btn-cta-inverted {
+      background-color: var(--color-paper);
+      color: var(--color-ink);
+      font-family: var(--font-ui);
+      font-size: 0.9rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      padding: 1rem 2.25rem;
+      border: 2px solid var(--color-paper);
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      transition: all 140ms cubic-bezier(0,0,0.2,1);
+      box-shadow: 4px 4px 0 rgba(249,249,247,0.25);
+      white-space: nowrap;
+    }
+    .btn-cta-inverted:hover {
+      background-color: var(--color-accent-red);
+      color: #fff;
+      border-color: var(--color-accent-red);
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0 rgba(249,249,247,0.3);
+    }
+    .btn-cta-inverted:active {
+      transform: translate(1px, 1px);
+    }
+
+    /* Footer */
+    .home-footer {
+      border-top: 2px solid var(--color-ink);
+      padding: 1rem 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .home-footer a {
+      color: var(--color-ink);
+      text-decoration: none;
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      border-bottom: 1px solid transparent;
+      transition: border-color 120ms;
+    }
+    .home-footer a:hover { border-bottom-color: var(--color-ink); }
+
+    /* Scan-line animation */
+    @keyframes scanLine {
+      0%   { top: -2px; opacity: 0; }
+      5%   { opacity: 0.7; }
+      95%  { opacity: 0.7; }
+      100% { top: 100%; opacity: 0; }
+    }
+    .scan-container { position: relative; overflow: hidden; }
+    .scan-container::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--color-accent-red) 30%, var(--color-accent-red) 70%, transparent);
+      animation: scanLine 4s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    /* Blinking cursor */
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    .blink { animation: blink 1s step-end infinite; }
+
+    /* Badge strip */
+    .badge-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1.25rem;
+    }
+    .badge-strip .badge {
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 0.2rem 0.55rem;
+      border: 1px solid var(--color-ink);
+      color: var(--color-ink);
+      background: transparent;
+    }
+    .badge-strip .badge.filled {
+      background: var(--color-ink);
+      color: var(--color-paper);
+    }
+    .badge-strip .badge.red {
+      background: var(--color-accent-red);
+      color: #fff;
+      border-color: var(--color-accent-red);
+    }
+  </style>
+</head>
+
+<body>
+  <!-- TOP NAV BAR -->
+  <div style="border-bottom: 1px solid var(--color-ink); background: white; padding: 0.5rem 2rem;">
+    <div style="max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+      <div style="font-family: var(--font-mono); font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.14em; color: #737373;">
+        23CSE498 &middot; Team 75 &middot; Research Platform
+      </div>
+      <nav style="display: flex; align-items: center; font-family: var(--font-ui); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">
+        <a href="home.html"  style="padding: 0.4rem 0.85rem; border: 1px solid var(--color-ink); background: var(--color-ink); color: var(--color-paper); text-decoration: none; border-right: none;">Home</a>
+        <a href="index.html" style="padding: 0.4rem 0.85rem; border: 1px solid var(--color-ink); color: var(--color-ink); text-decoration: none;" onmouseover="this.style.background='#f0f0eb'" onmouseout="this.style.background='transparent'">Dashboard</a>
+      </nav>
+    </div>
+  </div>
+
+  <!-- MASTHEAD -->
+  <div class="home-root">
+    <header class="masthead">
+      <div class="masthead-pub-line">
+        <span>Vol. I &middot; Special Edition &middot; Runtime Security Intelligence</span>
+        <span id="live-date"></span>
+        <span>23CSE498 &middot; Final Year Project &middot; Team 75</span>
+      </div>
+      <h1 class="masthead-title" id="main-headline">
+        <span class="masthead-rule-left"></span>
+        PORYGON
+        <span class="masthead-rule-right"></span>
+      </h1>
+      <p class="masthead-subtitle">eBPF Runtime Security &amp; Anomaly Intelligence Platform</p>
+      <div class="masthead-edition-bar">
+        <span>Est. 2024 &middot; Kerala, India</span>
+        <span style="font-family: var(--font-display); font-size: 0.9rem; color: var(--color-ink); letter-spacing: 0; font-style: italic;">
+          "Observe Everything. Contain Anything."
+        </span>
+        <span>
+          <span class="blink" style="color: var(--color-accent-red);">&#9679;</span>
+          &nbsp;eBPF ONLINE
+        </span>
+      </div>
+    </header>
+  </div>
+
+  <!-- LIVE TICKER -->
+  <div class="ticker-banner" role="marquee" aria-label="Live system status ticker">
+    <span class="ticker-label">LIVE</span>
+    <div class="ticker-inner">
+      <div class="ticker-track" id="ticker-track">
+        eBPF probes attached to kernel syscall layer
+        <span class="ticker-sep">&#10022;</span>
+        ML anomaly classifier active &middot; OCSVM + Isolation Forest ensemble
+        <span class="ticker-sep">&#10022;</span>
+        Falco telemetry pipeline ingesting runtime events
+        <span class="ticker-sep">&#10022;</span>
+        Trivy CVE enrichment on all running container images
+        <span class="ticker-sep">&#10022;</span>
+        Autonomous containment via Docker pause / network isolation
+        <span class="ticker-sep">&#10022;</span>
+        FastAPI backend serving REST + WebSocket endpoints
+        <span class="ticker-sep">&#10022;</span>
+        SQLite + SQLAlchemy spool with async pool management
+        <span class="ticker-sep">&#10022;</span>
+        Research protocol v1 &middot; Pilot dataset v1.0.0 &middot; 169+ passing tests
+        <span class="ticker-sep">&#10022;</span>
+        eBPF probes attached to kernel syscall layer
+        <span class="ticker-sep">&#10022;</span>
+        ML anomaly classifier active &middot; OCSVM + Isolation Forest ensemble
+        <span class="ticker-sep">&#10022;</span>
+        Falco telemetry pipeline ingesting runtime events
+        <span class="ticker-sep">&#10022;</span>
+        Trivy CVE enrichment on all running container images
+        <span class="ticker-sep">&#10022;</span>
+        Autonomous containment via Docker pause / network isolation
+        <span class="ticker-sep">&#10022;</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- HERO GRID -->
+  <div class="home-root" style="margin-top: 0;">
+    <section class="hero-grid" style="margin-top: 1.75rem;">
+
+      <!-- Main hero copy -->
+      <div class="hero-main scan-container">
+        <p class="section-label">Feature Report</p>
+        <h2 class="hero-headline">
+          <em>Real-time</em> container<br>
+          threat detection powered<br>
+          by the Linux kernel.
+        </h2>
+        <p class="hero-body">
+          Porygon is a <strong>research-grade, end-to-end container security platform</strong> that instruments
+          the Linux kernel via <strong>eBPF probes</strong> to collect syscall-level telemetry, feeds it through
+          a <strong>machine-learning anomaly classifier</strong>, enriches findings against the
+          <strong>Trivy CVE database</strong>, and triggers <strong>autonomous containment responses</strong>
+          &mdash; all orchestrated through a clean microservice architecture with a live editorial dashboard.
+        </p>
+        <div class="hero-cta-row">
+          <a href="index.html" class="btn-cta-primary" id="cta-dashboard">
+            <i class="ph ph-monitor-play"></i>
+            Open Dashboard
+          </a>
+          <a href="#architecture" class="btn-cta-secondary">
+            <i class="ph ph-stack"></i>
+            Architecture
+          </a>
+        </div>
+        <div class="badge-strip">
+          <span class="badge filled">eBPF</span>
+          <span class="badge filled">Falco</span>
+          <span class="badge filled">OCSVM</span>
+          <span class="badge filled">Isolation Forest</span>
+          <span class="badge">Trivy</span>
+          <span class="badge">FastAPI</span>
+          <span class="badge">Docker</span>
+          <span class="badge red">Research Platform</span>
+        </div>
+      </div>
+
+      <!-- Side stat blocks -->
+      <div class="hero-side">
+        <p class="section-label" style="text-align: right;">By the Numbers</p>
+
+        <div class="stat-block">
+          <div class="stat-block-accent"></div>
+          <div class="stat-block-value">5</div>
+          <div class="stat-block-label">Microservices</div>
+        </div>
+
+        <div class="stat-block">
+          <div class="stat-block-accent red"></div>
+          <div class="stat-block-value" id="stat-tests">169+</div>
+          <div class="stat-block-label">Passing Unit Tests</div>
+        </div>
+
+        <div class="stat-block">
+          <div class="stat-block-accent"></div>
+          <div class="stat-block-value">4</div>
+          <div class="stat-block-label">eBPF Capabilities</div>
+        </div>
+
+        <div class="stat-block">
+          <div class="stat-block-accent red"></div>
+          <div class="stat-block-value">&lt;50ms</div>
+          <div class="stat-block-label">Detection Latency</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ARCHITECTURE PIPELINE -->
+    <section class="arch-section" id="architecture">
+      <p class="section-label">System Architecture</p>
+      <h3 style="font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; margin: 0 0 0.25rem;">
+        Five-Stage Detection Pipeline
+      </h3>
+      <p style="font-family: var(--font-body); font-size: 0.9375rem; color: #555; margin: 0;">
+        Every container event flows through a deterministic chain &mdash; from kernel probe to autonomous response.
+      </p>
+
+      <div class="arch-pipeline">
+        <div class="pipe-node">
+          <div class="pipe-node-num">01 / COLLECT</div>
+          <i class="ph ph-hard-drives pipe-node-icon"></i>
+          <div class="pipe-node-name">Collector</div>
+          <div class="pipe-node-desc">Discovers and fingerprints running containers via Docker API. Maintains a live registry of workload metadata.</div>
+          <div class="pipe-node-tech">Docker SDK &middot; Python</div>
+        </div>
+        <div class="pipe-node">
+          <div class="pipe-node-num">02 / OBSERVE</div>
+          <i class="ph ph-eye pipe-node-icon"></i>
+          <div class="pipe-node-name">Telemetry</div>
+          <div class="pipe-node-desc">Attaches eBPF probes via Falco to capture syscall-level events: process exec, network I/O, file operations.</div>
+          <div class="pipe-node-tech">Falco &middot; eBPF &middot; gRPC</div>
+        </div>
+        <div class="pipe-node">
+          <div class="pipe-node-num">03 / SCORE</div>
+          <i class="ph ph-brain pipe-node-icon"></i>
+          <div class="pipe-node-name">ML Classifier</div>
+          <div class="pipe-node-desc">OCSVM + Isolation Forest ensemble trained on baseline behavioural profiles detects anomalies in real time.</div>
+          <div class="pipe-node-tech">scikit-learn &middot; NumPy &middot; GPU</div>
+        </div>
+        <div class="pipe-node">
+          <div class="pipe-node-num">04 / ENRICH</div>
+          <i class="ph ph-shield-warning pipe-node-icon"></i>
+          <div class="pipe-node-name">Scanner</div>
+          <div class="pipe-node-desc">Cross-references container images against the Trivy CVE database. Adds severity, CVSS, and exploit-path context.</div>
+          <div class="pipe-node-tech">Trivy &middot; CVSS &middot; NVD</div>
+        </div>
+        <div class="pipe-node">
+          <div class="pipe-node-num">05 / ACT</div>
+          <i class="ph ph-lightning pipe-node-icon"></i>
+          <div class="pipe-node-name">Responder</div>
+          <div class="pipe-node-desc">Executes autonomous containment: pause container, kill process, or isolate network. Full audit trail recorded.</div>
+          <div class="pipe-node-tech">Docker API &middot; FastAPI &middot; SQLite</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CAPABILITY CARDS -->
+    <section style="padding: 2.5rem 0; border-bottom: 2px solid var(--color-ink);" id="capabilities">
+      <p class="section-label">Core Capabilities</p>
+      <h3 style="font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; margin: 0 0 0.25rem;">
+        What Porygon Does
+      </h3>
+
+      <div class="cap-grid">
+        <div class="cap-card">
+          <i class="ph ph-activity cap-card-icon"></i>
+          <span class="cap-card-tag">capability-01 &middot; process-telemetry</span>
+          <h4 class="cap-card-title">Syscall-Level Telemetry Ingestion</h4>
+          <p class="cap-card-body">
+            Falco eBPF probes intercept kernel syscalls in real time &mdash; exec events, network connections,
+            file operations &mdash; without modifying container images or requiring privileged sidecars.
+            Every event is timestamped, attributed, and spooled to the backend for analysis.
+          </p>
+        </div>
+        <div class="cap-card">
+          <i class="ph ph-brain cap-card-icon"></i>
+          <span class="cap-card-tag">capability-02 &middot; anomaly-detection</span>
+          <h4 class="cap-card-title">ML Anomaly Scoring</h4>
+          <p class="cap-card-body">
+            A dual-model ensemble &mdash; One-Class SVM for tight perimeter modelling and Isolation Forest
+            for outlier isolation &mdash; scores each container's behavioural fingerprint against a
+            trained baseline. Drift triggers configurable alert thresholds.
+          </p>
+        </div>
+        <div class="cap-card">
+          <i class="ph ph-shield-warning cap-card-icon"></i>
+          <span class="cap-card-tag">capability-03 &middot; vulnerability-enrichment</span>
+          <h4 class="cap-card-title">CVE Vulnerability Enrichment</h4>
+          <p class="cap-card-body">
+            Container images are periodically scanned by Trivy against the NVD CVE database.
+            Results are cross-referenced with runtime telemetry to surface
+            <em>exploitable</em> vulnerabilities with open ports or observed execution paths.
+          </p>
+        </div>
+        <div class="cap-card">
+          <i class="ph ph-shield-checkered cap-card-icon"></i>
+          <span class="cap-card-tag">capability-04 &middot; containment-response</span>
+          <h4 class="cap-card-title">Autonomous Containment</h4>
+          <p class="cap-card-body">
+            When anomaly scores exceed thresholds, the responder acts immediately: pausing the
+            container, killing specific processes, or severing network egress &mdash; with a
+            complete audit trail written to the incident log for forensic replay.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESEARCH / DESIGN CONTEXT STRIP -->
+    <section style="display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-bottom: 2px solid var(--color-ink);">
+      <div style="padding: 2rem 2rem 2rem 0; border-right: 2px solid var(--color-ink);">
+        <p class="section-label">Research Context</p>
+        <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; margin: 0 0 0.75rem;">23CSE498 Final Year Project</h3>
+        <p style="font-family: var(--font-body); font-size: 0.9rem; line-height: 1.7; color: #444;">
+          Porygon is the capstone research deliverable for course <strong>23CSE498</strong> &mdash; a comprehensive
+          exploration of kernel-space observability, behavioural profiling, and automated threat response
+          in cloud-native container environments. The platform ships with a full test suite, research protocol,
+          and a labelled pilot dataset.
+        </p>
+        <div class="badge-strip">
+          <span class="badge filled">Team 75</span>
+          <span class="badge">Panel Review 1</span>
+          <span class="badge">Phase 2</span>
+          <span class="badge red">Live Platform</span>
+        </div>
+      </div>
+      <div style="padding: 2rem 0 2rem 2rem;">
+        <p class="section-label">Design Philosophy</p>
+        <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; margin: 0 0 0.75rem;">Observable by Default</h3>
+        <p style="font-family: var(--font-body); font-size: 0.9rem; line-height: 1.7; color: #444;">
+          Every decision in Porygon prioritises <strong>observability</strong>: all events carry a structured
+          capability string, all API responses include a system info block, and every containment
+          action writes a forensic audit entry. The editorial dashboard surfaces this in a
+          dense, newsprint-inspired interface designed for maximum information density.
+        </p>
+        <a href="index.html"
+           style="display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 1rem; font-family: var(--font-ui); font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--color-ink); text-decoration: none; border-bottom: 2px solid var(--color-ink); padding-bottom: 2px; transition: color 120ms, border-color 120ms;"
+           onmouseover="this.style.color='var(--color-accent-red)'; this.style.borderColor='var(--color-accent-red)';"
+           onmouseout="this.style.color='var(--color-ink)'; this.style.borderColor='var(--color-ink)';">
+          <i class="ph ph-arrow-right"></i>
+          Explore the dashboard
+        </a>
+      </div>
+    </section>
+
+  </div><!-- /home-root -->
+
+  <!-- BOTTOM CTA BAND (full-width, inverted) -->
+  <div class="cta-band">
+    <div class="home-root">
+      <div class="cta-band-inner">
+        <div>
+          <div class="cta-band-headline">
+            The <em>whole system</em>,<br>in one dashboard.
+          </div>
+          <p class="cta-band-sub">
+            Live telemetry, ML scoring, CVE enrichment, incident log, and the attack simulator &mdash;
+            all in a single, real-time editorial interface.
+          </p>
+        </div>
+        <div style="flex-shrink: 0;">
+          <a href="index.html" class="btn-cta-inverted" id="cta-bottom">
+            <i class="ph ph-monitor-play"></i>
+            Open Live Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="home-root">
+    <footer class="home-footer">
+      <div style="font-family: var(--font-mono); font-size: 0.6875rem; color: #737373; text-transform: uppercase; letter-spacing: 0.12em;">
+        &copy; 2024 Porygon &middot; 23CSE498 &middot; Team 75
+      </div>
+      <nav style="display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
+        <a href="index.html">Dashboard</a>
+        <a href="home.html">Home</a>
+      </nav>
+      <div style="font-family: var(--font-mono); font-size: 0.6875rem; color: #737373; text-transform: uppercase; letter-spacing: 0.1em;">
+        <span class="blink" style="color: var(--color-accent-red);">&#9679;</span>
+        &nbsp;eBPF Runtime Secure
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // Live date in masthead
+    (function() {
+      const el = document.getElementById('live-date');
+      if (!el) return;
+      const d = new Date();
+      const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      el.textContent = d.toLocaleDateString('en-US', opts).toUpperCase();
+    })();
+
+    // Optional: pull live backend event count
+    (function() {
+      const API = window.location.hostname === 'localhost' ? 'http://localhost:8000' : null;
+      if (!API) return;
+      fetch(API + '/api/v1/system-info', { signal: AbortSignal.timeout(3000) })
+        .then(r => r.json())
+        .then(info => {
+          const el = document.getElementById('stat-tests');
+          if (info.runtime_events != null && el) {
+            el.textContent = info.runtime_events.toLocaleString() + '+';
+            el.closest('.stat-block').querySelector('.stat-block-label').textContent = 'Runtime Events Captured';
+          }
+        })
+        .catch(() => {});
+    })();
+  </script>
+</body>
+</html>
