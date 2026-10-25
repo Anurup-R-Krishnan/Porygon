@@ -156,7 +156,7 @@ architecture (Slide 7) and algorithm (Slide 9).
 > This is the full data path, and I want to walk it end to end because several of
 > the design decisions are load-bearing.
 >
-> **Phase one, kernel capture.** Falco attaches an eBPF probe and emits one JSONL
+> **Kernel capture.** Falco attaches an eBPF probe and emits one JSONL
 > record per `execve` in a monitored container, carrying `proc.exepath`,
 > `proc.name`, `proc.pname`, `proc.pexepath`, `proc.cmdline`, `user.uid` and
 > `container.id`.
@@ -173,19 +173,19 @@ architecture (Slide 7) and algorithm (Slide 9).
 > That matters because every downstream guarantee is digest-scoped. An event we
 > cannot attribute to a manifest hash must not contaminate a profile.
 >
-> **Phase two, normalisation.** The telemetry adapter parses the Falco stream
+> **Telemetry normalisation.** The telemetry adapter parses the Falco stream
 > into a uniform schema and writes to a durable on-disk outbox before
 > transmission. Delivery to the backend is an authenticated POST on the internal
 > network. The outbox means backend restart or backpressure delays ingestion
 > rather than dropping it.
 >
-> **Phase three, behavioural analysis.** The backend is the only component with a
+> **Behavioural analysis.** The backend is the only component with a
 > database connection. It aggregates events into fixed windows, builds versioned
 > per-digest profiles, and computes the distance. Every score is persisted with
 > the profile version and algorithm version that produced it, so any result is
 > reconstructable.
 >
-> **Phase four, detection and response.** The same window is evaluated
+> **Detection and response.** The same window is evaluated
 > independently against the deterministic ruleset; matches become findings, and
 > incident-eligible matches open incidents surfaced through the gateway.
 >

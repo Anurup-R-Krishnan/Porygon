@@ -39,7 +39,7 @@ async def heartbeat_loop(app: FastAPI) -> None:
                 "metadata": {
                     "version": settings.version,
                     "environment": settings.environment,
-                    "phase": "7-human-approved-response",
+                    "phase": "containment-response",
                     "docker_connected": state["docker_connected"],
                     "last_claim_at": state["last_claim_at"],
                     "last_completion_at": state["last_completion_at"],
@@ -218,6 +218,6 @@ def responder_status(request: Request) -> dict[str, object]:
     return {
         "service": settings.service_name,
         "instance_id": settings.responder_instance_id,
-        "phase": "7-human-approved-response",
+        "phase": "containment-response",
         **state,
     }

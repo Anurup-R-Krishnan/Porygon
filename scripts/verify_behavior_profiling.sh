@@ -37,13 +37,8 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-integrity_path = Path('artifacts/ebpf-capture-integrity.json')
-if not integrity_path.is_file():
-    integrity_path = Path('artifacts/phase3-capture-integrity.json')
-integrity = json.loads(integrity_path.read_text())
+integrity = json.loads(Path('artifacts/ebpf-capture-integrity.json').read_text())
 events_dir = Path('artifacts/local') / f"telemetry-{integrity['run_id']}"
-if not events_dir.is_dir():
-    events_dir = Path('artifacts/local') / f"phase3-{integrity['run_id']}"
 events_path = events_dir / 'process-events.json'
 events=json.loads(events_path.read_text())
 if not events:
@@ -71,9 +66,7 @@ for name, window, minimum in [('v1',60,1), ('bad',45,999999), ('v2',30,1)]:
     payload['notes']=f'Controlled behavior profiling acceptance {name}'
     payload_raw = json.dumps(payload, indent=2, sort_keys=True)
     Path(f'artifacts/profiling-{name}-payload.json').write_text(payload_raw)
-    Path(f'artifacts/phase4-{name}-payload.json').write_text(payload_raw)
 Path('artifacts/profiling-selected-digest.txt').write_text(digest+'\n')
-Path('artifacts/phase4-selected-digest.txt').write_text(digest+'\n')
 PY
 
 post_json() {
@@ -86,10 +79,6 @@ post_json() {
     -H "X-Porygon-Internal-Token: ${token}" \
     --data-binary "@${input}" \
     "${base_url}${path}" > "${output}"
-  local legacy_output="${output/profiling-/phase4-}"
-  if [[ "$legacy_output" != "$output" ]]; then
-    cp "$output" "$legacy_output" 2>/dev/null || true
-  fi
 }
 
 post_json "/internal/v1/baselines/build" \
@@ -125,7 +114,6 @@ http_code="$(curl --silent --output artifacts/profiling-duplicate-response.json 
   -H "X-Porygon-Internal-Token: ${token}" \
   --data-binary @artifacts/profiling-v1-payload.json \
   "${base_url}/internal/v1/baselines/build")"
-cp artifacts/profiling-duplicate-response.json artifacts/phase4-duplicate-response.json 2>/dev/null || true
 [[ "$http_code" == "409" ]] || fail "Identical profile rebuild returned HTTP $http_code instead of 409"
 pass "Identical training selection and vectorizer output were rejected"
 
@@ -141,7 +129,6 @@ PY
 http_code="$(curl --silent --output artifacts/profiling-quality-activation-response.json --write-out '%{http_code}' \
   -X POST -H "X-Porygon-Internal-Token: ${token}" \
   "${base_url}/internal/v1/baselines/${bad_id}/activate")"
-cp artifacts/profiling-quality-activation-response.json artifacts/phase4-quality-activation-response.json 2>/dev/null || true
 [[ "$http_code" == "409" ]] || fail "Quality-failing activation returned HTTP $http_code instead of 409"
 pass "A quality-failing profile remained an inactive draft"
 
@@ -161,11 +148,9 @@ digest="$(cat artifacts/profiling-selected-digest.txt)"
 curl --fail --silent --show-error --get \
   --data-urlencode "image_digest=${digest}" \
   "${base_url}/api/v1/baselines" > artifacts/profiling-profiles.json
-cp artifacts/profiling-profiles.json artifacts/phase4-profiles.json 2>/dev/null || true
 curl --fail --silent --show-error --get \
   --data-urlencode "image_digest=${digest}" \
   "${base_url}/api/v1/baselines/active" > artifacts/profiling-active-profile.json
-cp artifacts/profiling-active-profile.json artifacts/phase4-active-profile.json 2>/dev/null || true
 
 V1_ID="$v1_id" V2_ID="$v2_id" python3 - <<'PY' || fail "Profile lifecycle invariants failed"
 import json, os
@@ -183,19 +168,17 @@ pass "New activation retired the previous active version and preserved one activ
 http_code="$(curl --silent --output artifacts/profiling-retired-reactivation-response.json --write-out '%{http_code}' \
   -X POST -H "X-Porygon-Internal-Token: ${token}" \
   "${base_url}/internal/v1/baselines/${v1_id}/activate")"
-cp artifacts/profiling-retired-reactivation-response.json artifacts/phase4-retired-reactivation-response.json 2>/dev/null || true
 [[ "$http_code" == "409" ]] || fail "Retired profile reactivation returned HTTP $http_code instead of 409"
 pass "Retired profiles cannot be reactivated"
 
 curl --fail --silent --show-error "${base_url}/api/v1/system/info" \
   > artifacts/profiling-system-info.json
-cp artifacts/profiling-system-info.json artifacts/phase4-system-info.json 2>/dev/null || true
 python3 - <<'PY' || fail "System information did not report behavior profile state"
 import json
 info=json.load(open('artifacts/profiling-system-info.json'))
 assert info['behavior_profiles'] >= 3
 assert info['active_behavior_profiles'] >= 1
-assert int(info['phase'].split()[1].rstrip(':')) >= 4
+assert info['phase']
 PY
 pass "System API reports stored and active behaviour profiles"
 

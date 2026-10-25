@@ -178,13 +178,13 @@ def _require_calibrated_enabled() -> None:
         )
 
 APP_VERSION = "0.8.0"
-PHASE_ID = "8-sbom-vulnerability-enrichment"
+PHASE_ID = "vulnerability-enrichment"
 
 app = FastAPI(
     title=settings.app_name,
     version=APP_VERSION,
     description=(
-        "Porygon Phase 8 control plane for Docker identity, runtime telemetry, digest-bound profiles, "
+        "Porygon control plane for Docker identity, runtime telemetry, digest-bound profiles, "
         "explainable scoring, incidents, human-approved response, and evidence-staged vulnerability enrichment."
     ),
 )
@@ -2154,7 +2154,7 @@ def run_detection(
                 "rule_id": None,
                 "evidence_type": "behavioural_distance",
                 "summary": (
-                    f"Phase 5 behavioural distance was {score.total_score:.3f} "
+                    f"Observed behavioural distance was {score.total_score:.3f} "
                     f"({score.score_band})."
                 ),
                 "details": {
@@ -2215,7 +2215,7 @@ def run_detection(
         ) from exc
     except SQLAlchemyError as exc:
         db.rollback()
-        logger.exception("Phase 6 detection persistence failed")
+        logger.exception("Detection persistence failed")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Detection persistence failed",
@@ -2904,7 +2904,7 @@ def system_info(db: Session = Depends(get_db)) -> SystemInfo:
     return SystemInfo(
         name="Porygon",
         version=APP_VERSION,
-        phase="Phase 8: digest-bound SBOM, vulnerability, and exposure enrichment",
+        phase="Digest-bound SBOM, vulnerability, and exposure enrichment",
         environment=settings.environment,
         registered_services=registered_services,
         runtime_events=runtime_events,

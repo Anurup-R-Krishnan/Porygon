@@ -44,16 +44,12 @@ base_url="http://127.0.0.1:${backend_port}"
 token="$(grep -E '^PORYGON_INTERNAL_API_TOKEN=' .env | tail -1 | cut -d= -f2- || true)"
 [[ ${#token} -ge 32 ]] || fail "PORYGON_INTERNAL_API_TOKEN is missing or too short"
 
-if [[ -f artifacts/profiling-selected-digest.txt ]]; then
-  digest="$(cat artifacts/profiling-selected-digest.txt)"
-else
-  digest="$(cat artifacts/phase4-selected-digest.txt)"
-fi
+[[ -f artifacts/profiling-selected-digest.txt ]] || fail "artifacts/profiling-selected-digest.txt is missing"
+digest="$(cat artifacts/profiling-selected-digest.txt)"
 [[ "$digest" == *@sha256:* ]] || fail "Behavior profiling did not provide an immutable repository digest"
 
 curl --fail --silent --show-error \
   "${base_url}/api/v1/anomaly-scores/config" > artifacts/scoring-config.json
-cp artifacts/scoring-config.json artifacts/phase5-scoring-config.json 2>/dev/null || true
 python3 - <<'PY' || fail "Scoring configuration is missing reproducibility metadata"
 import json
 cfg=json.load(open('artifacts/scoring-config.json'))
@@ -67,7 +63,6 @@ pass "Public API exposes the immutable scoring definition and provisional-band w
 curl --fail --silent --show-error --get \
   --data-urlencode "image_digest=${digest}" \
   "${base_url}/api/v1/baselines/active" > artifacts/scoring-active-profile.json
-cp artifacts/scoring-active-profile.json artifacts/phase5-active-profile.json 2>/dev/null || true
 
 readarray -t profile_values < <(python3 - <<'PY'
 import json
@@ -151,10 +146,6 @@ payload={
 }
 open(os.environ['OUTPUT'],'w').write(json.dumps(payload, indent=2, sort_keys=True))
 PY
-  local legacy_output="${output/scoring-/phase5-}"
-  if [[ "$legacy_output" != "$output" ]]; then
-    cp "$output" "$legacy_output" 2>/dev/null || true
-  fi
 }
 
 compute_score() {
@@ -166,10 +157,6 @@ compute_score() {
     -H "X-Porygon-Internal-Token: ${token}" \
     --data-binary "@${payload}" \
     "${base_url}/internal/v1/anomaly-scores/compute" > "$output"
-  local legacy_output="${output/scoring-/phase5-}"
-  if [[ "$legacy_output" != "$output" ]]; then
-    cp "$output" "$legacy_output" 2>/dev/null || true
-  fi
 }
 
 # Completed window with no new process execution. This must not be called normal.
@@ -266,24 +253,20 @@ payload={
     'profile_id': os.environ['PROFILE_ID'],
 }
 open('artifacts/scoring-overlap-payload.json','w').write(json.dumps(payload, indent=2, sort_keys=True))
-open('artifacts/phase5-overlap-payload.json','w').write(json.dumps(payload, indent=2, sort_keys=True))
 PY
 http_code="$(curl --silent --output artifacts/scoring-overlap-response.json --write-out '%{http_code}' \
   -X POST -H 'Content-Type: application/json' \
   -H "X-Porygon-Internal-Token: ${token}" \
   --data-binary @artifacts/scoring-overlap-payload.json \
   "${base_url}/internal/v1/anomaly-scores/compute")"
-cp artifacts/scoring-overlap-response.json artifacts/phase5-overlap-response.json 2>/dev/null || true
 [[ "$http_code" == "409" ]] || fail "Training-overlap score returned HTTP $http_code instead of 409"
 pass "Training and evaluation windows are kept separate"
 
 curl --fail --silent --show-error --get \
   --data-urlencode "image_digest=${digest}" \
   "${base_url}/api/v1/anomaly-scores" > artifacts/scoring-scores.json
-cp artifacts/scoring-scores.json artifacts/phase5-scores.json 2>/dev/null || true
 curl --fail --silent --show-error "${base_url}/api/v1/system/info" \
   > artifacts/scoring-system-info.json
-cp artifacts/scoring-system-info.json artifacts/phase5-system-info.json 2>/dev/null || true
 
 python3 - <<'PY' || fail "Stored score and system invariants failed"
 import json
@@ -293,7 +276,7 @@ assert len(scores) >= 3
 assert sum(item['status']=='insufficient_data' for item in scores) >= 1
 assert sum(item['status']=='scored' for item in scores) >= 2
 assert len({item['observation_key'] for item in scores}) == len(scores)
-assert int(info['phase'].split()[1].rstrip(':')) >= 5
+assert info['phase']
 assert info['anomaly_scores'] >= 3
 assert info['scored_observations'] >= 2
 assert info['insufficient_observations'] >= 1
@@ -301,5 +284,4 @@ PY
 pass "System API reports unique scored and insufficient observations"
 
 docker compose ps > artifacts/scoring-services.txt
-cp artifacts/scoring-services.txt artifacts/phase5-services.txt 2>/dev/null || true
 printf '\nAnomaly scoring verification complete. Scores are behavioural distances, not attack verdicts.\n'
