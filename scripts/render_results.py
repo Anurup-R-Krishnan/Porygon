@@ -21,7 +21,18 @@ RUNS = ROOT / "artifacts/experiments/local"
 
 
 def collect() -> dict:
-    runs = []
+    existing_runs_by_id: dict[str, dict] = {}
+    results_json = ROOT / "artifacts/results.json"
+    if results_json.is_file():
+        try:
+            prior_data = json.loads(results_json.read_text(encoding="utf-8"))
+            for r in prior_data.get("runs", []):
+                if isinstance(r, dict) and "run_id" in r:
+                    existing_runs_by_id[r["run_id"]] = r
+        except Exception:
+            pass
+
+    local_runs_by_id: dict[str, dict] = {}
     for run_json in sorted(RUNS.glob("*/run.json")):
         run = json.loads(run_json.read_text(encoding="utf-8"))
         if run.get("kind") == "smoke_fixture":
@@ -54,7 +65,7 @@ def collect() -> dict:
                 "unmeasured": sorted(n for n, e in b.items() if e.get("status") == "unmeasured"),
                 "failure_reason": t.get("failure_reason"),
             })
-        runs.append({
+        local_runs_by_id[run["run_id"]] = {
             "run_id": run["run_id"],
             "created_at_utc": run.get("created_at_utc", "—"),
             "git_sha": (run.get("git_sha") or "")[:12],
@@ -64,7 +75,11 @@ def collect() -> dict:
             "docker": run.get("docker_version", "—"),
             "platform": run.get("platform", "—"),
             "trials": rows,
-        })
+        }
+
+    merged = {**existing_runs_by_id, **local_runs_by_id}
+    runs = [merged[k] for k in sorted(merged.keys())]
+
     return {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "runs": runs,

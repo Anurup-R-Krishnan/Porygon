@@ -116,7 +116,8 @@ def main() -> int:
         query = query_string(
             {"image_digest": args.image_digest, "status": args.status, "limit": args.limit}
         )
-        result = request("GET", f"{base}/api/v1/image-scans?{query}")
+        suffix = f"?{query}" if query else ""
+        result = request("GET", f"{base}/api/v1/image-scans{suffix}")
     elif args.command == "scan":
         result = request("GET", f"{base}/api/v1/image-scans/{args.scan_id}")
     elif args.command == "sbom":
@@ -132,7 +133,8 @@ def main() -> int:
                 "limit": args.limit,
             }
         )
-        result = request("GET", f"{base}/api/v1/vulnerabilities?{query}")
+        suffix = f"?{query}" if query else ""
+        result = request("GET", f"{base}/api/v1/vulnerabilities{suffix}")
     else:
         result = request("GET", f"{base}/api/v1/vulnerability-intel/{args.cve_id.upper()}")
 

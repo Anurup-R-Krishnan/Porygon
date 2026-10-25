@@ -101,7 +101,7 @@ def main() -> int:
     create_allowlist.add_argument(
         "--rule-id",
         required=True,
-        choices=["POR-DET-002", "POR-DET-003", "POR-DET-004"],
+        help="Rule ID to allowlist (e.g. POR-DET-002, POR-DET-003, POR-DET-004, or custom POR-CUS-...)",
     )
     create_allowlist.add_argument("--executable", required=True)
     create_allowlist.add_argument("--parent-executable")
@@ -139,7 +139,8 @@ def main() -> int:
             }.items()
             if value is not None
         }
-        result = _request("GET", f"{base_url}/api/v1/detection-runs?{urllib.parse.urlencode(query)}")
+        suffix = f"?{urllib.parse.urlencode(query)}" if query else ""
+        result = _request("GET", f"{base_url}/api/v1/detection-runs{suffix}")
     elif args.command == "get-run":
         result = _request("GET", f"{base_url}/api/v1/detection-runs/{args.run_id}")
     elif args.command == "incidents":
@@ -153,7 +154,8 @@ def main() -> int:
             }.items()
             if value is not None
         }
-        result = _request("GET", f"{base_url}/api/v1/incidents?{urllib.parse.urlencode(query)}")
+        suffix = f"?{urllib.parse.urlencode(query)}" if query else ""
+        result = _request("GET", f"{base_url}/api/v1/incidents{suffix}")
     elif args.command == "incident":
         result = _request("GET", f"{base_url}/api/v1/incidents/{args.incident_id}")
     elif args.command == "timeline":
@@ -174,9 +176,10 @@ def main() -> int:
             }.items()
             if value is not None
         }
+        suffix = f"?{urllib.parse.urlencode(query)}" if query else ""
         result = _request(
             "GET",
-            f"{base_url}/api/v1/detection-allowlists?{urllib.parse.urlencode(query)}",
+            f"{base_url}/api/v1/detection-allowlists{suffix}",
         )
     elif args.command == "allowlist-create":
         result = _request(

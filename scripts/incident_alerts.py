@@ -126,8 +126,15 @@ def severity_meets_threshold(incident: dict[str, Any], min_severity: str) -> boo
     return SEVERITY_ORDER.get(level, 0) >= SEVERITY_ORDER[min_severity]
 
 
-def format_alert_email(incident: dict[str, Any], dashboard_url: str) -> tuple[str, str]:
+def format_alert_email(
+    incident: dict[str, Any], dashboard_url: str, base_url: str | None = None
+) -> tuple[str, str]:
     incident_id = incident["incident_id"]
+    api_url = (
+        f"{base_url.rstrip('/')}/api/v1/incidents/{incident_id}"
+        if base_url
+        else f"{dashboard_url.replace(':3000', ':8000')}/api/v1/incidents/{incident_id}"
+    )
     subject = f"[Porygon] {incident['severity_level'].upper()} incident: {incident['title']}"
 
     top_findings = incident.get("findings", [])[:5]
@@ -159,7 +166,7 @@ View the full evidence trace and approve/dismiss:
   {dashboard_url}/#pipeline (select incident {incident_id})
 
 Raw incident record:
-  {dashboard_url.replace(':3000', ':8000')}/api/v1/incidents/{incident_id}
+  {api_url}
 """
     return subject, body
 
@@ -193,7 +200,7 @@ def check_once(config: AlertConfig, *, dry_run: bool = False) -> int:
         if not severity_meets_threshold(incident, config.min_severity):
             continue
 
-        subject, body = format_alert_email(incident, config.dashboard_url)
+        subject, body = format_alert_email(incident, config.dashboard_url, base_url=config.base_url)
         if dry_run:
             print(f"[dry-run] would send: {subject}")
             sent += 1
@@ -268,7 +275,7 @@ def main(argv: list[str] | None = None) -> int:
             "summary": "This is a test email to confirm alert delivery works.",
             "findings": [],
         }
-        subject, body = format_alert_email(synthetic, config.dashboard_url)
+        subject, body = format_alert_email(synthetic, config.dashboard_url, base_url=config.base_url)
         send_email(config, subject, body)
         print(f"test email sent to {config.mail_to}")
         return 0

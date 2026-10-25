@@ -108,10 +108,9 @@ def main() -> int:
             token=operator_token(),
         )
     elif args.command == "recommendations":
-        query = urllib.parse.urlencode(
-            {k: v for k, v in {"incident_id": args.incident_id, "status": args.status}.items() if v}
-        )
-        result = request("GET", f"{base}/api/v1/response-recommendations?{query}")
+        params = {k: v for k, v in {"incident_id": args.incident_id, "status": args.status}.items() if v}
+        suffix = f"?{urllib.parse.urlencode(params)}" if params else ""
+        result = request("GET", f"{base}/api/v1/response-recommendations{suffix}")
     elif args.command == "approve":
         result = request(
             "POST",
@@ -132,10 +131,9 @@ def main() -> int:
             payload={"actor": args.actor, "note": args.note},
         )
     elif args.command == "executions":
-        query = urllib.parse.urlencode(
-            {k: v for k, v in {"incident_id": args.incident_id, "status": args.status}.items() if v}
-        )
-        result = request("GET", f"{base}/api/v1/response-executions?{query}")
+        params = {k: v for k, v in {"incident_id": args.incident_id, "status": args.status}.items() if v}
+        suffix = f"?{urllib.parse.urlencode(params)}" if params else ""
+        result = request("GET", f"{base}/api/v1/response-executions{suffix}")
     elif args.command == "execution":
         result = request("GET", f"{base}/api/v1/response-executions/{args.execution_id}")
     elif args.command == "rollback":
