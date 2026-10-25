@@ -90,7 +90,7 @@ def test_assert_no_confirmatory_contamination_refuses_when_confirmatory_exists()
 
 
 def test_assert_no_confirmatory_contamination_allows_pilot_only_history():
-    assert_no_confirmatory_contamination(["pilot", "pilot"]) is None
+    assert assert_no_confirmatory_contamination(["pilot", "pilot"]) is None
 
 
 def test_build_sample_size_lock_reports_feasibility_failure_honestly():

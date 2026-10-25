@@ -40,14 +40,14 @@ def collect() -> dict:
             json.loads(p.read_text(encoding="utf-8"))
             for p in sorted((run_json.parent / "trials").glob("*.json"))
         ]
+        def obs(name: str, boundaries: dict) -> str:
+            e = boundaries.get(name) or {}
+            return e.get("observed", "—") if e.get("status") == "measured" else "unmeasured"
+
         rows = []
         for t in trials:
             b = (t.get("reconciliation") or {}).get("boundaries", {})
             load = t.get("load") or {}
-
-            def obs(name):
-                e = b.get(name) or {}
-                return e.get("observed", "—") if e.get("status") == "measured" else "unmeasured"
 
             rows.append({
                 "trial_id": t["trial_id"],
@@ -57,8 +57,8 @@ def collect() -> dict:
                 "status": t.get("status", "—"),
                 "context_hash": (t.get("runtime_context_hash") or "—")[:16],
                 "generated": (t.get("reconciliation") or {}).get("generated", "—"),
-                "falco": obs("source"),
-                "database": obs("database"),
+                "falco": obs("source", b),
+                "database": obs("database", b),
                 "duplicates": (b.get("database") or {}).get("duplicates", "—"),
                 "ops": f'{load.get("successes", "—")}/{load.get("operations_planned", "—")}',
                 "unmeasured": sorted(n for n, e in b.items() if e.get("status") == "unmeasured"),

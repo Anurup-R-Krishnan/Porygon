@@ -261,17 +261,17 @@ PILOT_SUMMARY_FIELDS = [
 
 
 def _pilot_rows(trials: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def boundary(boundaries: dict[str, Any], name: str, field: str) -> Any:
+        entry = boundaries.get(name) or {}
+        if entry.get("status") != "measured":
+            return "unmeasured"
+        return len(entry["missing_sequences"]) if field == "missing" else entry.get(field, "")
+
     rows = []
     for trial in sorted(trials, key=lambda item: item["trial_id"]):
         boundaries = (trial.get("reconciliation") or {}).get("boundaries", {})
         load = trial.get("load") or {}
         samples = load.get("latency_ms_samples") or []
-
-        def boundary(name: str, field: str) -> Any:
-            entry = boundaries.get(name) or {}
-            if entry.get("status") != "measured":
-                return "unmeasured"
-            return len(entry["missing_sequences"]) if field == "missing" else entry.get(field, "")
 
         rows.append(
             {
@@ -286,11 +286,11 @@ def _pilot_rows(trials: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "research_eligible": str(trial["research_eligible"]).lower(),
                 "runtime_context_hash": trial.get("runtime_context_hash", "unmeasured"),
                 "canaries_generated": (trial.get("reconciliation") or {}).get("generated", "unmeasured"),
-                "source_observed": boundary("source", "observed"),
-                "source_missing": boundary("source", "missing"),
-                "database_observed": boundary("database", "observed"),
-                "database_missing": boundary("database", "missing"),
-                "database_duplicates": boundary("database", "duplicates"),
+                "source_observed": boundary(boundaries, "source", "observed"),
+                "source_missing": boundary(boundaries, "source", "missing"),
+                "database_observed": boundary(boundaries, "database", "observed"),
+                "database_missing": boundary(boundaries, "database", "missing"),
+                "database_duplicates": boundary(boundaries, "database", "duplicates"),
                 "operations_planned": load.get("operations_planned", "unmeasured"),
                 "operations_succeeded": load.get("successes", "unmeasured"),
                 "operations_failed": load.get("failures", "unmeasured"),
