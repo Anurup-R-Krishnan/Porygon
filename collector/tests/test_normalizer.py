@@ -8,7 +8,7 @@ class FakeDockerAPI:
     def inspect_container(self, container_id: str):
         return {
             "Id": container_id,
-            "Name": "/phase2-probe",
+            "Name": "/ingest-probe",
             "Created": "2026-07-21T10:00:00Z",
             "RestartCount": 0,
             "Platform": "linux",
@@ -19,7 +19,7 @@ class FakeDockerAPI:
                 "User": "1000",
                 "Cmd": ["sleep", "300"],
                 "Entrypoint": None,
-                "Labels": {"io.porygon.phase2.probe": "true"},
+                "Labels": {"io.porygon.ingest.probe": "true"},
             },
             "HostConfig": {
                 "Privileged": False,
@@ -63,7 +63,7 @@ def test_normalization_is_deterministic_and_excludes_environment(tmp_path) -> No
         "Actor": {
             "ID": "container-1",
             "Attributes": {
-                "name": "phase2-probe",
+                "name": "ingest-probe",
                 "image": "alpine:3.20",
                 "execCommand": "sh -c echo porygon",
             },
@@ -92,7 +92,7 @@ def test_exec_action_excludes_command_detail_but_preserves_raw_event(tmp_path) -
         "Actor": {
             "ID": "container-1",
             "Attributes": {
-                "name": "phase2-probe",
+                "name": "ingest-probe",
                 "image": "alpine:3.20",
             },
         },

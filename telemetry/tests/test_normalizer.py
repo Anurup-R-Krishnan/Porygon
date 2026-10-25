@@ -8,7 +8,7 @@ def _raw_event() -> dict[str, object]:
         "priority": "Notice",
         "rule": "Porygon Container Process Execution",
         "source": "syscall",
-        "tags": ["porygon", "phase3"],
+        "tags": ["porygon", "telemetry"],
         "time": "2026-07-21T10:00:00.123456789Z",
         "output_fields": {
             "evt.rawtime": 1784628000123456789,
