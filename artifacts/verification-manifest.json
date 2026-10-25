@@ -4,13 +4,13 @@
     "artifacts/results.html": "9a4afc0a785558343f4b40f196a11a55eb5ec68176c24412e06e8c9aa3410b7e",
     "artifacts/results.json": "79acd25d05d331238410f39adba6c8a127fe1e32cb1bcc2bdc851ee60680906d"
   },
-  "finished_at_utc": "2026-10-25T03:13:20Z",
+  "finished_at_utc": "2026-10-25T03:13:48Z",
   "gates": [
     {
       "command": "make verify-static",
-      "duration_seconds": 129,
+      "duration_seconds": 5,
       "name": "static",
-      "status": "failed"
+      "status": "passed"
     },
     {
       "command": "make verify-response-live",
@@ -20,12 +20,12 @@
       "status": "skipped"
     }
   ],
-  "git_dirty": true,
-  "git_sha": "0260da7",
+  "git_dirty": false,
+  "git_sha": "08e18ca",
   "mode": "static",
   "schema_version": "porygon.verification.v1",
-  "started_at_utc": "2026-10-25T03:11:11Z",
-  "status": "failed",
+  "started_at_utc": "2026-10-25T03:13:42Z",
+  "status": "passed",
   "tools": {
     "compose": "5.6.1",
     "docker": "29.9.2/29.9.2",
