@@ -34,7 +34,7 @@ def test_process_event_schema_accepts_falco_event() -> None:
                     "user_name": "root",
                     "group_gid": 0,
                     "group_name": "root",
-                    "tags": ["porygon", "phase3"],
+                    "tags": ["porygon", "telemetry"],
                     "output_fields": {"proc.name": "sleep"},
                     "raw_event": {"rule": "Porygon Container Process Execution"},
                 }
