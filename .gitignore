@@ -32,20 +32,15 @@ artifacts/*.sh
 !artifacts/results.json
 !artifacts/verification-manifest.json
 
-# Local and generated trial datasets
 datasets/
 
 .DS_Store
 
-
-# Agent tooling checked out locally, not part of the project source.
 .agents/
 .codex/
 
-# Code-navigation index cache
 .codegraph/
 
-# LaTeX build products
 *.aux
 *.nav
 *.snm
@@ -54,5 +49,3 @@ datasets/
 docs/presentation/*.log
 docs/presentation/*.docx
 docs/presentation/*.zip
-# NB: docs/presentation/screenshots/ is deliberately NOT ignored — the decks
-# \includegraphics those files, so they are build inputs, not build output.
