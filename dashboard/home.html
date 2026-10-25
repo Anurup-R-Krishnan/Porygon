@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Porygon: eBPF Anomaly Detection</title>
   <meta name="description"
-    content="Porygon detects container runtime anomalies by extracting kernel syscall telemetry with eBPF probes and profiling behavioral baselines using unsupervised machine learning.">
+    content="Porygon detects container runtime anomalies by extracting kernel syscall telemetry with eBPF probes, measuring baseline drift with Jensen-Shannon distance, and classifying attacks via explainable machine learning.">
 
   <!-- Favicon matching the dashboard -->
   <link rel="icon"
@@ -1003,7 +1003,7 @@
         <a href="home.html" class="active">Home Overview</a>
         <a href="index.html#overview">Dashboard</a>
         <a href="index.html#telemetry">Telemetry</a>
-        <a href="index.html#ml">ML Classifier</a>
+        <a href="index.html#ml">Scoring &amp; ML</a>
         <a href="index.html#simulator">Attack Lab</a>
       </nav>
     </div>
@@ -1037,9 +1037,9 @@
         </h2>
         <p class="hero-body">
           Porygon instruments the Linux kernel with <strong>eBPF probes</strong> to extract syscall telemetry
-          directly from container workloads. An ensemble of <strong>One-Class SVM and Isolation Forest models</strong>
-          learns baseline behavior to detect statistical anomalies and workload drift in real time,
-          triggering <strong>policy-driven containment</strong> without sidecar overhead.
+          directly from container workloads. It pairs <strong>Jensen-Shannon distance</strong> for baseline behavioral drift
+          with an <strong>explainable machine learning classifier</strong> (TreeSHAP) to detect runtime anomalies,
+          privilege escalation, and execution deviations without sidecar overhead.
         </p>
 
         <div class="hero-cta-row">
@@ -1137,15 +1137,15 @@
             </div>
           </a>
 
-          <!-- Stage 3: ML Anomaly Classifier -->
-          <a href="index.html#ml" class="pipe-node-link" role="listitem" title="Classifier: anomaly-scoring">
+          <!-- Stage 3: Scoring & ML Classifier -->
+          <a href="index.html#ml" class="pipe-node-link" role="listitem" title="Scoring &amp; ML Classifier">
             <div class="pipe-node-box">
-              <div class="pipe-node-num">03 / SCORE</div>
+              <div class="pipe-node-num">03 / SCORE &amp; CLASSIFY</div>
               <i class="ph ph-brain pipe-node-icon" aria-hidden="true"></i>
-              <div class="pipe-node-name">ML Classifier</div>
-              <div class="pipe-node-desc">Dual-model ensemble (OCSVM + Isolation Forest) flags behavioral drift against
-                workload baseline profiles.</div>
-              <div class="pipe-node-tech">scikit-learn &middot; SHAP</div>
+              <div class="pipe-node-name">Scoring &amp; ML Engine</div>
+              <div class="pipe-node-desc">Measures Jensen-Shannon baseline drift and classifies 12 runtime behavioral
+                features with TreeSHAP attributions.</div>
+              <div class="pipe-node-tech">Jensen-Shannon &middot; Tree Ensemble</div>
               <span class="pipe-chevron" aria-hidden="true">&#9658;</span>
             </div>
           </a>
@@ -1207,14 +1207,15 @@
         <!-- Capability 2 -->
         <article class="cap-box">
           <i class="ph ph-brain cap-icon" aria-hidden="true"></i>
-          <span class="cap-capability-tag">capability-02 &middot; anomaly-detection</span>
-          <h4 class="cap-title">Ensemble Anomaly Scoring</h4>
+          <span class="cap-capability-tag">capability-02 &middot; anomaly-scoring</span>
+          <h4 class="cap-title">Jensen-Shannon Drift &amp; ML Classification</h4>
           <p class="cap-body">
-            Combines One-Class SVM for boundary definition and Isolation Forest for subspace anomaly isolation.
-            Scores each container against fitted baseline models, with explainable TreeSHAP feature importances.
+            Combines base-2 Jensen-Shannon distance across categorical syscall distributions with an explainable
+            tree ensemble classifier. Evaluates 12 runtime telemetry features (drift, shell ratio, privilege escalation)
+            with TreeSHAP feature attributions.
           </p>
           <a href="index.html#ml" class="cap-action-link">
-            Inspect ML Classifiers &rarr;
+            Inspect Scoring &amp; ML Models &rarr;
           </a>
         </article>
 
