@@ -864,7 +864,7 @@ def evaluate_detection(
         summary = "Only informational evidence matched; no incident was created."
         status = "findings_only"
     else:
-        summary = "No deterministic Phase 6 rules matched this scored window."
+        summary = "No deterministic detection rules matched this scored window."
         status = "no_findings"
 
     return {

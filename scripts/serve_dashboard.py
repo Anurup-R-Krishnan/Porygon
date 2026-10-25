@@ -550,7 +550,7 @@ db.commit()
                 self.ingest_canary_event("juice_shop_toggle", "node build/app.js", "/nodejs/bin/node", "porygon-juice-shop", "Previously Unseen Shell Execution", 1000)
                 return {
                     "success": proc.returncode == 0,
-                    "command": "docker run -d --name porygon-juice-shop -p 127.0.0.1:3001:3000 bkimminich/juice-shop",
+                    "command": f"docker run -d --name porygon-juice-shop -p 127.0.0.1:3001:3000 {JUICE_SHOP_IMAGE}",
                     "output": proc.stdout.strip() if proc.returncode == 0 else proc.stderr.strip(),
                     "telemetry_ingested": True
                 }

@@ -152,7 +152,7 @@ app = FastAPI(
     title="Porygon Collector",
     version=settings.version,
     description=(
-        "Docker event collector retained in the Phase 3 stack for immutable image identity, "
+        "Docker event collector for immutable image identity, "
         "and durable at-least-once delivery with exactly-once database storage."
     ),
     lifespan=lifespan,

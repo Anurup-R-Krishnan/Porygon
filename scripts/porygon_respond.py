@@ -50,7 +50,7 @@ def operator_token() -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Manage Porygon Phase 7 response decisions")
+    parser = argparse.ArgumentParser(description="Manage Porygon containment response decisions")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
     commands = parser.add_subparsers(dest="command", required=True)
 

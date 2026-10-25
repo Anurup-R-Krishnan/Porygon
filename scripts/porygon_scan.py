@@ -56,7 +56,7 @@ def query_string(values: dict[str, object | None]) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Manage Porygon Phase 8 image scans and vulnerability evidence")
+    parser = argparse.ArgumentParser(description="Manage Porygon image scans and vulnerability evidence")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
     commands = parser.add_subparsers(dest="command", required=True)
 

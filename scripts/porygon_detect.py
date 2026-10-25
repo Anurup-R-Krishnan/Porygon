@@ -51,7 +51,7 @@ def _token() -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run Porygon Phase 6 detection and inspect incidents")
+    parser = argparse.ArgumentParser(description="Run Porygon detection engine and inspect incidents")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
     commands = parser.add_subparsers(dest="command", required=True)
 
