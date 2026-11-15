@@ -76,7 +76,7 @@ latency, ML accuracy or system overhead is supported by this package.
 
 ## Public release
 
-Repository: https://github.com/Anurup-R-Krishnan/Porygon/tree/codex/technical-enrichment/datasets/porygon-pilot-v1.0.0
+Repository: https://github.com/Anurup-R-Krishnan/Porygon/tree/technical-enrichment/datasets/porygon-pilot-v1.0.0
 
 Release 1.0.0 contains 216 original trials, annotation guidelines, metadata,
 an offline verifier and full CC BY 4.0 terms. Attribute the dataset as specified

@@ -21,6 +21,9 @@ All contributors and AI pairing assistants must adhere strictly to every rule de
 * Commit messages must appear as genuine, human-authored engineering contributions.
 
 ### 1.3 Commit Message Style
+* Ask for explicit user approval before every new commit or push. Preparing changes does not authorize publication.
+* Use descriptive branch names without the `codex/` prefix.
+* Keep every commit message under 15 words.
 * Keep commit messages concise, lowercase, and directly descriptive of the action taken (e.g., `replace phase field with capability across services and scripts`, `standardize test fixtures and falco rule tags`).
 * Avoid vague, ceremonial, or verbose commit messages.
 
@@ -28,7 +31,7 @@ All contributors and AI pairing assistants must adhere strictly to every rule de
 * The project exists across two local directories:
   * Primary working workspace: `/home/anuruprkris/Project/final_yeat_work`
   * Mirror/Git upstream repository: `/home/anuruprkris/Project/Porygon`
-* When changes are finalized and tested in `final_yeat_work`, mirror them to `Porygon` on a dedicated branch (e.g., `final-work`), commit with the mandatory author identity, and push to GitHub remote `origin` (`https://github.com/Anurup-R-Krishnan/Porygon.git`).
+* When changes are finalized and tested in `final_yeat_work`, mirror them to `Porygon` on a dedicated branch (e.g., `final-work`), ask for approval before committing with the mandatory author identity and pushing to GitHub remote `origin` (`https://github.com/Anurup-R-Krishnan/Porygon.git`).
 
 ---
 

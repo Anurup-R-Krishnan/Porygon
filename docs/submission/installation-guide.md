@@ -5,7 +5,7 @@ Use a Linux machine with Docker Engine, Docker Compose v2, Git, Python 3.11 or l
 ```sh
 git clone https://github.com/Anurup-R-Krishnan/Porygon.git
 cd Porygon
-git checkout codex/technical-enrichment
+git checkout technical-enrichment
 make init
 make config
 make up

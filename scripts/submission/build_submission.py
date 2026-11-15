@@ -32,7 +32,7 @@ from reportlab.platypus import (
 ROOT = Path(__file__).resolve().parents[2]
 WORK = ROOT / "artifacts/local/college-submission"
 OUT = WORK / "anurup-technical-enrichment-submission"
-PUBLIC = "https://github.com/Anurup-R-Krishnan/Porygon/tree/codex/technical-enrichment"
+PUBLIC = "https://github.com/Anurup-R-Krishnan/Porygon/tree/technical-enrichment"
 DATASET_URL = PUBLIC + "/datasets/porygon-pilot-v1.0.0"
 
 
@@ -63,6 +63,8 @@ def build():
     )
     repo = OUT / "03-open-source-technical-repository"
     repo.mkdir(exist_ok=True)
+    if (WORK / "public-release.json").exists():
+        shutil.copy2(WORK / "public-release.json", repo / "public-release.json")
     history = subprocess.check_output(
         ["git", "log", "-30", "--date=short", "--format=%h | %ad | %an | %s"],
         cwd=ROOT,

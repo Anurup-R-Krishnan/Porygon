@@ -67,7 +67,7 @@ def build(source: Path, destination: Path):
     files['source-checksums.json'] = encode(provenance)
     files['metadata.json'] = encode({
         'dataset_version': '1.0.0', 'status': 'release',
-        'public_repository': 'https://github.com/Anurup-R-Krishnan/Porygon/tree/codex/technical-enrichment/datasets/porygon-pilot-v1.0.0',
+        'public_repository': 'https://github.com/Anurup-R-Krishnan/Porygon/tree/technical-enrichment/datasets/porygon-pilot-v1.0.0',
         'title': 'Porygon controlled-container pilot trial metadata',
         'source_run': RUN, 'evidence_class': 'pilot', 'research_eligible': False,
         'trial_count': len(records), 'raw_process_events_included': False,

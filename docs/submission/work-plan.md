@@ -8,6 +8,6 @@ Scope: Anurup R Krishnan's certification and contribution evidence. Activities 3
 - Completed: provide offline metric reproduction, sample outputs and recorded configuration/model identifiers.
 - Completed: prepare installation instructions, repository source snapshot and commit history.
 - Completed: generate and visually inspect the eight-page consolidated PDF and editable evidence document.
-- Final verification: publish the dedicated public submission branch and check the final archive.
+- Completed: publish and verify the public `technical-enrichment` branch; validate the final archive and checksums.
 - College handoff: guide verifies the selected activities and uploads the consolidated files to the designated OneDrive.
 - Deferred: broad project improvements and existing repository-wide style failures.
